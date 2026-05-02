@@ -1,5 +1,25 @@
 import Restaurant from '../models/restaurant.model.js'
 
+
+export const getMyRestaurantService = async (userId) => {
+  if (!userId) {
+    const error = new Error("User ID is required");
+    error.status = 400;
+    throw error;
+  }
+
+  const restaurant = await Restaurant.findOne({ owner: userId });
+
+  if (!restaurant) {
+    const error = new Error("No restaurant found for this owner");
+    error.status = 404;
+    throw error;
+  }
+
+  return restaurant;
+};
+
+
 /**
  * CREATE RESTAURANT
  */

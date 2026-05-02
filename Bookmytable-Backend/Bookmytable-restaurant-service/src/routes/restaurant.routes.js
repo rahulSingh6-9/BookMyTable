@@ -1,5 +1,5 @@
 import express from "express";
-import { create, getAll } from "../controllers/restaurant.controller.js";
+import { create, getAll, getMyRestaurant } from "../controllers/restaurant.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 import { authorize } from "../middleware/role.middleware.js";
 import { validate } from "../middleware/validate.middleware.js";
@@ -12,7 +12,10 @@ const router = express.Router();
 // PUBLIC — any visitor can browse restaurants
 router.get("/", getAll);
 
-// OWNER ONLY — create a new restaurant
+
+// OWNER ONLY — 
+router.get('/my', protect, getMyRestaurant)
+// create a new restaurant
 router.post("/", protect, authorize(ROLES.OWNER), validate(createRestaurantSchema), create);
 
 

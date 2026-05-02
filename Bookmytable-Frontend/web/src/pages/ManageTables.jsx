@@ -9,12 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit2, Trash2, Users, LayoutDashboard, List } from "lucide-react";
-import { useTables } from "@/hooks/useTables";
 import { useLayout } from "@/hooks/useLayout";
 import { TABLE_TYPES } from "@/lib/mockData";
 import { LayoutEditor } from "@/components/visual-layout/LayoutEditor";
 import { RoomSelector } from "@/components/visual-layout/RoomSelector";
 import { toast } from "sonner";
+
+import { useAuth } from "@/context/AuthContext";
+import { useMyRestaurant, } from "../hooks/useRestaurantSettings";
+import { useTables, useCreateTable, useUpdateTable, useDeleteTable } from "@/hooks/useTables";
 
 
 
@@ -25,44 +28,76 @@ const typeColor = {
 };
 
 export default function ManageTables() {
-  const { tables, addTable, updateTable, deleteTable } = useTables("1");
-  const { rooms, activeRoom, activeRoomId, setActiveRoomId, updateTablePosition, saveLayout } = useLayout("1");
+  const { user } = useAuth();
+  const { data: restaurant } = useMyRestaurant();
+  const restaurantId = restaurant?._id;
+
+  const { mutate: createTable, isPending: isCreating } = useCreateTable(restaurantId);
+  const { mutate: updateTable, isPending: isUpdating } = useUpdateTable(restaurantId);
+  const { mutate: deleteTable, isPending: isDeleting } = useDeleteTable(restaurantId);
+
+  const { data: tables = [], isLoading } = useTables(restaurantId);
+
+  const { rooms, activeRoom, activeRoomId, setActiveRoomId, updateTablePosition, saveLayout } = useLayout(restaurantId);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTable, setEditingTable] = useState(null);
-  const [form, setForm] = useState({ tableNumber: "", capacity: 2, type: "indoor", isActive: true });
+  const [form, setForm] = useState({ tableCode: "", capacity: 2, type: "indoor", floor: "", section: "" });
   const [activeTab, setActiveTab] = useState("list");
 
   const openNew = () => {
     setEditingTable(null);
-    setForm({ tableNumber: "", capacity: 2, type: "indoor", isActive: true });
+    setForm({ tableCode: "", capacity: 2, type: "indoor", floor: "", section: "", isActive: true });
     setDialogOpen(true);
   };
 
   const openEdit = (t) => {
     setEditingTable(t);
-    setForm({ tableNumber: t.tableNumber, capacity: t.capacity, type: t.type, isActive: t.isActive });
+    setForm({ 
+      tableCode: t.tableCode, 
+      capacity: t.capacity, 
+      type: t.type, 
+      floor: t.floor || "", 
+      section: t.section || "", 
+      isActive: t.isActive 
+    });
     setDialogOpen(true);
   };
 
+
   const handleSave = () => {
-    if (!form.tableNumber.trim()) {
-      toast.error("Table number is required");
+    if (!form.tableCode.trim()) {
+      toast.error("Table code is required");
       return;
     }
-    if (editingTable) {
-      updateTable(editingTable._id, form);
-      toast.success("Table updated");
-    } else {
-      addTable(form);
-      toast.success("Table added");
+
+    if (form.capacity < 1) {
+      toast.error("Capacity must be at least 1");
+      return;
     }
-    setDialogOpen(false);
+
+    if (!editingTable) {
+      createTable(form, {
+        onSuccess: () => {
+          setDialogOpen(false);
+          setForm({ tableCode: "", capacity: 2, type: "indoor", floor: "", section: "" });
+        },
+      });
+    } else {
+      updateTable({ tableId: editingTable._id, data: form }, {
+        onSuccess: () => {
+          setDialogOpen(false);
+          setEditingTable(null);
+        },
+      });
+    }
   };
 
+
   const handleDelete = (id) => {
-    deleteTable(id);
-    toast.success("Table removed");
+    if (window.confirm("Are you sure you want to delete this table?")) {
+      deleteTable(id);
+    }
   };
 
   const handleSaveLayout = () => {
@@ -112,22 +147,36 @@ export default function ManageTables() {
                       className="rounded-2xl border border-border/40 bg-card p-5 shadow-sm hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold text-card-foreground text-lg">{t.tableNumber}</h3>
+                        <h3 className="font-semibold text-card-foreground text-lg">{t.tableCode}</h3>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className={`text-xs capitalize ${typeColor[t.type] || ""}`}>{t.type}</Badge>
                           {!t.isActive && <Badge variant="secondary" className="text-xs">Inactive</Badge>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-4">
-                        <Users className="h-3.5 w-3.5" />
-                        <span>{t.capacity} seats</span>
+                      <div className="space-y-1.5 mb-4">
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <Users className="h-3.5 w-3.5" />
+                          <span>{t.capacity} seats</span>
+                        </div>
+                        {(t.floor || t.section) && (
+                          <p className="text-xs text-muted-foreground italic">
+                            {t.floor} {t.section && `• ${t.section}`}
+                          </p>
+                        )}
                       </div>
+
                       <div className="flex gap-2 border-t border-border/40 pt-4 mt-2">
                         <Button variant="ghost" size="sm" className="gap-1 flex-1 h-8 rounded-lg" onClick={() => openEdit(t)}>
                           <Edit2 className="h-3.5 w-3.5" /> Edit
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive flex-1 gap-1 h-8 rounded-lg" onClick={() => handleDelete(t._id)}>
-                          <Trash2 className="h-3.5 w-3.5" /> Remove
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive flex-1 gap-1 h-8 rounded-lg" 
+                          onClick={() => handleDelete(t._id)}
+                          disabled={isDeleting}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> {isDeleting ? "..." : "Remove"}
                         </Button>
                       </div>
                     </motion.div>
@@ -167,14 +216,35 @@ export default function ManageTables() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <Label className="mb-2 block text-sm font-medium">Table Number</Label>
+              <Label className="mb-2 block text-sm font-medium">Table Code</Label>
               <Input
                 placeholder="e.g., T-07"
-                value={form.tableNumber}
-                onChange={(e) => setForm((f) => ({ ...f, tableNumber: e.target.value }))}
+                value={form.tableCode}
+                onChange={(e) => setForm((f) => ({ ...f, tableCode: e.target.value }))}
                 className="rounded-lg"
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="mb-2 block text-sm font-medium">Floor</Label>
+                <Input
+                  placeholder="e.g., Ground"
+                  value={form.floor}
+                  onChange={(e) => setForm((f) => ({ ...f, floor: e.target.value }))}
+                  className="rounded-lg"
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block text-sm font-medium">Section</Label>
+                <Input
+                  placeholder="e.g., Hall"
+                  value={form.section}
+                  onChange={(e) => setForm((f) => ({ ...f, section: e.target.value }))}
+                  className="rounded-lg"
+                />
+              </div>
+            </div>
+
             <div>
               <Label className="mb-2 block text-sm font-medium">Capacity (seats)</Label>
               <Input
@@ -197,17 +267,17 @@ export default function ManageTables() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border border-border/40 mt-2">
-              <Label className="text-sm font-medium cursor-pointer">Active Table</Label>
-              <Switch
-                checked={form.isActive}
-                onCheckedChange={(v) => setForm((f) => ({ ...f, isActive: v }))}
-              />
-            </div>
+           
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+          <DialogFooter className="gap-2 sm:gap-0 mt-10 mb-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="rounded-lg">Cancel</Button>
-            <Button onClick={handleSave} className="rounded-lg">{editingTable ? "Save Changes" : "Create Table"}</Button>
+            <Button 
+              onClick={handleSave} 
+              className="rounded-lg" 
+              disabled={isCreating || isUpdating}
+            >
+              {isCreating ? "Creating..." : isUpdating ? "Saving..." : (editingTable ? "Save Changes" : "Create Table")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

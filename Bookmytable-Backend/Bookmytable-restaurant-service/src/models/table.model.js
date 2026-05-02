@@ -4,12 +4,13 @@ const tableSchema = new mongoose.Schema(
   {
     restaurant: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Restaurant", // ✅ FIXED
+      ref: "Restaurant",
       required: true,
       index: true,
     },
 
-    tableNumber: {
+    // Better than tableNumber
+    tableCode: {
       type: String,
       required: true,
       trim: true,
@@ -21,20 +22,28 @@ const tableSchema = new mongoose.Schema(
       min: 1,
     },
 
-    // 🔥 TABLE STATUS SYSTEM
-    status: {
-      type: String,
-      enum: ["available", "occupied", "reserved"],
-      default: "available",
-      index: true,
-    },
-
     type: {
       type: String,
       enum: ["indoor", "outdoor", "vip"],
       default: "indoor",
       index: true,
     },
+
+    // 🔥 SCALABILITY FIELDS
+    floor: {
+      type: String, // Ground, First, Rooftop
+    },
+
+    section: {
+      type: String, // Window, Hall, Poolside
+    },
+
+    position: {
+      x: Number,
+      y: Number,
+    }, // future visual layout editor
+
+    notes: String,
 
     isActive: {
       type: Boolean,
@@ -45,13 +54,13 @@ const tableSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 🔥 UNIQUE TABLE NUMBER PER RESTAURANT
+// ✅ UNIQUE PER RESTAURANT
 tableSchema.index(
-  { restaurant: 1, tableNumber: 1 },
+  { restaurant: 1, tableCode: 1 },
   { unique: true }
 );
 
-// 🔥 FAST AVAILABILITY QUERY
-tableSchema.index({ restaurant: 1, status: 1 });
+// ✅ FILTER OPTIMIZATION
+tableSchema.index({ restaurant: 1, isActive: 1 });
 
 export default mongoose.model("Table", tableSchema);

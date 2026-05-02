@@ -16,7 +16,7 @@ import Favorites from "./pages/Favorites";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import ManageTables from "./pages/ManageTables";
 import ManageReservations from "./pages/ManageReservations";
-import UploadMenu from "./pages/UploadMenu";
+import ManageMenu from "./pages/ManageMenu";
 import OwnerAnalytics from "./pages/OwnerAnalytics";
 import RestaurantSettings from "./pages/RestaurantSettings";
 import OwnerLayoutEditor from "./pages/OwnerLayoutEditor";
@@ -170,9 +170,9 @@ const App = () => (
         <Route
           path="/owner"
           element={
-            <RoleProtectedRoute allowedRoles={["owner"]}>
+            // <RoleProtectedRoute allowedRoles={["owner"]}>
               <OwnerLayout />
-            </RoleProtectedRoute>
+            // </RoleProtectedRoute>
           }
         >
           <Route index element={<Navigate to="dashboard" replace />} />
@@ -181,7 +181,7 @@ const App = () => (
           <Route path="layout" element={<OwnerLayoutEditor />} />
           <Route path="reservations" element={<ManageReservations />} />
           <Route path="availability" element={<OwnerAvailability />} />
-          <Route path="menu" element={<UploadMenu />} />
+          <Route path="menu" element={<ManageMenu />} />
           <Route path="analytics" element={<OwnerAnalytics />} />
           <Route path="settings" element={<RestaurantSettings />} />
           <Route path="subscription" element={<OwnerSubscription />} />

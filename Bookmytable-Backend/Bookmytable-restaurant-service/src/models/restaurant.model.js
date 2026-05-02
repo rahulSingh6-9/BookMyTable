@@ -1,19 +1,32 @@
 import mongoose from "mongoose";
 
-const openingHoursSchema = new mongoose.Schema(
+/**
+ * 🔥 Reusable Break Schema
+ */
+const breakSchema = new mongoose.Schema(
   {
-    day: {
-      type: String,
-      enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+    start: {
+      type: Number, // minutes from midnight (e.g. 14:00 → 840)
       required: true,
     },
-
-    open: {
-      type: String, // "10:00"
+    end: {
+      type: Number,
+      required: true,
     },
+  },
+  { _id: false }
+);
 
+/**
+ * 🔥 Daily Timing Schema
+ */
+const dayScheduleSchema = new mongoose.Schema(
+  {
+    open: {
+      type: Number, // e.g. 10:00 → 600
+    },
     close: {
-      type: String, // "23:00"
+      type: Number, // e.g. 23:00 → 1380
     },
 
     isClosed: {
@@ -21,19 +34,36 @@ const openingHoursSchema = new mongoose.Schema(
       default: false,
     },
 
-    breaks: [
-      {
-        start: String, // "15:00"
-        end: String,   // "17:00"
-      },
-    ],
+    breaks: {
+      type: [breakSchema],
+      default: [],
+    },
   },
   { _id: false }
 );
 
+/**
+ * 🔥 Weekly Schedule (OBJECT → FAST LOOKUP)
+ */
+const weeklyScheduleSchema = new mongoose.Schema(
+  {
+    mon: { type: dayScheduleSchema, required: true },
+    tue: { type: dayScheduleSchema, required: true },
+    wed: { type: dayScheduleSchema, required: true },
+    thu: { type: dayScheduleSchema, required: true },
+    fri: { type: dayScheduleSchema, required: true },
+    sat: { type: dayScheduleSchema, required: true },
+    sun: { type: dayScheduleSchema, required: true },
+  },
+  { _id: false }
+);
+
+/**
+ * 🔥 MAIN RESTAURANT SCHEMA
+ */
 const restaurantSchema = new mongoose.Schema(
   {
-    // 🔥 BASIC INFO
+    // 🔹 BASIC INFO
     name: {
       type: String,
       required: true,
@@ -78,12 +108,20 @@ const restaurantSchema = new mongoose.Schema(
       },
       coordinates: {
         type: [Number], // [lng, lat]
+        required: true,
       },
     },
 
     // 🖼️ MEDIA
-    images: [String],
-    menuImages: [String],
+    images: {
+      type: [String],
+      default: [],
+    },
+
+    menuImages: {
+      type: [String],
+      default: [],
+    },
 
     // ⭐ RATINGS
     rating: {
@@ -98,7 +136,7 @@ const restaurantSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // 🟢 STATUS (IMPORTANT FOR ADMIN PANEL)
+    // 🟢 STATUS
     status: {
       type: String,
       enum: ["pending", "approved", "suspended", "rejected"],
@@ -109,29 +147,40 @@ const restaurantSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
+      index: true,
     },
 
-    // ⏰ TIMINGS (ADVANCED)
-    openingHours: [openingHoursSchema],
+    // ⏰ TIMINGS (🔥 IMPROVED)
+    openingHours: {
+      type: weeklyScheduleSchema,
+      required: true,
+    },
 
-    // 💰 OPTIONAL FUTURE FIELDS
+    // 💰 OPTIONAL
     costForTwo: Number,
-    tags: [String], // "family", "fine-dining", "budget"
 
+    tags: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );
 
+/**
+ * 🔥 INDEXES (CRITICAL FOR SCALE)
+ */
 
-// 🔥 INDEXES (VERY IMPORTANT)
-
-// search
+// search optimization
 restaurantSchema.index({ city: 1, cuisine: 1 });
 
 // geo search
 restaurantSchema.index({ location: "2dsphere" });
 
-// owner lookup
+// owner dashboard
 restaurantSchema.index({ owner: 1 });
+
+// status filtering (admin panel)
+restaurantSchema.index({ status: 1, isActive: 1 });
 
 export default mongoose.model("Restaurant", restaurantSchema);

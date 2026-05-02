@@ -4,6 +4,10 @@ import apiClient from "../lib/api.js";
 // Restaurant API
 // ──────────────────────────────────────────────
 
+export function getMyRestaurant() {
+  return apiClient.get('/restaurants/my')
+}
+
 /**
  * Get all restaurants (public, supports query params for filtering).
  * @param {object} params - optional query params (city, cuisine, etc.)

@@ -26,7 +26,7 @@ export function WeeklyScheduleEditor({ openingHours, onToggleDay, onAddSlot, onR
               )}
             </div>
 
-            {dayData.isOpen && dayData.slots.length > 0 && (
+            {dayData.isOpen && dayData.slots && dayData.slots.length > 0 && (
               <div className="ml-12 space-y-2">
                 {dayData.slots.map((slot, idx) => (
                   <div key={idx} className="flex items-center gap-2">
@@ -51,7 +51,7 @@ export function WeeklyScheduleEditor({ openingHours, onToggleDay, onAddSlot, onR
               </div>
             )}
 
-            {dayData.isOpen && dayData.slots.length === 0 && (
+            {dayData.isOpen && (!dayData.slots || dayData.slots.length === 0) && (
               <p className="ml-12 text-xs text-muted-foreground">No slots added. Click "Add Slot" to set hours.</p>
             )}
 

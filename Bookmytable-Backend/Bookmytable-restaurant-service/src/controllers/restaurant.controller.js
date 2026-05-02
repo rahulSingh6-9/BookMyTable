@@ -1,4 +1,26 @@
 import { createRestaurant, getAllRestaurants } from "../services/restaurant.services.js"
+import { getMyRestaurantService } from "../services/restaurant.services.js";
+
+
+export const getMyRestaurant = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    const restaurant = await getMyRestaurantService(userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Restaurant fetched successfully",
+      data: restaurant,
+    });
+  } catch (error) {
+    res.status(error.status || 500).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+    });
+  }
+};
+
 
 export const create = async (req, res, next) => {
     try{

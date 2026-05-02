@@ -1,5 +1,7 @@
 import { useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { restaurantSettings, DAYS_OF_WEEK } from "@/lib/mockData";
+import { getMyRestaurant } from "../services/restaurant.service";
 
 const defaultOpeningHours = Object.fromEntries(
   DAYS_OF_WEEK.map((day) => [day, { isOpen: false, slots: [] }])
@@ -94,3 +96,13 @@ export function useRestaurantSettings(restaurantId = "1") {
     updateField,
   };
 }
+
+export const useMyRestaurant = () => {
+  return useQuery({
+    queryKey: ["my-restaurant"],
+    queryFn: async () => {
+      const res = await getMyRestaurant();
+      return res.data.data;
+    },
+  });
+};

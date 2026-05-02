@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, CalendarOff, CalendarCheck } from "lucide-react";
+import { Plus, Trash2, CalendarOff, CalendarCheck, Loader2 } from "lucide-react";
 
-export function SpecialDaysManager({ specialDays = [], onAdd, onRemove }) {
+export function SpecialDaysManager({ specialDays = [], onAdd, onRemove, isAdding, isDeleting }) {
   const [date, setDate] = useState("");
   const [isClosed, setIsClosed] = useState(true);
   const [slotOpen, setSlotOpen] = useState("10:00");
@@ -15,7 +15,7 @@ export function SpecialDaysManager({ specialDays = [], onAdd, onRemove }) {
     if (!date) return;
     const entry = isClosed
       ? { date, isOpen: false }
-      : { date, slots: [{ open: slotOpen, close: slotClose }] };
+      : { date, isOpen: true, slots: [{ open: slotOpen, close: slotClose }] };
     onAdd(entry);
     setDate("");
   };
@@ -38,8 +38,8 @@ export function SpecialDaysManager({ specialDays = [], onAdd, onRemove }) {
             <Input type="time" value={slotClose} onChange={(e) => setSlotClose(e.target.value)} className="w-32" />
           </div>
         )}
-        <Button size="sm" onClick={handleAdd} disabled={!date} className="gap-1">
-          <Plus className="h-3.5 w-3.5" /> Add Special Day
+        <Button size="sm" onClick={handleAdd} disabled={!date || isAdding} className="gap-1">
+          {isAdding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add Special Day
         </Button>
       </div>
 
@@ -49,7 +49,7 @@ export function SpecialDaysManager({ specialDays = [], onAdd, onRemove }) {
       )}
       <div className="space-y-2">
         {specialDays.map((sd, i) => (
-          <div key={i} className="flex items-center justify-between rounded-md border border-border px-4 py-3">
+          <div key={sd.date || i} className="flex items-center justify-between rounded-md border border-border px-4 py-3">
             <div className="flex items-center gap-3">
               {sd.isOpen === false ? (
                 <CalendarOff className="h-4 w-4 text-destructive" />
@@ -65,8 +65,8 @@ export function SpecialDaysManager({ specialDays = [], onAdd, onRemove }) {
                 </Badge>
               )}
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onRemove(i)}>
-              <Trash2 className="h-3.5 w-3.5" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onRemove(sd.date)} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
             </Button>
           </div>
         ))}
