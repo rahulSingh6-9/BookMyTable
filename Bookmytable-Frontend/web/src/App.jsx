@@ -23,8 +23,13 @@ import OwnerLayoutEditor from "./pages/OwnerLayoutEditor";
 import OwnerAvailability from "./pages/OwnerAvailability";
 import OwnerSubscription from "./pages/OwnerSubscription";
 import { StaffLayout } from "@/components/layout/StaffLayout";
+import StaffDashboard from "@/pages/staff/StaffDashboard";
+import StaffBookings from "@/pages/staff/StaffBookings";
 import StaffLiveTables from "@/pages/staff/LiveTables";
 import StaffWalkinBooking from "@/pages/staff/WalkinBooking";
+import StaffLogs from "@/pages/staff/StaffLogs";
+import AcceptInvite from "@/pages/staff/AcceptInvite";
+
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 import { OwnerLayout } from "@/components/layout/OwnerLayout";
@@ -49,6 +54,10 @@ import TopRated from "./pages/TopRated";
 import NewOpenings from "./pages/NewOpenings";
 import PartnerRegister from "./pages/PartnerRegister";
 import ResetPassword from "./pages/ResetPassword";
+import StaffListPage from "./pages/staff/StaffListPage";
+import OwnerLogsPage from "./pages/logs/OwnerLogsPage";
+
+
 
 import ProtectedRoute from "@/routes/ProtectedRoute";
 import RoleProtectedRoute from "@/routes/RoleProtectedRoute";
@@ -108,6 +117,7 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/accept-invite" element={<AcceptInvite />} />
 
 
           <Route
@@ -185,21 +195,66 @@ const App = () => (
           <Route path="analytics" element={<OwnerAnalytics />} />
           <Route path="settings" element={<RestaurantSettings />} />
           <Route path="subscription" element={<OwnerSubscription />} />
+          <Route path="staff" element={<StaffListPage />} />
+          <Route path="logs" element={<OwnerLogsPage />} />
+
         </Route>
 
-        {/* 👨‍🍳 STAFF PANEL (ROLE PROTECTED) */}
+
+        {/* 👨‍🍳 STAFF PANEL (PERMISSION DRIVEN) */}
         <Route
           path="/staff"
           element={
-            <RoleProtectedRoute allowedRoles={["staff"]}>
+            <RoleProtectedRoute allowedRoles={["staff", "owner", "admin"]}>
               <StaffLayout />
             </RoleProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="live-tables" replace />} />
-          <Route path="live-tables" element={<StaffLiveTables />} />
-          <Route path="walkin-booking" element={<StaffWalkinBooking />} />
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route 
+            path="dashboard" 
+            element={
+              <RoleProtectedRoute requiredPermissions={["view_bookings", "manage_tables"]}>
+                <StaffDashboard />
+              </RoleProtectedRoute>
+            } 
+          />
+          <Route 
+            path="bookings" 
+            element={
+              <RoleProtectedRoute requiredPermissions={["view_bookings"]}>
+                <StaffBookings />
+              </RoleProtectedRoute>
+            } 
+          />
+          <Route 
+            path="live-tables" 
+            element={
+              <RoleProtectedRoute requiredPermissions={["manage_tables"]}>
+                <StaffLiveTables />
+              </RoleProtectedRoute>
+            } 
+          />
+          <Route 
+            path="walkin-booking" 
+            element={
+              <RoleProtectedRoute requiredPermissions={["check_in_customers"]}>
+                <StaffWalkinBooking />
+              </RoleProtectedRoute>
+            } 
+          />
+          <Route 
+            path="logs" 
+            element={
+              <RoleProtectedRoute requiredPermissions={["view_logs"]}>
+                <StaffLogs />
+              </RoleProtectedRoute>
+            } 
+          />
         </Route>
+
+
+
 
         {/* ❌ 404 */}
         <Route path="*" element={<NotFound />} />

@@ -23,6 +23,10 @@ const createServiceProxy = (target, pathRewrite = {}) => {
             proxyReq.setHeader("x-user-roles", req.headers["x-user-roles"]);
           }
 
+          // 🔥 Set gateway secret for trust
+          proxyReq.setHeader("x-internal-gateway", process.env.GATEWAY_SECRET);
+
+
         } catch (err) {
           console.error("Proxy Error:", err.message);
         }

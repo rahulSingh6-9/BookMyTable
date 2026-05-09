@@ -7,10 +7,8 @@ import cors from 'cors'
 // Routes imports
 import authRoutes from './modules/auth/auth.routes.js'
 
-import tableRoutes from './modules/tables/table.routes.js'
 import layoutRoutes from './modules/layouts/layout.routes.js'
 import bookingRoutes from './modules/bookings/booking.routes.js'
-import tableLockRoutes from "./modules/table-locks/tableLock.routes.js"
 import availabilityRoutes from "./modules/availability/availability.routes.js";
 
 
@@ -45,10 +43,8 @@ app.use(cors({
 
 app.use('/auth', authRoutes)
 
-app.use('/api/tables', tableRoutes)
 app.use('/api/layouts', layoutRoutes)
 app.use('/api/bookings', bookingRoutes)
-app.use("/api/table-locks", tableLockRoutes)
 app.use("/api/availability", availabilityRoutes)
 
 // 🔥 404 Handler

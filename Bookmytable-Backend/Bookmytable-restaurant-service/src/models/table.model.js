@@ -2,65 +2,275 @@ import mongoose from "mongoose";
 
 const tableSchema = new mongoose.Schema(
   {
-    restaurant: {
+    /**
+     * =========================================================
+     * BRANCH RELATION
+     * =========================================================
+     */
+    branch: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Restaurant",
+      ref: "RestaurantBranch",
       required: true,
       index: true,
     },
 
-    // Better than tableNumber
+    /**
+     * =========================================================
+     * BRAND (optional but useful for enterprise queries)
+     * =========================================================
+     */
+    brand: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Brand",
+      index: true,
+    },
+
+    /**
+     * =========================================================
+     * TABLE IDENTIFICATION
+     * =========================================================
+     */
+
+    // Example:
+    // T1
+    // A-12
+    // VIP-02
     tableCode: {
       type: String,
       required: true,
       trim: true,
     },
 
+    displayName: {
+      type: String,
+      trim: true,
+    },
+
+    /**
+     * =========================================================
+     * CAPACITY
+     * =========================================================
+     */
     capacity: {
       type: Number,
       required: true,
       min: 1,
     },
 
+    minCapacity: {
+      type: Number,
+      default: 1,
+    },
+
+    maxCapacity: {
+      type: Number,
+    },
+
+    /**
+     * =========================================================
+     * TABLE TYPE
+     * =========================================================
+     */
     type: {
       type: String,
-      enum: ["indoor", "outdoor", "vip"],
+      enum: [
+        "indoor",
+        "outdoor",
+        "vip",
+        "private",
+        "bar",
+        "rooftop",
+        "family",
+        "couple",
+      ],
       default: "indoor",
       index: true,
     },
 
-    // 🔥 SCALABILITY FIELDS
+    /**
+     * =========================================================
+     * FLOOR + SECTION
+     * =========================================================
+     */
     floor: {
-      type: String, // Ground, First, Rooftop
+      type: String,
+      trim: true,
     },
 
     section: {
-      type: String, // Window, Hall, Poolside
+      type: String,
+      trim: true,
     },
 
+    /**
+     * =========================================================
+     * VISUAL LAYOUT POSITION
+     * =========================================================
+     */
     position: {
-      x: Number,
-      y: Number,
-    }, // future visual layout editor
+      x: {
+        type: Number,
+        default: 0,
+      },
 
-    notes: String,
+      y: {
+        type: Number,
+        default: 0,
+      },
 
+      rotation: {
+        type: Number,
+        default: 0,
+      },
+    },
+
+    /**
+     * =========================================================
+     * TABLE STATUS
+     * =========================================================
+     */
+    status: {
+      type: String,
+      enum: [
+        "available",
+        "occupied",
+        "reserved",
+        "maintenance",
+        "inactive",
+      ],
+      default: "available",
+      index: true,
+    },
+
+    /**
+     * =========================================================
+     * TABLE COMBINATION SUPPORT
+     * =========================================================
+     */
+    mergeGroup: {
+      type: String,
+      index: true,
+    },
+
+    canMergeWith: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Table",
+      },
+    ],
+
+    /**
+     * =========================================================
+     * BOOKING RULES
+     * =========================================================
+     */
+    bookingPriority: {
+      type: Number,
+      default: 0,
+    },
+
+    requiresDeposit: {
+      type: Boolean,
+      default: false,
+    },
+
+    minimumSpend: {
+      type: Number,
+      default: 0,
+    },
+
+    /**
+     * =========================================================
+     * FEATURES
+     * =========================================================
+     */
+    features: {
+      type: [String],
+      default: [],
+    },
+
+    // Examples:
+    // charging_port
+    // smoking
+    // sea_view
+    // wheelchair_accessible
+
+    /**
+     * =========================================================
+     * SOFT DELETE / ACTIVE
+     * =========================================================
+     */
     isActive: {
       type: Boolean,
       default: true,
       index: true,
     },
+
+    /**
+     * =========================================================
+     * NOTES
+     * =========================================================
+     */
+    notes: {
+      type: String,
+      trim: true,
+    },
+
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-// ✅ UNIQUE PER RESTAURANT
+/**
+ * =========================================================
+ * INDEXES
+ * =========================================================
+ */
+
+// Unique table code per branch
 tableSchema.index(
-  { restaurant: 1, tableCode: 1 },
-  { unique: true }
+  {
+    branch: 1,
+    tableCode: 1,
+  },
+  {
+    unique: true,
+  }
 );
 
-// ✅ FILTER OPTIMIZATION
-tableSchema.index({ restaurant: 1, isActive: 1 });
+// Fast booking lookup
+tableSchema.index({
+  branch: 1,
+  status: 1,
+  isActive: 1,
+});
+
+// Fast filtering
+tableSchema.index({
+  branch: 1,
+  floor: 1,
+  section: 1,
+});
+
+// Type filtering
+tableSchema.index({
+  branch: 1,
+  type: 1,
+});
+
+// Brand-level analytics
+tableSchema.index({
+  brand: 1,
+});
+
+// Merge support
+tableSchema.index({
+  mergeGroup: 1,
+});
 
 export default mongoose.model("Table", tableSchema);

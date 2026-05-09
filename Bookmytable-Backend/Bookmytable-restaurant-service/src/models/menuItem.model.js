@@ -1,29 +1,16 @@
 import mongoose from "mongoose";
 
-const menuItemSchema = new mongoose.Schema(
+/**
+ * =========================================================
+ * VARIANT SCHEMA
+ * =========================================================
+ */
+
+const variantSchema = new mongoose.Schema(
   {
-    restaurant: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Restaurant",
-      required: true,
-      index: true,
-    },
-
-    category: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "MenuCategory",
-      required: true,
-      index: true,
-    },
-
     name: {
       type: String,
       required: true,
-      trim: true,
-    },
-
-    description: {
-      type: String,
       trim: true,
     },
 
@@ -33,68 +20,413 @@ const menuItemSchema = new mongoose.Schema(
       min: 0,
     },
 
-    // 🔥 veg/non-veg filter
-    isVeg: {
+    isDefault: {
       type: Boolean,
       default: false,
+    },
+  },
+  { _id: false }
+);
+
+/**
+ * =========================================================
+ * ADDON SCHEMA
+ * =========================================================
+ */
+
+const addonSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    price: {
+      type: Number,
+      default: 0,
+    },
+  },
+  { _id: false }
+);
+
+/**
+ * =========================================================
+ * MAIN MENU ITEM
+ * =========================================================
+ */
+
+const menuItemSchema = new mongoose.Schema(
+  {
+    /**
+     * =========================================================
+     * BRAND
+     * =========================================================
+     */
+    brand: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Brand",
       index: true,
     },
 
-    // 🔥 availability control
+    /**
+     * =========================================================
+     * BRANCH
+     * =========================================================
+     */
+    branch: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "RestaurantBranch",
+      required: true,
+      index: true,
+    },
+
+    /**
+     * =========================================================
+     * CATEGORY
+     * =========================================================
+     */
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MenuCategory",
+      required: true,
+      index: true,
+    },
+
+    /**
+     * =========================================================
+     * BASIC INFO
+     * =========================================================
+     */
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    slug: {
+      type: String,
+      lowercase: true,
+      trim: true,
+    },
+
+    description: {
+      type: String,
+      trim: true,
+    },
+
+    shortDescription: {
+      type: String,
+      trim: true,
+    },
+
+    /**
+     * =========================================================
+     * PRICING
+     * =========================================================
+     */
+
+    // Base/default price
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    discountedPrice: {
+      type: Number,
+      min: 0,
+    },
+
+    costPrice: {
+      type: Number,
+      min: 0,
+    },
+
+    taxPercentage: {
+      type: Number,
+      default: 0,
+    },
+
+    /**
+     * =========================================================
+     * VARIANTS
+     * =========================================================
+     */
+
+    variants: {
+      type: [variantSchema],
+      default: [],
+    },
+
+    /**
+     * =========================================================
+     * ADDONS
+     * =========================================================
+     */
+
+    addons: {
+      type: [addonSchema],
+      default: [],
+    },
+
+    /**
+     * =========================================================
+     * FOOD TYPE
+     * =========================================================
+     */
+
+    foodType: {
+      type: String,
+      enum: [
+        "veg",
+        "non_veg",
+        "vegan",
+        "egg",
+        "jain",
+      ],
+      default: "veg",
+      index: true,
+    },
+
+    /**
+     * =========================================================
+     * AVAILABILITY
+     * =========================================================
+     */
+
     isAvailable: {
       type: Boolean,
       default: true,
       index: true,
     },
 
-    // 🔥 soft delete
+    availableFrom: {
+      type: Number,
+    },
+
+    availableTill: {
+      type: Number,
+    },
+
+    /**
+     * =========================================================
+     * STOCK CONTROL
+     * =========================================================
+     */
+
+    trackInventory: {
+      type: Boolean,
+      default: false,
+    },
+
+    stockQuantity: {
+      type: Number,
+      default: 0,
+    },
+
+    /**
+     * =========================================================
+     * MEDIA
+     * =========================================================
+     */
+
+    image: {
+      type: String,
+      default: null,
+    },
+
+    imagePublicId: {
+      type: String,
+      default: null,
+    },
+
+    /**
+     * =========================================================
+     * PREPARATION
+     * =========================================================
+     */
+
+    preparationTime: {
+      type: Number,
+      default: 10,
+    },
+
+    kitchenStation: {
+      type: String,
+      trim: true,
+    },
+
+    /**
+     * =========================================================
+     * UI ORDERING
+     * =========================================================
+     */
+
+    order: {
+      type: Number,
+      default: 0,
+    },
+
+    /**
+     * =========================================================
+     * FEATURES
+     * =========================================================
+     */
+
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+
+    isRecommended: {
+      type: Boolean,
+      default: false,
+    },
+
+    isChefSpecial: {
+      type: Boolean,
+      default: false,
+    },
+
+    /**
+     * =========================================================
+     * TAGS
+     * =========================================================
+     */
+
+    tags: {
+      type: [String],
+      default: [],
+    },
+
+    /**
+     * =========================================================
+     * ANALYTICS
+     * =========================================================
+     */
+
+    rating: {
+      type: Number,
+      default: 0,
+    },
+
+    totalReviews: {
+      type: Number,
+      default: 0,
+    },
+
+    totalOrders: {
+      type: Number,
+      default: 0,
+    },
+
+    /**
+     * =========================================================
+     * VISIBILITY
+     * =========================================================
+     */
+
+    visibility: {
+      dineIn: {
+        type: Boolean,
+        default: true,
+      },
+
+      takeaway: {
+        type: Boolean,
+        default: true,
+      },
+
+      delivery: {
+        type: Boolean,
+        default: true,
+      },
+    },
+
+    /**
+     * =========================================================
+     * SOFT DELETE
+     * =========================================================
+     */
+
     isActive: {
       type: Boolean,
       default: true,
       index: true,
     },
 
-    // 🔥 optional image
-    image: {
-      type: String,
-      default: null,
-    },
-    imagePublicId: {
-      type: String,
-      default: null,
-    },
+    /**
+     * =========================================================
+     * METADATA
+     * =========================================================
+     */
 
-    // 🔥 prep time (future: kitchen optimization)
-    preparationTime: {
-      type: Number, // minutes
-      default: 10,
-    },
-
-    // 🔥 UI ordering inside category
-    order: {
-      type: Number,
-      default: 0,
-    },
-
-    // 🔥 FUTURE READY (important)
-    tags: [String], // "spicy", "popular", etc.
-
-    // 🔥 FUTURE: rating / analytics
-    rating: {
-      type: Number,
-      default: 0,
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-// 🔥 Unique item name per category per restaurant
+/**
+ * =========================================================
+ * INDEXES
+ * =========================================================
+ */
+
+// Unique item per category in branch
 menuItemSchema.index(
-  { restaurant: 1, category: 1, name: 1 },
-  { unique: true }
+  {
+    branch: 1,
+    category: 1,
+    name: 1,
+  },
+  {
+    unique: true,
+  }
 );
 
-// 🔥 Fast query
-menuItemSchema.index({ restaurant: 1, isAvailable: 1 });
+// Fast menu loading
+menuItemSchema.index({
+  branch: 1,
+  isAvailable: 1,
+  isActive: 1,
+});
 
-export default mongoose.model("MenuItem", menuItemSchema);
+// Category filtering
+menuItemSchema.index({
+  category: 1,
+  order: 1,
+});
+
+// Food filtering
+menuItemSchema.index({
+  branch: 1,
+  foodType: 1,
+});
+
+// Featured items
+menuItemSchema.index({
+  branch: 1,
+  isFeatured: 1,
+});
+
+// Analytics
+menuItemSchema.index({
+  branch: 1,
+  totalOrders: -1,
+});
+
+// Brand analytics
+menuItemSchema.index({
+  brand: 1,
+});
+
+export default mongoose.model(
+  "MenuItem",
+  menuItemSchema
+);

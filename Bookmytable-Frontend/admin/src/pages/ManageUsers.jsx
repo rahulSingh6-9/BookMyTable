@@ -22,16 +22,46 @@ export default function ManageUsers() {
     queryFn: getAllUsers,
   });
 
+  console.log("API DATA (React Query result):", data);
+  // Temporary debug to confirm response nesting matches expectations
+  console.log("API DATA.data:", data?.data);
+  console.log("API DATA.data.data (array?):", data?.data?.data);
+
   // 🔥 Format backend data → table format
-  const users =
-    data?.data?.data?.map((user) => ({
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.roles?.join(", "),
-      status: user.isBlocked ? "Blocked" : "Active",
-      createdAt: new Date(user.createdAt).toLocaleDateString(),
-    })) || [];
+  // React Query `data` here can be one of:
+  // 1) Full Axios response: { data: { success, data: [...] } }
+  // 2) Unwrapped payload:   { success, data: [...] }
+  // 3) Direct array:        [ ...users ]
+  // 4) Nested users key:    { success, users: [...] } or { data: { users: [...] } }
+  let usersArray = [];
+
+  if (Array.isArray(data)) {
+    usersArray = data;
+  } else if (Array.isArray(data?.data?.data)) {
+    usersArray = data.data.data;
+  } else if (Array.isArray(data?.data?.users)) {
+    usersArray = data.data.users;
+  } else if (Array.isArray(data?.data)) {
+    usersArray = data.data;
+  } else if (Array.isArray(data?.users)) {
+    usersArray = data.users;
+  } else if (Array.isArray(data?.data?.results)) {
+    usersArray = data.data.results;
+  }
+
+  console.log("Derived usersArray (final):", usersArray);
+  console.log("usersArray length:", usersArray?.length ?? 0);
+
+  const users = usersArray.map((user) => ({
+    id: user._id,
+    // Backend may not always provide `name/roles/createdAt` for this endpoint,
+    // so we keep sensible fallbacks to avoid empty cells.
+    name: user.name ?? user.email,
+    email: user.email,
+    role: user.roles?.join(", ") ?? user.role ?? "",
+    status: user.isBlocked ? "Blocked" : "Active",
+    createdAt: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "",
+  }));
 
   // 🔥 Columns
   const columns = [

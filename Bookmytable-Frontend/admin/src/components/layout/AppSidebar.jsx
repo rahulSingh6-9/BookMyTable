@@ -11,7 +11,8 @@ import {
   SidebarMenuItem,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Users, Store, CalendarCheck, MessageSquare, CreditCard, Bell, BarChart3, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Store, CalendarCheck, MessageSquare, CreditCard, Bell, BarChart3, Settings, LogOut, ShieldAlert } from "lucide-react";
+
 import { useAdminAuth } from "../../context/AuthContext";
 
 export function AppSidebar() {
@@ -49,8 +50,10 @@ export function AppSidebar() {
         { title: "Payments", url: "/admin/payments", icon: CreditCard },
         { title: "Notifications", url: "/admin/notifications", icon: Bell },
         { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
+        { title: "System Logs", url: "/admin/logs", icon: ShieldAlert },
       ],
     },
+
     {
       label: "Settings",
       items: [

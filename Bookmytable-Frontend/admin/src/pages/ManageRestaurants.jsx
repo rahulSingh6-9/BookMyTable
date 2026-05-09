@@ -76,7 +76,7 @@ export default function ManageRestaurants() {
   // Axios wraps: response.data → { success, count, data: [...] }
   const restaurants =
     data?.data?.data?.map((r) => ({
-      id: r.id,
+      id: r.id || r._id,
       name: r.name,
       owner: r.owner?.name || "N/A",
       city: r.city || "—",

@@ -1,12 +1,14 @@
 import express from "express";
 import cors from "cors";
-import "./models/user.model.js"; // 🔥 Register User model for populate
-import restaurantRoutes from "./routes/restaurant.routes.js";
-import adminRoutes from "./routes/admin.routes.js"
-import tableRoutes from "./routes/table.routes.js"
-import menuCategoryRoutes from "./routes/menuCategory.routes.js"
-import menuItemRoutes from "./routes/menuItem.routes.js"
-import settingsRoutes from "./routes/settings.routes.js"
+import restaurantRoutes from "./modules/restaurant/restaurant.routes.js";
+import tableRoutes from "./modules/table/table.routes.js"
+import menuCategoryRoutes from "./modules/menu-category/menuCategory.routes.js"
+import menuItemRoutes from "./modules/menu-item/menuItem.routes.js"
+import settingsRoutes from "./modules/settings/settings.routes.js"
+import staffRoutes from "./modules/staff/staff.routes.js"
+import logRoutes from "./modules/log/log.routes.js"
+
+import adminRoutes from "./modules/admin/admin.routes.js";
 
 
 const app = express();
@@ -14,11 +16,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use("/restaurants", restaurantRoutes);
-app.use("/admin", adminRoutes)
+app.use("/logs", logRoutes);
+
+app.use("/internal", adminRoutes);
+
+app.use("/restaurants", restaurantRoutes)
 app.use("/tables", tableRoutes)
 app.use("/menu-categories", menuCategoryRoutes)
-app.use("/menu-items", menuItemRoutes);
+app.use("/menu-items", menuItemRoutes)
 app.use("/availability", settingsRoutes)
+app.use("/staff", staffRoutes)
+
 
 export default app;

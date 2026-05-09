@@ -4,6 +4,7 @@ export function getMe() {
     return api.get("/users/me", )
 }
 
-export function getAllUsers() {
-    return api.get("/admin/users");
+export async function getAllUsers() {
+    const response = await api.get("/admin/users");
+    return response.data;
 }

@@ -28,7 +28,10 @@ import {
   Table2,
   TvMinimalPlay,
   Zap,
+  Users,
+  History,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
@@ -41,9 +44,12 @@ const ownerLinks = [
   { title: "Availability (Live)", url: "/owner/availability", icon: Zap },
   { title: "Menu", url: "/owner/menu", icon: MenuSquare },
   { title: "Analytics", url: "/owner/analytics", icon: BarChart3 },
+  { title: "Staff", url: "/owner/staff", icon: Users },
+  { title: "Audit Logs", url: "/owner/logs", icon: History },
   { title: "Settings", url: "/owner/settings", icon: Settings },
   { title: "Subscription", url: "/owner/subscription", icon: Crown },
 ];
+
 
 export function OwnerSidebar() {
   const { state } = useSidebar();

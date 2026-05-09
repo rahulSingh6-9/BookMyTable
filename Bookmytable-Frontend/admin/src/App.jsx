@@ -14,7 +14,9 @@ import ManageReviews from "./pages/ManageReviews";
 import Payments from "./pages/Payments";
 import Notifications from "./pages/Notifications";
 import PlatformAnalytics from "./pages/PlatformAnalytics";
+import AdminLogsPage from "./pages/AdminLogsPage";
 import Settings from "./pages/Settings";
+
 import { AdminAuthProvider } from "./context/AuthContext";
 import AdminProtectedRoute from "./routes/ProtectedRoute"
 
@@ -57,7 +59,9 @@ export default function App() {
                 <Route path="payments" element={<Payments />} />
                 <Route path="notifications" element={<Notifications />} />
                 <Route path="analytics" element={<PlatformAnalytics />} />
+                <Route path="logs" element={<AdminLogsPage />} />
                 <Route path="settings" element={<Settings />} />
+
               </Route>
 
               {/* 404 Redirect */}

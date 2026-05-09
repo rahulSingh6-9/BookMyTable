@@ -12,10 +12,7 @@ export const connectDB = async () => {
   try {
     const conn = await mongoose.connect("mongodb://localhost:27017/", {
       dbName: "bookmytable", // 🔥 your DB name
-      // useNewUrlParser: true,
-      // useCreateIndex: true,
-      // useUnifiedTopology: true,
-      // useFindAndModify: false
+     
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);

@@ -4,6 +4,9 @@ export const getTables = async (restaurantId) => {
   return await apiClient.get(`/tables/${restaurantId}`);
 };
 
+export const getRestaurantTables = getTables;
+
+
 export const createTable = async (restaurantId, data) => {
   return await apiClient.post(`/tables/${restaurantId}`, data);
 };

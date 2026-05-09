@@ -1,28 +1,41 @@
-import jwt from 'jsonwebtoken'
-
 export const protect = (req, res, next) => {
-    try{
-      const token = req.headers.authorization?.split(' ')[1]
+  const userId = req.headers["x-user-id"];
+  const rolesHeader = req.headers["x-user-roles"];
+  const gatewaySecret = req.headers["x-internal-gateway"];
 
-      if(!token){
-        return res.status(401).json({ 
-          success: false,
-          message: "No token provided"
-        })
-      }
+  console.log(`[UserService] Received headers - x-user-id: ${userId}, x-user-roles: ${rolesHeader}`);
 
-      console.log("🔐 Verifying token with secret:", process.env.JWT_SECRET?.substring(0, 5) + "..."); //++++Testing
-      const decoded = jwt.verify(token, process.env.JWT_SECRET)
-      console.log("auth.middleware.js✅ Token verified, decoded:", decoded); //++++Testing
+  // 🔐 Verify request is from API Gateway or Admin Service
+  if (gatewaySecret !== process.env.GATEWAY_SECRET) {
+    console.error("[UserService] ❌ Invalid gateway secret!");
+    return res.status(403).json({
+      success: false,
+      message: "Forbidden: Request must come from API Gateway",
+    });
+  }
 
-      req.user = decoded // { _id, role }
+  if (!userId) {
+    console.error("[UserService] ❌ Missing x-user-id header!");
+    return res.status(401).json({
+      success: false,
+      message: "Authentication failed: No user ID provided",
+    });
+  }
 
-      next()
-    }catch(error){
-        console.error("❌ Token verification failed:", error.message); //++++Testing
-        return res.status(401).json({ 
-          success: false,
-          message: "Invalid or expired token"
-        })
+  let roles = [];
+  if (rolesHeader) {
+    try {
+      roles = JSON.parse(rolesHeader);
+    } catch (err) {
+      roles = rolesHeader.split(",").map((r) => r.trim());
     }
-}
+  }
+
+  req.user = {
+    id: userId,
+    _id: userId, // backwards-compatible alias
+    roles,
+  };
+
+  next();
+};

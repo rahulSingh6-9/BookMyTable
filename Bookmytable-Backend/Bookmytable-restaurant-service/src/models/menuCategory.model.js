@@ -2,17 +2,44 @@ import mongoose from "mongoose";
 
 const menuCategorySchema = new mongoose.Schema(
   {
-    restaurant: {
+    /**
+     * =========================================================
+     * BRAND
+     * =========================================================
+     */
+    brand: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Restaurant",
+      ref: "Brand",
+      index: true,
+    },
+
+    /**
+     * =========================================================
+     * BRANCH
+     * =========================================================
+     */
+    branch: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "RestaurantBranch",
       required: true,
       index: true,
     },
 
+    /**
+     * =========================================================
+     * CATEGORY INFO
+     * =========================================================
+     */
     name: {
       type: String,
       required: true,
       trim: true,
+    },
+
+    slug: {
+      type: String,
+      trim: true,
+      lowercase: true,
     },
 
     description: {
@@ -20,26 +47,117 @@ const menuCategorySchema = new mongoose.Schema(
       trim: true,
     },
 
-    // 🔥 UI ordering
+    /**
+     * =========================================================
+     * MEDIA
+     * =========================================================
+     */
+    image: {
+      type: String,
+      trim: true,
+    },
+
+    icon: {
+      type: String,
+      trim: true,
+    },
+
+    /**
+     * =========================================================
+     * UI ORDERING
+     * =========================================================
+     */
     order: {
       type: Number,
       default: 0,
+      index: true,
     },
 
-    // 🔥 soft delete
+    /**
+     * =========================================================
+     * AVAILABILITY
+     * =========================================================
+     */
+    availableFrom: {
+      type: Number, // minutes from midnight
+    },
+
+    availableTill: {
+      type: Number,
+    },
+
+    /**
+     * =========================================================
+     * STATUS
+     * =========================================================
+     */
     isActive: {
       type: Boolean,
       default: true,
       index: true,
     },
+
+    /**
+     * =========================================================
+     * FEATURE FLAGS
+     * =========================================================
+     */
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+
+    /**
+     * =========================================================
+     * METADATA
+     * =========================================================
+     */
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-// 🔥 Unique category name per restaurant
+/**
+ * =========================================================
+ * INDEXES
+ * =========================================================
+ */
+
+// Unique category name per branch
 menuCategorySchema.index(
-  { restaurant: 1, name: 1 },
-  { unique: true }
+  {
+    branch: 1,
+    name: 1,
+  },
+  {
+    unique: true,
+  }
 );
 
-export default mongoose.model("MenuCategory", menuCategorySchema);
+// Fast menu rendering
+menuCategorySchema.index({
+  branch: 1,
+  isActive: 1,
+  order: 1,
+});
+
+// Brand analytics
+menuCategorySchema.index({
+  brand: 1,
+});
+
+// Featured categories
+menuCategorySchema.index({
+  branch: 1,
+  isFeatured: 1,
+});
+
+export default mongoose.model(
+  "MenuCategory",
+  menuCategorySchema
+);

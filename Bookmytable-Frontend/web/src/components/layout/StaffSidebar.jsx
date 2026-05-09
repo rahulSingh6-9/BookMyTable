@@ -1,6 +1,14 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ClipboardList, LogOut, PanelsTopLeft, UserRound } from "lucide-react";
+import { 
+  ClipboardList, 
+  LogOut, 
+  PanelsTopLeft, 
+  UserRound, 
+  CalendarDays, 
+  LayoutDashboard,
+  History
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { NavLink } from "@/components/NavLink";
@@ -20,11 +28,40 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
+import { usePermission } from "@/components/auth/PermissionGuard";
 import { cn } from "@/lib/utils";
 
 const staffLinks = [
-  { title: "Live Tables", url: "/staff/live-tables", icon: PanelsTopLeft },
-  { title: "Walk-in Booking", url: "/staff/walkin-booking", icon: ClipboardList },
+  { 
+    title: "Dashboard", 
+    url: "/staff/dashboard", 
+    icon: LayoutDashboard,
+    permissions: ["view_bookings", "manage_tables"] // Common for manager
+  },
+  { 
+    title: "Bookings", 
+    url: "/staff/bookings", 
+    icon: CalendarDays,
+    permissions: ["view_bookings"]
+  },
+  { 
+    title: "Live Tables", 
+    url: "/staff/live-tables", 
+    icon: PanelsTopLeft,
+    permissions: ["manage_tables"]
+  },
+  { 
+    title: "Walk-in Booking", 
+    url: "/staff/walkin-booking", 
+    icon: ClipboardList,
+    permissions: ["check_in_customers"]
+  },
+  { 
+    title: "Audit Logs", 
+    url: "/staff/logs", 
+    icon: History,
+    permissions: ["view_logs"]
+  },
 ];
 
 export function StaffSidebar() {
@@ -32,8 +69,13 @@ export function StaffSidebar() {
   const collapsed = state === "collapsed";
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { hasPermission } = usePermission();
 
   const displayName = useMemo(() => user?.name || "Staff", [user?.name]);
+
+  const filteredLinks = useMemo(() => {
+    return staffLinks.filter(link => !link.permissions || hasPermission(link.permissions));
+  }, [hasPermission]);
 
   const handleLogout = () => {
     try {
@@ -64,12 +106,12 @@ export function StaffSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Staff</SidebarGroupLabel>
+          <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {staffLinks.map((item) => (
+              {filteredLinks.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild tooltip={item.title}>
                     <NavLink
                       to={item.url}
                       end
@@ -106,4 +148,5 @@ export function StaffSidebar() {
     </Sidebar>
   );
 }
+
 
