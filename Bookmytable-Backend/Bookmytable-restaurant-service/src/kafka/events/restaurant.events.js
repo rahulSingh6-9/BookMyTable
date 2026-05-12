@@ -1,3 +1,4 @@
+import crypto from "crypto";
 /**
  * Standardized event builders for Restaurant Service
  */
@@ -8,11 +9,13 @@ export const RestaurantEvents = {
     action: "CREATED",
     payload: {
       id: restaurant._id.toString(),
-      name: restaurant.name,
+      brandId: restaurant.brandId?.toString(),
+      branchName: restaurant.branchName,
+      branchCode: restaurant.branchCode,
       owner: ownerId.toString(),
       status: restaurant.status,
-      city: restaurant.city,
-      cuisine: restaurant.cuisine,
+      city: restaurant.address?.city,
+      address: restaurant.address?.addressLine1,
       isActive: restaurant.isActive,
       createdAt: restaurant.createdAt,
     },
@@ -20,21 +23,31 @@ export const RestaurantEvents = {
     version: 1,
   }),
 
-  restaurantUpdated: (restaurant, action, adminId = null) => ({
-    eventType: "RESTAURANT_UPDATED",
-    action, // e.g., "STATUS_CHANGED", "DETAILS_UPDATED"
-    payload: {
-      id: restaurant._id.toString(),
-      name: restaurant.name,
-      owner: restaurant.owner?._id?.toString() || restaurant.owner?.toString(),
-      ownerEmail: restaurant.owner?.email || restaurant.contact?.email,
-      status: restaurant.status,
-      city: restaurant.city,
-      cuisine: restaurant.cuisine,
-      isActive: restaurant.isActive,
-    },
-    adminId,
-    timestamp: Date.now(),
-    version: 1,
-  }),
+  restaurantUpdated: (restaurant, action, metadata = {}) => {
+    const { correlationId, tenantContext, actorId } = restaurant;
+    
+    return {
+      id: crypto.randomUUID(),
+      source: "restaurant-service",
+      type: "com.bookmytable.restaurant.updated",
+      action,
+      correlationId: correlationId || metadata.correlationId,
+      actorId: actorId || metadata.adminId,
+      context: tenantContext || metadata.context,
+      payload: {
+        id: restaurant._id?.toString() || restaurant.id,
+        brandId: restaurant.brandId?.toString(),
+        branchName: restaurant.branchName,
+        branchCode: restaurant.branchCode,
+        owner: restaurant.owner?._id?.toString() || restaurant.owner?.toString() || restaurant.owner,
+        ownerEmail: restaurant.owner?.email || restaurant.contact?.email,
+        status: restaurant.status,
+        city: restaurant.address?.city,
+        address: restaurant.address?.addressLine1,
+        isActive: restaurant.isActive,
+      },
+      timestamp: Date.now(),
+      version: 1,
+    };
+  },
 };

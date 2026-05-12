@@ -72,15 +72,13 @@ export default function ManageRestaurants() {
   });
 
   // 🔥 Map backend DTO → table rows
-  // Backend now returns: { id, name, owner: { id, name, email }, status, city, createdAt }
-  // Axios wraps: response.data → { success, count, data: [...] }
   const restaurants =
     data?.data?.data?.map((r) => ({
       id: r.id || r._id,
-      name: r.name,
-      owner: r.owner?.name || "N/A",
-      city: r.city || "—",
-      status: r.status || "pending",           // lowercase — matches DB enum
+      name: r.branchName || r.name || r.restaurantName || "Unnamed Branch",
+      brand: r.brandId?.name || r.brand?.name || r.brandName || "Independent",
+      city: r.city || r.address?.city || "—",
+      status: r.status || "pending",
       statusLabel: capitalize(r.status || "pending"),
       createdAt: r.createdAt
         ? new Date(r.createdAt).toLocaleDateString("en-IN", {
@@ -92,7 +90,7 @@ export default function ManageRestaurants() {
   // ── Columns ──────────────────────────────────────────────────────────────
   const columns = [
     {
-      header: "Restaurant Name",
+      header: "Branch Name",
       accessorKey: "name",
       cell: (row) => (
         <div className="font-medium flex items-center gap-2">
@@ -101,7 +99,7 @@ export default function ManageRestaurants() {
         </div>
       ),
     },
-    { header: "Owner",      accessorKey: "owner" },
+    { header: "Brand",      accessorKey: "brand" },
     { header: "City",       accessorKey: "city" },
     { header: "Created At", accessorKey: "createdAt" },
     {
@@ -167,8 +165,8 @@ export default function ManageRestaurants() {
     <div className="space-y-6 max-w-7xl mx-auto animation-fade-in">
       <div className="flex items-center justify-between">
         <PageHeader
-          title="Restaurants Management"
-          description="Review, approve, and manage restaurant listings."
+          title="Branch Management"
+          description="Review, approve, and manage individual restaurant branches."
         />
 
         {/* Server-side status filter dropdown */}

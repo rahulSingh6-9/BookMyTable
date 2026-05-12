@@ -8,6 +8,7 @@ import AdminLayout from "./components/layout/AdminLayout";
 import AdminPanel from "./pages/AdminPanel";
 import Login from "./pages/Login";
 import ManageUsers from "./pages/ManageUsers";
+import ManageBrands from "./pages/ManageBrands";
 import ManageRestaurants from "./pages/ManageRestaurants";
 import ManageBookings from "./pages/ManageBookings";
 import ManageReviews from "./pages/ManageReviews";
@@ -17,8 +18,9 @@ import PlatformAnalytics from "./pages/PlatformAnalytics";
 import AdminLogsPage from "./pages/AdminLogsPage";
 import Settings from "./pages/Settings";
 
+import { PermissionProtectedRoute } from "./routes/PermissionProtectedRoute"
 import { AdminAuthProvider } from "./context/AuthContext";
-import AdminProtectedRoute from "./routes/ProtectedRoute"
+import AdminProtectedRoute from "./routes/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -52,15 +54,73 @@ export default function App() {
                 }
               >
                 <Route index element={<AdminPanel />} />
-                <Route path="users" element={<ManageUsers />} />
-                <Route path="restaurants" element={<ManageRestaurants />} />
-                <Route path="bookings" element={<ManageBookings />} />
-                <Route path="reviews" element={<ManageReviews />} />
-                <Route path="payments" element={<Payments />} />
-                <Route path="notifications" element={<Notifications />} />
-                <Route path="analytics" element={<PlatformAnalytics />} />
-                <Route path="logs" element={<AdminLogsPage />} />
-                <Route path="settings" element={<Settings />} />
+                
+                <Route path="users" element={
+                  <PermissionProtectedRoute permission="users.view">
+                    <ManageUsers />
+                  </PermissionProtectedRoute>
+                } />
+                
+                <Route path="brands" element={
+                  <PermissionProtectedRoute permission="brands.view">
+                    <ManageBrands />
+                  </PermissionProtectedRoute>
+                } />
+                
+                <Route path="restaurants" element={
+                  <PermissionProtectedRoute permission="restaurants.view">
+                    <ManageRestaurants />
+                  </PermissionProtectedRoute>
+                } />
+                
+                <Route path="bookings" element={
+                  <PermissionProtectedRoute permission="bookings.view">
+                    <ManageBookings />
+                  </PermissionProtectedRoute>
+                } />
+                
+                <Route path="reviews" element={
+                  <PermissionProtectedRoute permission="content.moderate">
+                    <ManageReviews />
+                  </PermissionProtectedRoute>
+                } />
+                
+                <Route path="payments" element={
+                  <PermissionProtectedRoute permission="payments.view">
+                    <Payments />
+                  </PermissionProtectedRoute>
+                } />
+                
+                <Route path="notifications" element={
+                  <PermissionProtectedRoute permission="settings.manage">
+                    <Notifications />
+                  </PermissionProtectedRoute>
+                } />
+                
+                <Route path="analytics" element={
+                  <PermissionProtectedRoute permission="analytics.view">
+                    <PlatformAnalytics />
+                  </PermissionProtectedRoute>
+                } />
+                
+                <Route path="logs" element={
+                  <PermissionProtectedRoute permission="audit_logs.view">
+                    <AdminLogsPage />
+                  </PermissionProtectedRoute>
+                } />
+                
+                <Route path="settings" element={
+                  <PermissionProtectedRoute permission="settings.manage">
+                    <Settings />
+                  </PermissionProtectedRoute>
+                } />
+
+                {/* NEW Admin Management */}
+                <Route path="management" element={
+                  <PermissionProtectedRoute permission="admins.manage">
+                    <div className="p-8">Admin Management Page (Implementing...)</div>
+                  </PermissionProtectedRoute>
+                } />
 
               </Route>
 

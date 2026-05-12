@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { getMe } from "../services/user.service.js";
 import { login as loginApi } from "../services/auth.service.js";
 import { socket } from "../services/socket.js";
+import { jwtDecode } from "jwt-decode";
 
 const AdminAuthContext = createContext();
 
@@ -18,6 +19,47 @@ export const AdminAuthProvider = ({ children }) => {
   const [admin, setAdmin] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const ADMIN_ROLES = [
+    "admin", "super_admin", "SUPER_ADMIN", "PLATFORM_ADMIN", 
+    "SUPPORT_ADMIN", "FINANCE_ADMIN", "OPERATIONS_ADMIN", 
+    "CONTENT_MODERATOR", "ANALYTICS_ADMIN", "RESTAURANT_APPROVAL_MANAGER", 
+    "STAFF_MANAGEMENT_ADMIN"
+  ];
+
+  const hasPermission = (permission) => {
+    if (!admin?.permissions) return false;
+    if (admin.permissions.includes("*")) return true;
+    return admin.permissions.includes(permission);
+  };
+
+  const hasAnyPermission = (permissions) => {
+    if (!admin?.permissions) return false;
+    if (admin.permissions.includes("*")) return true;
+    return permissions.some(p => admin.permissions.includes(p));
+  };
+
+  const hasRole = (role) => {
+    return admin?.roles?.includes(role) || admin?.roles?.includes("SUPER_ADMIN") || admin?.roles?.includes("super_admin");
+  };
+
+  const decodeAndSetAdmin = (token, userData) => {
+    try {
+      const decoded = jwtDecode(token);
+      const enrichedAdmin = {
+        ...userData,
+        roles: decoded.roles || userData.roles || [],
+        permissions: decoded.permissions || [],
+      };
+      setAdmin(enrichedAdmin);
+      localStorage.setItem("admin", JSON.stringify(enrichedAdmin));
+      return enrichedAdmin;
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      setAdmin(userData);
+      return userData;
+    }
+  };
+
   // 🔐 ADMIN LOGIN
   const login = async (email, password) => {
     try {
@@ -31,21 +73,23 @@ export const AdminAuthProvider = ({ children }) => {
       const userData = userRes.data.data;
 
       // 🚫 BLOCK if not admin
-      if (!userData.roles?.includes("admin")) {
+      const roles = userData.roles || [];
+      const isAdmin = roles.some(role => ADMIN_ROLES.includes(role));
+
+      if (!isAdmin) {
         toast.error("Access denied: Not an admin");
         localStorage.removeItem("admin_token");
         return { success: false };
       }
 
-      localStorage.setItem("admin", JSON.stringify(userData));
-      setAdmin(userData);
+      const enrichedAdmin = decodeAndSetAdmin(token, userData);
 
-      // 🔌 Socket connection (optional)
+      // 🔌 Socket connection
       socket.auth = { token };
       socket.connect();
-      socket.emit("join_admin", userData._id);
+      socket.emit("join_admin", enrichedAdmin._id);
 
-      return { success: true, admin: userData };
+      return { success: true, admin: enrichedAdmin };
     } catch (error) {
       const msg = error.response?.data?.message || error.message || "Invalid credentials";
       toast.error(msg);
@@ -68,7 +112,6 @@ export const AdminAuthProvider = ({ children }) => {
 
     if (!token) return;
 
-    // Load cached admin
     if (cachedAdmin) {
       try {
         setAdmin(JSON.parse(cachedAdmin));
@@ -81,14 +124,15 @@ export const AdminAuthProvider = ({ children }) => {
       const res = await getMe();
       const userData = res.data.data;
 
-      // 🚫 Block if not admin
-      if (!userData.roles?.includes("admin")) {
+      const roles = userData.roles || [];
+      const isAdmin = roles.some(role => ADMIN_ROLES.includes(role));
+
+      if (!isAdmin) {
         logout();
         return;
       }
 
-      setAdmin(userData);
-      localStorage.setItem("admin", JSON.stringify(userData));
+      decodeAndSetAdmin(token, userData);
     } catch {
       // ignore errors
     }
@@ -97,9 +141,8 @@ export const AdminAuthProvider = ({ children }) => {
     try {
       socket.auth = { token };
       socket.connect();
-      if (cachedAdmin) {
-        const adminData = JSON.parse(cachedAdmin);
-        socket.emit("join_admin", adminData._id);
+      if (admin) {
+        socket.emit("join_admin", admin._id);
       }
     } catch {}
   };
@@ -130,6 +173,9 @@ export const AdminAuthProvider = ({ children }) => {
         logout,
         isLoading,
         isLoggedIn,
+        hasPermission,
+        hasAnyPermission,
+        hasRole,
         socket,
         scope: "admin"
       }}
@@ -137,4 +183,4 @@ export const AdminAuthProvider = ({ children }) => {
       {children}
     </AdminAuthContext.Provider>
   );
-};
+};

@@ -11,21 +11,15 @@ import {
   SidebarMenuItem,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Users, Store, CalendarCheck, MessageSquare, CreditCard, Bell, BarChart3, Settings, LogOut, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, Users, Store, CalendarCheck, MessageSquare, CreditCard, Bell, BarChart3, Settings, LogOut, ShieldAlert, Briefcase } from "lucide-react";
 
 import { useAdminAuth } from "../../context/AuthContext";
 
 export function AppSidebar() {
-  const { logout, user } = useAdminAuth();
+  const { logout, admin, hasPermission, hasAnyPermission } = useAdminAuth();
 
   const handleLogout = () => {
-    try {
-      logout?.();
-    } finally {
-      localStorage.removeItem("token");
-      toast.success("Logged out");
-      navigate("/", { replace: true });
-    }
+    logout?.();
   };
 
   const location = useLocation();
@@ -38,29 +32,36 @@ export function AppSidebar() {
     {
       label: "Management",
       items: [
-        { title: "Users", url: "/admin/users", icon: Users },
-        { title: "Restaurants", url: "/admin/restaurants", icon: Store },
-        { title: "Bookings", url: "/admin/bookings", icon: CalendarCheck },
-        { title: "Reviews", url: "/admin/reviews", icon: MessageSquare },
+        { title: "Users", url: "/admin/users", icon: Users, permission: "users.view" },
+        { title: "Brands", url: "/admin/brands", icon: Briefcase, permission: "brands.view" },
+        { title: "Restaurants", url: "/admin/restaurants", icon: Store, permission: "restaurants.view" },
+        { title: "Bookings", url: "/admin/bookings", icon: CalendarCheck, permission: "bookings.view" },
+        { title: "Reviews", url: "/admin/reviews", icon: MessageSquare, permission: "content.moderate" },
       ],
     },
     {
       label: "Insights",
       items: [
-        { title: "Payments", url: "/admin/payments", icon: CreditCard },
-        { title: "Notifications", url: "/admin/notifications", icon: Bell },
-        { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
-        { title: "System Logs", url: "/admin/logs", icon: ShieldAlert },
+        { title: "Payments", url: "/admin/payments", icon: CreditCard, permission: "payments.view" },
+        { title: "Notifications", url: "/admin/notifications", icon: Bell, permission: "settings.manage" },
+        { title: "Analytics", url: "/admin/analytics", icon: BarChart3, permission: "analytics.view" },
+        { title: "System Logs", url: "/admin/logs", icon: ShieldAlert, permission: "audit_logs.view" },
       ],
     },
-
     {
-      label: "Settings",
+      label: "Administration",
       items: [
-        { title: "Platform Settings", url: "/admin/settings", icon: Settings },
+        { title: "Admins", url: "/admin/management", icon: Users, permission: "admins.manage" },
+        { title: "Platform Settings", url: "/admin/settings", icon: Settings, permission: "settings.manage" },
       ],
     },
   ];
+
+  // Filter groups and items based on permissions
+  const filteredNavGroups = navGroups.map(group => ({
+    ...group,
+    items: group.items.filter(item => !item.permission || hasPermission(item.permission))
+  })).filter(group => group.items.length > 0);
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
@@ -73,7 +74,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        {navGroups.map((group) => (
+        {filteredNavGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel className="text-muted-foreground">{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>

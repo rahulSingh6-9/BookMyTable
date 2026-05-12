@@ -21,10 +21,10 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { CheckInButton } from "@/components/staff/CheckInButton";
 import { PermissionGuard } from "@/components/auth/PermissionGuard";
+import { useBranch } from "@/context/BranchContext";
 
 export default function StaffBookings() {
-  const { user } = useAuth();
-  const restaurantId = user?.restaurantId || user?.restaurant?._id;
+  const { activeBranchId: restaurantId } = useBranch();
   const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
 

@@ -13,7 +13,7 @@ const bookingSchema = new mongoose.Schema(
     // 🏪 RESTAURANT
     restaurant: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Restaurant",
+      ref: "RestaurantBranch",
       required: true,
       index: true,
     },

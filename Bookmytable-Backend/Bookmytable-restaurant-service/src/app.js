@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import membershipRoutes from "./modules/membership/membership.routes.js"
 import restaurantRoutes from "./modules/restaurant/restaurant.routes.js";
 import tableRoutes from "./modules/table/table.routes.js"
 import menuCategoryRoutes from "./modules/menu-category/menuCategory.routes.js"
@@ -16,10 +17,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 📝 Global Request Logger for Debugging
+app.use((req, res, next) => {
+  console.log(`[RestaurantService] 📥 ${req.method} ${req.url}`);
+  // console.log("Headers:", req.headers);
+  next();
+});
+
 app.use("/logs", logRoutes);
 
 app.use("/internal", adminRoutes);
 
+app.use("/memberships", membershipRoutes)
 app.use("/restaurants", restaurantRoutes)
 app.use("/tables", tableRoutes)
 app.use("/menu-categories", menuCategoryRoutes)

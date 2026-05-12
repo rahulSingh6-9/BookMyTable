@@ -1,3 +1,6 @@
+import dotenv from "dotenv"
+dotenv.config()
+
 export const protect = (req, res, next) => {
   const userId = req.headers["x-user-id"];
   const rolesHeader = req.headers["x-user-roles"];
@@ -21,6 +24,7 @@ export const protect = (req, res, next) => {
   }
 
   let roles = [];
+  let permissions = [];
 
   if (rolesHeader) {
     try {
@@ -30,9 +34,19 @@ export const protect = (req, res, next) => {
     }
   }
 
+  const permissionsHeader = req.headers["x-permissions"];
+  if (permissionsHeader) {
+    try {
+      permissions = JSON.parse(permissionsHeader);
+    } catch (err) {
+      permissions = permissionsHeader.split(",").map(p => p.trim());
+    }
+  }
+
   req.user = {
     id: userId,
-    roles, // keep full array
+    roles,
+    permissions,
   };
 
   next();

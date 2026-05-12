@@ -56,11 +56,11 @@ import PartnerRegister from "./pages/PartnerRegister";
 import ResetPassword from "./pages/ResetPassword";
 import StaffListPage from "./pages/staff/StaffListPage";
 import OwnerLogsPage from "./pages/logs/OwnerLogsPage";
-
+import NotAuthorized from "./pages/NotAuthorized";
 
 
 import ProtectedRoute from "@/routes/ProtectedRoute";
-import RoleProtectedRoute from "@/routes/RoleProtectedRoute";
+import PermissionProtectedRoute from "@/routes/PermissionProtectedRoute";
 
 
 const App = () => (
@@ -176,27 +176,91 @@ const App = () => (
           <Route path="/blog" element={<Blog />} />
         </Route>
 
-        {/* 🏢 OWNER PANEL (ROLE PROTECTED) */}
+        {/* 🏢 OWNER PANEL (PERMISSION DRIVEN) */}
         <Route
           path="/owner"
           element={
-            // <RoleProtectedRoute allowedRoles={["owner"]}>
+            <PermissionProtectedRoute permission="MANAGE_BRANCH">
               <OwnerLayout />
-            // </RoleProtectedRoute>
+            </PermissionProtectedRoute>
           }
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<OwnerDashboard />} />
-          <Route path="tables" element={<ManageTables />} />
-          <Route path="layout" element={<OwnerLayoutEditor />} />
-          <Route path="reservations" element={<ManageReservations />} />
-          <Route path="availability" element={<OwnerAvailability />} />
-          <Route path="menu" element={<ManageMenu />} />
-          <Route path="analytics" element={<OwnerAnalytics />} />
-          <Route path="settings" element={<RestaurantSettings />} />
+          
+          <Route path="tables" 
+            element={
+              <PermissionProtectedRoute permission="MANAGE_TABLES">
+                <ManageTables />
+              </PermissionProtectedRoute>
+            } 
+          />
+          
+          <Route path="layout" 
+            element={
+              <PermissionProtectedRoute permission="MANAGE_TABLES">
+                <OwnerLayoutEditor />
+              </PermissionProtectedRoute>
+            } 
+          />
+          
+          <Route path="reservations" 
+            element={
+              <PermissionProtectedRoute permission="MANAGE_BOOKINGS">
+                <ManageReservations />
+              </PermissionProtectedRoute>
+            } 
+          />
+          
+          <Route path="availability" 
+            element={
+              <PermissionProtectedRoute permission="MANAGE_SETTINGS">
+                <OwnerAvailability />
+              </PermissionProtectedRoute>
+            } 
+          />
+          
+          <Route path="menu" 
+            element={
+              <PermissionProtectedRoute permission="MANAGE_MENU">
+                <ManageMenu />
+              </PermissionProtectedRoute>
+            } 
+          />
+          
+          <Route path="analytics" 
+            element={
+              <PermissionProtectedRoute permission="VIEW_ANALYTICS">
+                <OwnerAnalytics />
+              </PermissionProtectedRoute>
+            } 
+          />
+          
+          <Route path="settings" 
+            element={
+              <PermissionProtectedRoute permission="MANAGE_SETTINGS">
+                <RestaurantSettings />
+              </PermissionProtectedRoute>
+            } 
+          />
+          
           <Route path="subscription" element={<OwnerSubscription />} />
-          <Route path="staff" element={<StaffListPage />} />
-          <Route path="logs" element={<OwnerLogsPage />} />
+          
+          <Route path="staff" 
+            element={
+              <PermissionProtectedRoute permission="MANAGE_STAFF">
+                <StaffListPage />
+              </PermissionProtectedRoute>
+            } 
+          />
+          
+          <Route path="logs" 
+            element={
+              <PermissionProtectedRoute permission="VIEW_REPORTS">
+                <OwnerLogsPage />
+              </PermissionProtectedRoute>
+            } 
+          />
 
         </Route>
 
@@ -205,56 +269,59 @@ const App = () => (
         <Route
           path="/staff"
           element={
-            <RoleProtectedRoute allowedRoles={["staff", "owner", "admin"]}>
+            <PermissionProtectedRoute allPermissions={["MANAGE_BOOKINGS", "MANAGE_TABLES"]}>
               <StaffLayout />
-            </RoleProtectedRoute>
+            </PermissionProtectedRoute>
           }
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route 
             path="dashboard" 
             element={
-              <RoleProtectedRoute requiredPermissions={["view_bookings", "manage_tables"]}>
+              <PermissionProtectedRoute allPermissions={["MANAGE_BOOKINGS", "MANAGE_TABLES"]}>
                 <StaffDashboard />
-              </RoleProtectedRoute>
+              </PermissionProtectedRoute>
             } 
           />
           <Route 
             path="bookings" 
             element={
-              <RoleProtectedRoute requiredPermissions={["view_bookings"]}>
+              <PermissionProtectedRoute permission="MANAGE_BOOKINGS">
                 <StaffBookings />
-              </RoleProtectedRoute>
+              </PermissionProtectedRoute>
             } 
           />
           <Route 
             path="live-tables" 
             element={
-              <RoleProtectedRoute requiredPermissions={["manage_tables"]}>
+              <PermissionProtectedRoute permission="MANAGE_TABLES">
                 <StaffLiveTables />
-              </RoleProtectedRoute>
+              </PermissionProtectedRoute>
             } 
           />
           <Route 
             path="walkin-booking" 
             element={
-              <RoleProtectedRoute requiredPermissions={["check_in_customers"]}>
+              <PermissionProtectedRoute permission="MANAGE_BOOKINGS">
                 <StaffWalkinBooking />
-              </RoleProtectedRoute>
+              </PermissionProtectedRoute>
             } 
           />
           <Route 
             path="logs" 
             element={
-              <RoleProtectedRoute requiredPermissions={["view_logs"]}>
+              <PermissionProtectedRoute permission="VIEW_REPORTS">
                 <StaffLogs />
-              </RoleProtectedRoute>
+              </PermissionProtectedRoute>
             } 
           />
         </Route>
 
 
 
+
+        {/* 🔐 Access Denied */}
+        <Route path="/not-authorized" element={<NotAuthorized />} />
 
         {/* ❌ 404 */}
         <Route path="*" element={<NotFound />} />

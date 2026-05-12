@@ -50,7 +50,7 @@ const restaurantSettingsSchema = new mongoose.Schema(
     brand: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Brand",
-      index: true,
+
     },
 
     /**
@@ -63,7 +63,7 @@ const restaurantSettingsSchema = new mongoose.Schema(
       ref: "RestaurantBranch",
       required: true,
       unique: true,
-      index: true,
+     
     },
 
     /**
@@ -302,9 +302,8 @@ const restaurantSettingsSchema = new mongoose.Schema(
  * =========================================================
  */
 
-restaurantSettingsSchema.index({
-  branch: 1,
-});
+// Brand index remains
+
 
 restaurantSettingsSchema.index({
   brand: 1,

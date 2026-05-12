@@ -15,8 +15,7 @@ import { LayoutEditor } from "@/components/visual-layout/LayoutEditor";
 import { RoomSelector } from "@/components/visual-layout/RoomSelector";
 import { toast } from "sonner";
 
-import { useAuth } from "@/context/AuthContext";
-import { useMyRestaurant, } from "../hooks/useRestaurantSettings";
+import { useBranch } from "@/context/BranchContext";
 import { useTables, useCreateTable, useUpdateTable, useDeleteTable } from "@/hooks/useTables";
 
 
@@ -28,9 +27,8 @@ const typeColor = {
 };
 
 export default function ManageTables() {
-  const { user } = useAuth();
-  const { data: restaurant } = useMyRestaurant();
-  const restaurantId = restaurant?._id;
+  const { activeBranchId } = useBranch();
+  const restaurantId = activeBranchId;
 
   const { mutate: createTable, isPending: isCreating } = useCreateTable(restaurantId);
   const { mutate: updateTable, isPending: isUpdating } = useUpdateTable(restaurantId);

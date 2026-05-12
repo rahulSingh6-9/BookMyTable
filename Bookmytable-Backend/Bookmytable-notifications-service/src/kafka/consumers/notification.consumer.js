@@ -3,6 +3,7 @@ import { KAFKA_TOPICS } from "../topics/topics.js";
 import { handleStaffInviteNotification } from "../handlers/staffNotification.handlers.js";
 import { handleRestaurantUpdateNotification } from "../handlers/restaurantNotification.handlers.js";
 import { handleBookingNotification } from "../handlers/bookingNotification.handlers.js";
+import { handleUserUpdateNotification } from "../handlers/userNotification.handlers.js";
 
 const consumer = kafka.consumer({ groupId: "notification-service-group" });
 
@@ -15,6 +16,7 @@ export const startNotificationConsumer = async () => {
       topics: [
         KAFKA_TOPICS.STAFF_INVITED, 
         KAFKA_TOPICS.RESTAURANT_UPDATED,
+        KAFKA_TOPICS.USER_UPDATED,
         KAFKA_TOPICS.BOOKING_CREATED
       ], 
       fromBeginning: false 
@@ -26,12 +28,13 @@ export const startNotificationConsumer = async () => {
         try {
           const data = JSON.parse(message.value.toString());
           console.log(`📥 [NotificationConsumer] Received event on topic [${topic}] at offset ${messageOffset}`);
-          console.log(`🔍 [NotificationConsumer] Event Type: ${data.eventType || 'N/A'}, Action: ${data.action || 'N/A'}`);
-
+          
           if (topic === KAFKA_TOPICS.STAFF_INVITED) {
             await handleStaffInviteNotification(data);
           } else if (topic === KAFKA_TOPICS.RESTAURANT_UPDATED) {
             await handleRestaurantUpdateNotification(data);
+          } else if (topic === KAFKA_TOPICS.USER_UPDATED) {
+            await handleUserUpdateNotification(data);
           } else if (topic === KAFKA_TOPICS.BOOKING_CREATED) {
             await handleBookingNotification(data);
           }

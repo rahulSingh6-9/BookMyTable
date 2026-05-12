@@ -1,31 +1,38 @@
-// src/controllers/menuCategory.controller.js
-
 import {
   createCategoryService,
   getCategoriesService,
   updateCategoryService,
   deleteCategoryService,
 } from "./menuCategory.service.js";
+import { createLog } from "../log/log.service.js";
+import { ROLES } from "../../config/roles.js";
 
 // ✅ CREATE
 export const createCategory = async (req, res) => {
   try {
     const { restaurantId } = req.params;
-    const userId = req.headers["x-user-id"];
+    const userId = req.user.id;
+    console.log("createCategory data:",req.body)
 
-    const result = await createCategoryService(
-      restaurantId,
-      userId,
-      req.body
-    );
-    console.log("create menu:", result)
+    const result = await createCategoryService(restaurantId, req.body);
+
+    // 📝 Log Action
+    createLog({
+      action: "MENU_CATEGORY_CREATED",
+      performedBy: userId,
+      role: req.activeRole || ROLES.OWNER,
+      restaurant: restaurantId,
+      metadata: { categoryName: result.name },
+      ipAddress: req.ip,
+    });
+
     res.status(201).json({
       success: true,
-      message: "Category created",
+      message: "Category created successfully",
       data: result,
     });
   } catch (error) {
-    res.status(error.status || 500).json({
+    res.status(400).json({
       success: false,
       message: error.message,
     });
@@ -36,16 +43,15 @@ export const createCategory = async (req, res) => {
 export const getCategories = async (req, res) => {
   try {
     const { restaurantId } = req.params;
-    const userId = req.headers["x-user-id"];
 
-    const result = await getCategoriesService(restaurantId, userId);
+    const result = await getCategoriesService(restaurantId);
 
     res.json({
       success: true,
       data: result,
     });
   } catch (error) {
-    res.status(error.status || 500).json({
+    res.status(400).json({
       success: false,
       message: error.message,
     });
@@ -56,21 +62,28 @@ export const getCategories = async (req, res) => {
 export const updateCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
-    const userId = req.headers["x-user-id"];
+    const userId = req.user.id;
+    const branchId = req.branchId;
 
-    const result = await updateCategoryService(
-      categoryId,
-      userId,
-      req.body
-    );
+    const result = await updateCategoryService(categoryId, req.body);
+
+    // 📝 Log Action
+    createLog({
+      action: "MENU_CATEGORY_UPDATED",
+      performedBy: userId,
+      role: req.activeRole || ROLES.OWNER,
+      restaurant: branchId || result.branch,
+      metadata: { categoryId, categoryName: result.name },
+      ipAddress: req.ip,
+    });
 
     res.json({
       success: true,
-      message: "Category updated",
+      message: "Category updated successfully",
       data: result,
     });
   } catch (error) {
-    res.status(error.status || 500).json({
+    res.status(400).json({
       success: false,
       message: error.message,
     });
@@ -81,16 +94,27 @@ export const updateCategory = async (req, res) => {
 export const deleteCategory = async (req, res) => {
   try {
     const { categoryId } = req.params;
-    const userId = req.headers["x-user-id"];
+    const userId = req.user.id;
+    const branchId = req.branchId;
 
-    const result = await deleteCategoryService(categoryId, userId);
+    const result = await deleteCategoryService(categoryId);
+
+    // 📝 Log Action
+    createLog({
+      action: "MENU_CATEGORY_DELETED",
+      performedBy: userId,
+      role: req.activeRole || ROLES.OWNER,
+      restaurant: branchId,
+      metadata: { categoryId },
+      ipAddress: req.ip,
+    });
 
     res.json({
       success: true,
       ...result,
     });
   } catch (error) {
-    res.status(error.status || 500).json({
+    res.status(400).json({
       success: false,
       message: error.message,
     });

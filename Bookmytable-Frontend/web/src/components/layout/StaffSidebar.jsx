@@ -28,7 +28,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
-import { usePermission } from "@/components/auth/PermissionGuard";
+import { useBranch } from "@/context/BranchContext";
 import { cn } from "@/lib/utils";
 
 const staffLinks = [
@@ -36,45 +36,45 @@ const staffLinks = [
     title: "Dashboard", 
     url: "/staff/dashboard", 
     icon: LayoutDashboard,
-    permissions: ["view_bookings", "manage_tables"] // Common for manager
+    permission: "VIEW_BOOKINGS"
   },
   { 
     title: "Bookings", 
     url: "/staff/bookings", 
     icon: CalendarDays,
-    permissions: ["view_bookings"]
+    permission: "VIEW_BOOKINGS"
   },
   { 
     title: "Live Tables", 
     url: "/staff/live-tables", 
     icon: PanelsTopLeft,
-    permissions: ["manage_tables"]
+    permission: "MANAGE_TABLES"
   },
   { 
     title: "Walk-in Booking", 
     url: "/staff/walkin-booking", 
     icon: ClipboardList,
-    permissions: ["check_in_customers"]
+    permission: "MANAGE_BOOKINGS"
   },
   { 
     title: "Audit Logs", 
     url: "/staff/logs", 
     icon: History,
-    permissions: ["view_logs"]
+    permission: "VIEW_REPORTS"
   },
 ];
+
+import { BranchSwitcher } from "@/components/rbac/BranchSwitcher";
 
 export function StaffSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const navigate = useNavigate();
-  const { logout, user } = useAuth();
-  const { hasPermission } = usePermission();
-
-  const displayName = useMemo(() => user?.name || "Staff", [user?.name]);
+  const { logout } = useAuth();
+  const { hasPermission } = useBranch();
 
   const filteredLinks = useMemo(() => {
-    return staffLinks.filter(link => !link.permissions || hasPermission(link.permissions));
+    return staffLinks.filter(link => !link.permission || hasPermission(link.permission));
   }, [hasPermission]);
 
   const handleLogout = () => {
@@ -89,24 +89,16 @@ export function StaffSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="h-14 border-b border-border flex flex-row items-center justify-between px-4 group-data-[collapsible=icon]:px-2">
-        <div className={cn("flex items-center gap-2 min-w-0", collapsed && "justify-center")}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <UserRound className="h-4 w-4" />
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground truncate">{displayName}</div>
-              <div className="text-xs text-muted-foreground truncate">Staff Panel</div>
-            </div>
-          )}
-        </div>
-        <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground" />
+      <SidebarHeader className="h-20 border-b border-border flex flex-row items-center gap-2 px-3 group-data-[collapsible=icon]:px-2">
+        <BranchSwitcher collapsed={collapsed} />
+        {!collapsed && (
+           <SidebarTrigger className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0" />
+        )}
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupLabel>Staff Panel</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredLinks.map((item) => (
@@ -148,5 +140,3 @@ export function StaffSidebar() {
     </Sidebar>
   );
 }
-
-

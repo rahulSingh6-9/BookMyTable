@@ -1,21 +1,12 @@
 import { getTableServices, createTableService, updateTableService, deleteTableService } from "./table.service.js";
 import { createLog } from "../log/log.service.js";
+import { ROLES } from "../../config/roles.js";
 
 export const getTables = async (req, res, next) => {
   try {
     const { restaurantId } = req.params;
-    console.log(restaurantId)
     
-    const userId = req.user.id;
-
-    if (!restaurantId) {
-      return res.status(400).json({
-        success: false,
-        message: "Restaurant ID is required",
-      });
-    }
-
-    const result = await getTableServices(restaurantId, userId);
+    const result = await getTableServices(restaurantId);
 
     res.status(200).json({
       success: true,
@@ -42,7 +33,7 @@ export const createTable = async (req, res, next) => {
     createLog({
       action: "TABLE_CREATED",
       performedBy: userId,
-      role: req.headers["x-user-role"] || req.user?.role,
+      role: req.activeRole || ROLES.OWNER,
       restaurant: restaurantId,
       metadata: { tableCode: req.body.tableCode, capacity: req.body.capacity },
       ipAddress: req.ip,
@@ -61,16 +52,17 @@ export const createTable = async (req, res, next) => {
 export const updateTable = async (req, res) => {
   try {
     const { tableId } = req.params;
-    const userId = req.headers["x-user-id"] || req.user?.id;
+    const userId = req.user.id;
+    const branchId = req.branchId;
 
-    const result = await updateTableService(tableId, userId, req.body);
+    const result = await updateTableService(tableId, req.body);
 
     // 📝 Log Action
     createLog({
       action: "TABLE_UPDATED",
       performedBy: userId,
-      role: req.headers["x-user-role"] || req.user?.role,
-      restaurant: result.restaurant,
+      role: req.activeRole || ROLES.OWNER,
+      restaurant: branchId,
       metadata: { tableId, updates: req.body },
       ipAddress: req.ip,
     });
@@ -91,16 +83,17 @@ export const updateTable = async (req, res) => {
 export const deleteTable = async (req, res) => {
   try {
     const { tableId } = req.params;
-    const userId = req.headers["x-user-id"] || req.user?.id;
+    const userId = req.user.id;
+    const branchId = req.branchId;
 
-    const table = await deleteTableService(tableId, userId);
+    const table = await deleteTableService(tableId);
 
     // 📝 Log Action
     createLog({
       action: "TABLE_DELETED",
       performedBy: userId,
-      role: req.headers["x-user-role"] || req.user?.role,
-      restaurant: table?.restaurant,
+      role: req.activeRole || ROLES.OWNER,
+      restaurant: branchId,
       metadata: { tableId },
       ipAddress: req.ip,
     });

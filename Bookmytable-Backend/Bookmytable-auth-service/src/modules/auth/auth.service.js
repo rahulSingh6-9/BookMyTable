@@ -5,12 +5,36 @@ import { sendEmail } from "../../utils/sendEmail.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 
+const ROLE_PERMISSIONS = {
+  SUPER_ADMIN: ["*"], // Wildcard for all
+  PLATFORM_ADMIN: ["users.view", "users.edit", "restaurants.view", "restaurants.approve", "brands.view", "branches.view", "analytics.view", "settings.manage"],
+  SUPPORT_ADMIN: ["users.view", "restaurants.view", "bookings.view", "tickets.view", "support.manage"],
+  FINANCE_ADMIN: ["payments.view", "payments.manage", "revenue.view", "reports.export"],
+  ANALYTICS_ADMIN: ["analytics.view", "reports.export", "restaurants.view"],
+  RESTAURANT_APPROVAL_MANAGER: ["restaurants.view", "restaurants.approve", "restaurants.suspend", "brands.view"],
+};
+
 const generateToken = (user, scope) => {
+  const roles = user.roles || [user.role];
+  
+  // Calculate aggregate permissions
+  let permissions = [];
+  if (roles.includes("super_admin") || roles.includes("SUPER_ADMIN")) {
+    permissions = ["*"];
+  } else {
+    roles.forEach(role => {
+      if (ROLE_PERMISSIONS[role]) {
+        permissions = [...new Set([...permissions, ...ROLE_PERMISSIONS[role]])];
+      }
+    });
+  }
+
   return jwt.sign(
     {
       _id: user._id,
-      roles: user.roles || [user.role], // support both
-      scope, // 🔥 IMPORTANT
+      roles,
+      permissions, // 🔥 Inject permissions
+      scope,
     },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
@@ -44,7 +68,14 @@ const loginUser = async ({ email, password, scope }) => {
   const roles = user.roles || [user.role];
 
   // 🚨 ADMIN CHECK
-  if (scope === "admin" && !roles.includes("admin")) {
+  const adminRoles = [
+    "admin", "super_admin", "SUPER_ADMIN", "PLATFORM_ADMIN", 
+    "SUPPORT_ADMIN", "FINANCE_ADMIN", "OPERATIONS_ADMIN", 
+    "CONTENT_MODERATOR", "ANALYTICS_ADMIN", "RESTAURANT_APPROVAL_MANAGER", 
+    "STAFF_MANAGEMENT_ADMIN"
+  ];
+  
+  if (scope === "admin" && !roles.some(role => adminRoles.includes(role))) {
     const error = new Error("Not authorized for admin panel");
     error.status = 403;
     throw error;

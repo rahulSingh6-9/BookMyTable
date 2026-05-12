@@ -1,4 +1,6 @@
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv"
+dotenv.config()
 
 
 export const verifyToken = (req, res, next) => {
@@ -19,6 +21,7 @@ export const verifyToken = (req, res, next) => {
     // 🔥 Pass clean structured data
     req.headers["x-user-id"] = decoded._id;
     req.headers["x-user-roles"] = JSON.stringify(decoded.roles || []);
+    req.headers["x-permissions"] = JSON.stringify(decoded.permissions || []);
     req.headers["x-scope"] = decoded.scope || "web";
 
     console.log(`✅ Token verified for user: ${decoded._id}, roles: ${req.headers["x-user-roles"]}`);
@@ -53,11 +56,20 @@ export const verifyAdmin = (req, res, next) => {
       roles = rolesHeader.split(",");
     }
 
-    // 🔥 Check admin role
-    if (!roles.includes("admin")) {
+    // 🔥 Check admin roles
+    const adminRoles = [
+      "admin", "super_admin", "SUPER_ADMIN", "PLATFORM_ADMIN", 
+      "SUPPORT_ADMIN", "FINANCE_ADMIN", "OPERATIONS_ADMIN", 
+      "CONTENT_MODERATOR", "ANALYTICS_ADMIN", "RESTAURANT_APPROVAL_MANAGER", 
+      "STAFF_MANAGEMENT_ADMIN"
+    ];
+
+    const hasAdminRole = roles.some(role => adminRoles.includes(role));
+
+    if (!hasAdminRole) {
       return res.status(403).json({
         success: false,
-        message: "Access denied: Not an admin",
+        message: "Access denied: Admin role required",
       });
     }
 

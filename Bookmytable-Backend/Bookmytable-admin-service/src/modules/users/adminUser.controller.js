@@ -35,7 +35,7 @@ export const getAllUsersController = async (req, res) => {
 export const banUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const result = await banUserService(id, req.user.id);
+    const result = await banUserService(id, req.user);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -45,7 +45,7 @@ export const banUser = async (req, res, next) => {
 export const unbanUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const result = await unbanUserService(id, req.user.id);
+    const result = await unbanUserService(id, req.user);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -56,7 +56,7 @@ export const updateUserRole = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
-    const result = await updateUserRoleService(id, role, req.user.id);
+    const result = await updateUserRoleService(id, role, req.user);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);

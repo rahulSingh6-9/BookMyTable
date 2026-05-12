@@ -11,8 +11,18 @@ import apiClient from "../lib/api.js";
  * @param {object} params - { action, performedBy, startDate, endDate, limit }
  */
 export const getRestaurantLogs = async (restaurantId, params = {}) => {
-  const response = await apiClient.get(`/logs/${restaurantId}`, { params });
-  return response.data;
+  if (!restaurantId || restaurantId === "undefined" || restaurantId === "null") {
+    console.warn("[LogsService] Skipping fetch: restaurantId is missing or invalid");
+    return { success: false, data: [] };
+  }
+  
+  try {
+    const response = await apiClient.get(`/logs/${restaurantId}`, { params });
+    return response.data;
+  } catch (error) {
+    console.error(`[LogsService] Error fetching logs for ${restaurantId}:`, error);
+    throw error;
+  }
 };
 
 /**
@@ -20,7 +30,11 @@ export const getRestaurantLogs = async (restaurantId, params = {}) => {
  * @param {object} params - { restaurantId, action, performedBy, startDate, endDate, limit, page }
  */
 export const getGlobalLogs = async (params = {}) => {
-  // Assuming there's a global endpoint or we use a special restaurantId/query
-  const response = await apiClient.get(`/logs/all`, { params });
-  return response.data;
+  try {
+    const response = await apiClient.get(`/logs/all`, { params });
+    return response.data;
+  } catch (error) {
+    console.error("[LogsService] Error fetching global logs:", error);
+    throw error;
+  }
 };

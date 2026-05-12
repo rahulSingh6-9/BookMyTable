@@ -110,7 +110,6 @@ const restaurantSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
     },
 
     branchCode: {
@@ -119,7 +118,6 @@ const restaurantSchema = new mongoose.Schema(
       unique: true,
       uppercase: true,
       trim: true,
-      index: true,
     },
 
     branchType: {
@@ -156,7 +154,7 @@ const restaurantSchema = new mongoose.Schema(
     managerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      index: true,
+     
     },
 
     franchiseOwnerId: {
@@ -632,16 +630,8 @@ restaurantSchema.index({
   isActive: 1,
 });
 
-// Slug
-restaurantSchema.index({
-  slug: 1,
-});
+// End of indexes
 
-// Branch code
-restaurantSchema.index({
-  branchCode: 1,
-});
+const RestaurantBranch = mongoose.model("RestaurantBranch", restaurantSchema);
 
-const Restaurant = mongoose.model("Restaurantbranches", restaurantSchema);
-
-export default Restaurant;
+export default RestaurantBranch;

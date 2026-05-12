@@ -22,7 +22,7 @@ const tableSchema = new mongoose.Schema(
     brand: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Brand",
-      index: true,
+    
     },
 
     /**
@@ -268,9 +268,6 @@ tableSchema.index({
   brand: 1,
 });
 
-// Merge support
-tableSchema.index({
-  mergeGroup: 1,
-});
+// End of indexes
 
 export default mongoose.model("Table", tableSchema);

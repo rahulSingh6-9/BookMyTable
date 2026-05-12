@@ -18,6 +18,16 @@ const notificationSchema = new mongoose.Schema(
       required: true,
     },
 
+    brandId: {
+      type: String,
+      index: true,
+    },
+
+    branchId: {
+      type: String,
+      index: true,
+    },
+
     status: {
       type: String,
       enum: ["pending", "sent", "failed"],

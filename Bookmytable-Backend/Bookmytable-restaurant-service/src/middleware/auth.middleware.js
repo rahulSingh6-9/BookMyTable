@@ -1,3 +1,6 @@
+import dotenv from "dotenv"
+dotenv.config()
+
 /**
  * Middleware to populate req.user from headers passed by API Gateway
  */
@@ -33,13 +36,10 @@ export const protect = (req, res, next) => {
     roles = rolesHeader ? rolesHeader.split(",") : [];
   }
 
-  // Populate req.user for role middleware
-  // Note: role.middleware.js currently checks req.user.role (singular)
-  // We can take the first role or adjust role.middleware.js to handle arrays
+  // Populate req.user for downstream middleware
   req.user = {
     id: userId,
-    roles: roles,
-    role: roles[0] || "user" // Fallback for singular role check
+    roles: roles, // Global platform roles (admin, user, etc.)
   };
 
   next();

@@ -60,8 +60,9 @@ export function useDeleteCategory(restaurantId) {
       queryClient.setQueryData(["categories", restaurantId], context.previousCategories);
       toast.error(err.message || "Failed to delete category");
     },
-    onSuccess: () => {
-      toast.success("Category deleted successfully");
+    onSuccess: (data) => {
+      toast.success(data?.message || "Category deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["menuItems", restaurantId] });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["categories", restaurantId] });

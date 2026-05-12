@@ -25,5 +25,5 @@ export const emitRestaurantEvent = async (event) => {
 export const emitRestaurantCreated = (restaurant, ownerId) => 
   emitRestaurantEvent(RestaurantEvents.restaurantCreated(restaurant, ownerId));
 
-export const emitRestaurantStatusChanged = (restaurant, adminId) =>
-  emitRestaurantEvent(RestaurantEvents.restaurantUpdated(restaurant, "STATUS_CHANGED", adminId));
+export const emitRestaurantStatusChanged = (restaurant, action = "STATUS_CHANGED", metadata = {}) =>
+  emitRestaurantEvent(RestaurantEvents.restaurantUpdated(restaurant, action, metadata));

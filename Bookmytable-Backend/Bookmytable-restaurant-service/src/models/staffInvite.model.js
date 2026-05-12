@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { ROLES } from "../config/roles.js";
 
 /**
  * =========================================================
@@ -29,7 +30,7 @@ const staffInviteSchema = new mongoose.Schema(
     brand: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Brand",
-      index: true,
+     
     },
 
     /**
@@ -51,18 +52,7 @@ const staffInviteSchema = new mongoose.Schema(
      */
     role: {
       type: String,
-      enum: [
-        "owner",
-        "co_owner",
-        "manager",
-        "assistant_manager",
-        "cashier",
-        "host",
-        "waiter",
-        "chef",
-        "kitchen_staff",
-        "support_staff",
-      ],
+      enum: Object.values(ROLES),
       required: true,
       index: true,
     },
@@ -86,7 +76,7 @@ const staffInviteSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
+    
     },
 
     /**
@@ -103,7 +93,7 @@ const staffInviteSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
       required: true,
-      index: true,
+     
     },
 
     /**

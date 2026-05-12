@@ -3,17 +3,18 @@ import {
 } from "./staffInvite.service.js";
 import { acceptInviteService, listStaffService, updateStaffService, deleteStaffService } from "./staff.service.js";
 import { createLog } from "../log/log.service.js";
+import { ROLES } from "../../config/roles.js";
 
 export const inviteStaffController = async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const { email, role, permissions } = req.body;
 
-    const ownerId = req.headers["x-user-id"];
+    const invitedBy = req.user.id;
 
     const invite = await inviteStaffService({
       restaurantId,
-      ownerId,
+      invitedBy,
       email,
       role,
       permissions,
@@ -22,19 +23,20 @@ export const inviteStaffController = async (req, res) => {
     // 📝 Log Action
     createLog({
       action: "STAFF_INVITED",
-      performedBy: ownerId,
-      role: req.headers["x-user-role"],
+      performedBy: invitedBy,
+      role: req.activeRole || ROLES.OWNER,
       restaurant: restaurantId,
       metadata: { email, role, permissions },
       ipAddress: req.ip,
     });
 
     res.status(201).json({
+      success: true,
       message: "Invite sent successfully",
       inviteId: invite._id,
     });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ success: false, message: err.message });
   }
 };
 
@@ -42,33 +44,33 @@ export const acceptInviteController = async (req, res) => {
   try {
     const { token, name, password } = req.body;
 
-    const staff = await acceptInviteService({ token, name, password });
+    const membership = await acceptInviteService({ token, name, password });
 
     // 📝 Log Action
     createLog({
       action: "STAFF_ACCEPTED",
-      performedBy: staff.user,
-      role: "staff",
-      restaurant: staff.restaurant,
+      performedBy: membership.user,
+      role: membership.role,
+      restaurant: membership.branch,
       metadata: { name },
       ipAddress: req.ip,
     });
 
     res.status(200).json({
-      message: "Staff account activated",
-      staffId: staff._id,
+      success: true,
+      message: "Staff account activated and membership created",
+      membershipId: membership._id,
     });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ success: false, message: err.message });
   }
 };
 
 export const listStaffController = async (req, res) => {
   try {
     const { restaurantId } = req.params;
-    const ownerId = req.headers["x-user-id"];
 
-    const staffMembers = await listStaffService({ restaurantId, ownerId });
+    const staffMembers = await listStaffService({ restaurantId });
 
     res.status(200).json({
       success: true,
@@ -82,31 +84,31 @@ export const listStaffController = async (req, res) => {
 export const updateStaffController = async (req, res) => {
   try {
     const { staffId } = req.params;
-    const { restaurantId, role, permissions, isActive } = req.body;
+    const { role, permissions, isActive } = req.body;
+    const branchId = req.branchId;
 
-    const ownerId = req.headers["x-user-id"];
+    const performedBy = req.user.id;
 
-    const updatedStaff = await updateStaffService({
+    const updatedMembership = await updateStaffService({
       staffId,
-      restaurantId,
-      ownerId,
+      restaurantId: branchId,
       updates: { role, permissions, isActive },
     });
 
     // 📝 Log Action
     createLog({
       action: "STAFF_ROLE_UPDATED",
-      performedBy: ownerId,
-      role: req.headers["x-user-role"],
-      restaurant: restaurantId,
+      performedBy,
+      role: req.activeRole || ROLES.OWNER,
+      restaurant: branchId,
       metadata: { staffId, role, permissions, isActive },
       ipAddress: req.ip,
     });
 
     res.status(200).json({
       success: true,
-      message: "Staff updated successfully",
-      data: updatedStaff,
+      message: "Staff membership updated successfully",
+      data: updatedMembership,
     });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -116,30 +118,29 @@ export const updateStaffController = async (req, res) => {
 export const deleteStaffController = async (req, res) => {
   try {
     const { staffId } = req.params;
-    const restaurantId = req.body.restaurantId || req.query.restaurantId;
+    const branchId = req.branchId;
 
-    const ownerId = req.headers["x-user-id"];
+    const performedBy = req.user.id;
 
-    const deletedStaff = await deleteStaffService({
+    const deletedMembership = await deleteStaffService({
       staffId,
-      restaurantId,
-      ownerId,
+      restaurantId: branchId,
     });
 
     // 📝 Log Action
     createLog({
       action: "STAFF_DEACTIVATED",
-      performedBy: ownerId,
-      role: req.headers["x-user-role"],
-      restaurant: restaurantId,
+      performedBy,
+      role: req.activeRole || ROLES.OWNER,
+      restaurant: branchId,
       metadata: { staffId },
       ipAddress: req.ip,
     });
 
     res.status(200).json({
       success: true,
-      message: "Staff removed successfully",
-      data: deletedStaff,
+      message: "Staff membership removed successfully",
+      data: deletedMembership,
     });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });

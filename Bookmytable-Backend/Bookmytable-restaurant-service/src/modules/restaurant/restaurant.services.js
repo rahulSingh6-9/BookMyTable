@@ -1,6 +1,12 @@
-import Restaurant from '../../models/restaurant.model.js'
+import Restaurant from '../../models/restaurant.model.js';
+import BranchMembership from '../../models/branchmemberships.model.js';
 import { emitRestaurantCreated } from "../../kafka/index.js";
+import { ROLES } from "../../config/roles.js";
 
+/**
+ * GET MY BRANCHES
+ * Returns all branches where the user has an active membership.
+ */
 export const getMyRestaurantService = async (userId) => {
   if (!userId) {
     const error = new Error("User ID is required");
@@ -8,62 +14,87 @@ export const getMyRestaurantService = async (userId) => {
     throw error;
   }
 
-  const restaurant = await Restaurant.findOne({ owner: userId });
+  // Find all active memberships for this user
+  const memberships = await BranchMembership.find({ 
+    user: userId, 
+    status: "active" 
+  }).populate("branch");
 
-  if (!restaurant) {
-    const error = new Error("No restaurant found for this owner");
+  if (!memberships || memberships.length === 0) {
+    const error = new Error("No memberships found for this user");
     error.status = 404;
     throw error;
   }
+
+  // Return formatted data
+  return memberships.map(m => ({
+    membershipId: m._id,
+    role: m.role,
+    branch: m.branch,
+    joinedAt: m.joinedAt
+  }));
+};
+
+
+/**
+ * CREATE RESTAURANT (BRANCH)
+ */
+export const createRestaurant = async (data, userId) => {
+  const { branchName, brandId } = data;
+
+  // 1. Prevent duplicate branchName per brand (basic check)
+  const existing = await Restaurant.findOne({
+    branchName,
+    brandId,
+    ownerId: userId,
+  });
+
+  if (existing) {
+    throw new Error("A branch with this name already exists for your brand");
+  }
+
+  // 2. Create Restaurant Branch
+  const restaurant = await Restaurant.create({
+    ...data,
+    ownerId: userId,
+  });
+
+  // 3. 🚀 CRITICAL: Create initial BranchMembership for the creator as 'owner'
+  await BranchMembership.create({
+    user: userId,
+    branch: restaurant._id,
+    brand: brandId,
+    role: ROLES.OWNER,
+    status: "active",
+    joinedAt: new Date(),
+    isPrimaryOwner: true
+  });
+
+  // 📡 Emit Event
+  await emitRestaurantCreated(restaurant, userId);
 
   return restaurant;
 };
 
 
 /**
- * CREATE RESTAURANT
+ * GET ALL RESTAURANTS (Public Discovery)
  */
-export const createRestaurant = async (data, userId) => {
-  const { name } = data;
-
-  // STEP 1: prevent duplicate restaurant per owner
-  const existing = await Restaurant.findOne({
-    name,
-    owner: userId,
-  });
-
-  if (existing) {
-    throw new Error("Restaurant already exists for this owner");
-  }
-
-  // STEP 2: create restaurant
-  const restaurant = await Restaurant.create({
-    ...data,
-    owner: userId,
-  });
-
-  // 📡 Emit State Change Event for Admin Service (and others)
-  await emitRestaurantCreated(restaurant, userId);
-
-
-  return restaurant;
-}
-
-
 export const getAllRestaurants = async (query) => {
   const { page = 1, limit = 10, city, cuisine } = query;
 
-  const filter = { isActive: true };
+  const filter = { 
+    isActive: true,
+    status: "approved" // Only show approved restaurants to public
+  };
 
-  if (city) filter.city = city;
-  if (cuisine) filter.cuisine = cuisine;
+  if (city) filter["address.city"] = city;
+  if (cuisine) filter.cuisines = { $in: [cuisine] };
 
   const restaurants = await Restaurant.find(filter)
     .skip((page - 1) * limit)
     .limit(Number(limit))
-    .sort({ createdAt: -1 });
+    .sort({ averageRating: -1, createdAt: -1 });
 
   return restaurants;
 };
-
-

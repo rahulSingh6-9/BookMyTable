@@ -3,6 +3,7 @@ import { getLogsService } from "./log.service.js";
 export const getLogsController = async (req, res) => {
   try {
     const restaurantId = req.params.restaurantId;
+    console.log(`[LogsController] 📥 Fetching logs for Branch: ${restaurantId} | Query:`, req.query);
 
     const logs = await getLogsService({
       restaurantId,

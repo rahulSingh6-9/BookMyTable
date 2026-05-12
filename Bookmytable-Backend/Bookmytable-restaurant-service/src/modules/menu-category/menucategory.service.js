@@ -1,46 +1,29 @@
-// src/services/menuCategory.service.js
-
 import MenuCategory from "../../models/menuCategory.model.js";
+import MenuItem from "../../models/menuItem.model.js";
 import Restaurant from "../../models/restaurant.model.js";
 
 // ✅ CREATE CATEGORY
-export const createCategoryService = async (restaurantId, userId, data) => {
-  // 🔥 1. Check restaurant ownership
-  const restaurant = await Restaurant.findById(restaurantId);
+export const createCategoryService = async (branchId, data) => {
+  // Authorization is now handled by RBAC middleware
+  
+  const branch = await Restaurant.findById(branchId);
+  if (!branch) throw new Error("Branch not found");
 
-  if (!restaurant) {
-    throw new Error("Restaurant not found");
-  }
-
-  if (restaurant.owner.toString() !== userId) {
-    const error = new Error("Unauthorized");
-    error.status = 403;
-    throw error;
-  }
-
-  // 🔥 2. Create category
   const category = await MenuCategory.create({
     ...data,
-    restaurant: restaurantId,
+    branch: branchId,
+    brand: branch.brandId
   });
 
   return category;
 };
 
 // ✅ GET ALL CATEGORIES
-export const getCategoriesService = async (restaurantId, userId) => {
-  const restaurant = await Restaurant.findById(restaurantId);
-
-  if (!restaurant) throw new Error("Restaurant not found");
-
-  if (restaurant.owner.toString() !== userId) {
-    const error = new Error("Unauthorized");
-    error.status = 403;
-    throw error;
-  }
-
+export const getCategoriesService = async (branchId) => {
+  // Authorization is now handled by RBAC middleware
+  
   const categories = await MenuCategory.find({
-    restaurant: restaurantId,
+    branch: branchId,
     isActive: true,
   }).sort({ order: 1 });
 
@@ -48,18 +31,9 @@ export const getCategoriesService = async (restaurantId, userId) => {
 };
 
 // ✅ UPDATE CATEGORY
-export const updateCategoryService = async (categoryId, userId, data) => {
+export const updateCategoryService = async (categoryId, data) => {
   const category = await MenuCategory.findById(categoryId);
-
   if (!category) throw new Error("Category not found");
-
-  const restaurant = await Restaurant.findById(category.restaurant);
-
-  if (restaurant.owner.toString() !== userId) {
-    const error = new Error("Unauthorized");
-    error.status = 403;
-    throw error;
-  }
 
   Object.assign(category, data);
   await category.save();
@@ -68,21 +42,19 @@ export const updateCategoryService = async (categoryId, userId, data) => {
 };
 
 // ✅ DELETE CATEGORY (soft delete)
-export const deleteCategoryService = async (categoryId, userId) => {
+export const deleteCategoryService = async (categoryId) => {
   const category = await MenuCategory.findById(categoryId);
-
   if (!category) throw new Error("Category not found");
 
-  const restaurant = await Restaurant.findById(category.restaurant);
-
-  if (restaurant.owner.toString() !== userId) {
-    const error = new Error("Unauthorized");
-    error.status = 403;
-    throw error;
-  }
-
+  // 1. Soft delete the category
   category.isActive = false;
   await category.save();
 
-  return { message: "Category deleted" };
+  // 2. Soft delete all items in this category
+  await MenuItem.updateMany(
+    { category: categoryId, isActive: true },
+    { isActive: false }
+  );
+
+  return { message: "Category and linked menu items deleted successfully" };
 };

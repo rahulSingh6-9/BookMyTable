@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { usePermission } from "@/components/auth/PermissionGuard";
 import { getRestaurantBookings } from "@/services/booking.service";
 import { getRestaurantTables } from "@/services/table.service";
+import { useBranch } from "@/context/BranchContext";
 import { Loader } from "@/components/common/Loader";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { format } from "date-fns";
@@ -14,9 +15,8 @@ import { ReceptionistOverview } from "@/components/staff/ReceptionistOverview";
 import { WaiterOverview } from "@/components/staff/WaiterOverview";
 
 export default function StaffDashboard() {
-  const { user } = useAuth();
   const { hasPermission } = usePermission();
-  const restaurantId = user?.restaurantId || user?.restaurant?._id;
+  const { activeBranchId: restaurantId } = useBranch();
 
   // 1️⃣ Fetch Today's Bookings
   const { data: bookingsRes, isLoading: loadingBookings, error: bookingsError } = useQuery({

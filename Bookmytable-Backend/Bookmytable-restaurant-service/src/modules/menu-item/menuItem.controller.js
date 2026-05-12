@@ -5,16 +5,15 @@ import {
   deleteMenuItemService,
 } from "./menuItem.service.js";
 import { createLog } from "../log/log.service.js";
+import { ROLES } from "../../config/roles.js";
 
-// ✅ CREATE
 export const createMenuItem = async (req, res) => {
   try {
     const { restaurantId } = req.params;
-    const userId = req.headers["x-user-id"];
+    const userId = req.user.id;
 
-    const result = await createMenuItemService(
+    const item = await createMenuItemService(
       restaurantId,
-      userId,
       req.body,
       req.file
     );
@@ -23,59 +22,46 @@ export const createMenuItem = async (req, res) => {
     createLog({
       action: "MENU_ITEM_CREATED",
       performedBy: userId,
-      role: req.headers["x-user-role"],
+      role: req.activeRole || ROLES.OWNER,
       restaurant: restaurantId,
-      metadata: { name: req.body.name, price: req.body.price },
+      metadata: { itemName: item.name, price: item.price },
       ipAddress: req.ip,
     });
 
     res.status(201).json({
       success: true,
-      message: "Item created",
-      data: result,
+      message: "Menu item created successfully",
+      data: item,
     });
-  } catch (error) {
-    res.status(error.status || 500).json({
-      success: false,
-      message: error.message,
-    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
   }
 };
 
-// ✅ GET
 export const getMenuItems = async (req, res) => {
   try {
     const { restaurantId } = req.params;
     const { categoryId } = req.query;
-    const userId = req.headers["x-user-id"];
 
-    const result = await getMenuItemsService(
-      restaurantId,
-      userId,
-      categoryId
-    );
+    const items = await getMenuItemsService(restaurantId, categoryId);
 
-    res.json({
+    res.status(200).json({
       success: true,
-      data: result,
+      data: items,
     });
-  } catch (error) {
-    res.status(error.status || 500).json({
-      success: false,
-      message: error.message,
-    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
   }
 };
 
-// ✅ UPDATE
 export const updateMenuItem = async (req, res) => {
   try {
     const { itemId } = req.params;
-    const userId = req.headers["x-user-id"];
+    const userId = req.user.id;
+    const branchId = req.branchId;
 
-    const result = await updateMenuItemService(
+    const item = await updateMenuItemService(
       itemId,
-      userId,
       req.body,
       req.file
     );
@@ -84,51 +70,45 @@ export const updateMenuItem = async (req, res) => {
     createLog({
       action: "MENU_ITEM_UPDATED",
       performedBy: userId,
-      role: req.headers["x-user-role"],
-      restaurant: result.restaurant,
-      metadata: { itemId, updates: req.body },
+      role: req.activeRole || ROLES.OWNER,
+      restaurant: branchId || item.restaurant,
+      metadata: { itemId, itemName: item.name },
       ipAddress: req.ip,
     });
 
-    res.json({
+    res.status(200).json({
       success: true,
-      message: "Item updated",
-      data: result,
+      message: "Menu item updated successfully",
+      data: item,
     });
-  } catch (error) {
-    res.status(error.status || 500).json({
-      success: false,
-      message: error.message,
-    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
   }
 };
 
-// ✅ DELETE
 export const deleteMenuItem = async (req, res) => {
   try {
     const { itemId } = req.params;
-    const userId = req.headers["x-user-id"];
+    const userId = req.user.id;
+    const branchId = req.branchId;
 
-    const result = await deleteMenuItemService(itemId, userId);
+    const result = await deleteMenuItemService(itemId);
 
     // 📝 Log Action
     createLog({
       action: "MENU_ITEM_DELETED",
       performedBy: userId,
-      role: req.headers["x-user-role"],
-      restaurant: result.restaurantId,
+      role: req.activeRole || ROLES.OWNER,
+      restaurant: branchId,
       metadata: { itemId },
       ipAddress: req.ip,
     });
 
-    res.json({
+    res.status(200).json({
       success: true,
-      ...result,
+      message: result.message,
     });
-  } catch (error) {
-    res.status(error.status || 500).json({
-      success: false,
-      message: error.message,
-    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
   }
 };

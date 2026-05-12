@@ -22,7 +22,6 @@ const brandSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
     },
 
     // Used for duplicate/spam detection
@@ -33,7 +32,7 @@ const brandSchema = new mongoose.Schema(
       required: true,
       lowercase: true,
       trim: true,
-      index: true,
+    
     },
 
     description: {
@@ -340,8 +339,6 @@ const brandSchema = new mongoose.Schema(
 // INDEXES
 // =========================================================
 
-brandSchema.index({ slug: 1 }, { unique: true });
-
 brandSchema.index({ normalizedName: 1 });
 
 brandSchema.index({
@@ -363,7 +360,6 @@ brandSchema.index({
   isVerifiedBrand: 1,
   verificationStatus: 1,
 });
-
 const Brand = mongoose.model("Brand", brandSchema);
 
 export default Brand;

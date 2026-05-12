@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import StaffInvite from "../../models/staffInvite.model.js";
-import Staff from "../../models/staff.model.js";
+import BranchMembership from "../../models/branchmemberships.model.js";
 import Restaurant from "../../models/restaurant.model.js";
 import { authServiceClient } from "./auth.client.js";
 
@@ -35,92 +35,79 @@ export const acceptInviteService = async ({ token, name, password }) => {
     email: invite.email,
     name,
     password,
-    role: "staff",
+    role: "staff", // Global role remains 'staff' or 'customer'
   });
 
-  // 4️⃣ Prevent duplicate staff
-  const existingStaff = await Staff.findOne({
+  // 4️⃣ Prevent duplicate membership
+  const existingMembership = await BranchMembership.findOne({
     user: user._id,
-    restaurant: invite.restaurant,
+    branch: invite.restaurant,
   });
 
-  if (existingStaff) {
-    throw new Error("Already part of this restaurant");
+  if (existingMembership) {
+    throw new Error("Already a member of this branch");
   }
 
-  // 5️⃣ Create staff
-  const staff = await Staff.create({
+  // 5️⃣ Create Branch Membership
+  const membership = await BranchMembership.create({
     user: user._id,
-    restaurant: invite.restaurant,
+    branch: invite.restaurant,
     role: invite.role,
-    permissions: invite.permissions,
-    isActive: true,
-    createdBy: invite.invitedBy,
+    // Map simple permissions to new schema if necessary
+    permissions: Array.isArray(invite.permissions) 
+      ? invite.permissions.map(p => typeof p === 'string' ? { action: p, scope: 'branch' } : p)
+      : [],
+    status: "active",
+    invitedBy: invite.invitedBy,
+    joinedAt: new Date(),
   });
 
-  // 6️⃣ Invalidate potential cache (safety)
+  // 6️⃣ Invalidate potential cache
   await clearStaffCache(user._id, invite.restaurant);
 
   // 7️⃣ Update invite
   invite.status = "accepted";
-
   invite.acceptedAt = new Date();
   await invite.save();
 
-  return staff;
+  return membership;
 };
 
 /**
- * Fetches staff data with Redis caching.
- * Scalable and production-safe fallback to MongoDB.
+ * Fetches membership data with Redis caching.
  */
-export const getStaffWithCache = async (userId, restaurantId) => {
-  const cacheKey = getStaffCacheKey(userId, restaurantId);
+export const getStaffWithCache = async (userId, branchId) => {
+  const cacheKey = getStaffCacheKey(userId, branchId);
 
   try {
-    // 1️⃣ Check Redis first
     const cachedData = await redis.get(cacheKey);
-    if (cachedData) {
-      return JSON.parse(cachedData);
-    }
+    if (cachedData) return JSON.parse(cachedData);
   } catch (err) {
     console.error("[Redis] Get Error:", err.message);
-    // Fallback to DB on Redis error
   }
 
-  // 2️⃣ Fetch from MongoDB if cache miss
-  const staff = await Staff.findOne({
+  const membership = await BranchMembership.findOne({
     user: userId,
-    restaurant: restaurantId,
-    isActive: true,
+    branch: branchId,
+    status: "active",
   }).lean();
 
-  if (staff) {
+  if (membership) {
     try {
-      // 3️⃣ Store necessary data only (role, permissions, isActive, restaurantId)
-      const cacheData = {
-        _id: staff._id,
-        user: staff.user,
-        role: staff.role,
-        permissions: staff.permissions,
-        isActive: staff.isActive,
-        restaurant: staff.restaurant,
-      };
-
-      await redis.set(cacheKey, JSON.stringify(cacheData), "EX", 300); // TTL: 300s
+      await redis.set(cacheKey, JSON.stringify(membership), "EX", 300);
     } catch (err) {
       console.error("[Redis] Set Error:", err.message);
     }
   }
 
-  return staff;
+  return membership;
 };
 
 /**
- * Invalidate staff cache.
+ * Invalidate membership cache.
  */
-export const clearStaffCache = async (userId, restaurantId) => {
-  const cacheKey = getStaffCacheKey(userId, restaurantId);
+export const clearStaffCache = async (userId, branchId) => {
+  const cacheKey = getStaffCacheKey(userId, branchId);
   try {
     await redis.del(cacheKey);
   } catch (err) {
@@ -129,66 +116,56 @@ export const clearStaffCache = async (userId, restaurantId) => {
 };
 
 
-export const listStaffService = async ({ restaurantId, ownerId }) => {
-  const restaurant = await Restaurant.findById(restaurantId);
-  if (!restaurant || restaurant.owner.toString() !== ownerId) {
-    throw new Error("Unauthorized: Only owner can access staff list");
-  }
-
-  // 🔥 Populate real user data (name, email) from shared DB using the User stub
-  const staffMembers = await Staff.find({ 
-    restaurant: restaurantId, 
-    isActive: true 
+export const listStaffService = async ({ restaurantId }) => {
+  // Authorization is now handled by RBAC middleware
+  
+  const staffMembers = await BranchMembership.find({ 
+    branch: restaurantId, 
+    status: "active" 
   }).populate("user", "name email");
 
   return staffMembers;
 };
 
 
-export const updateStaffService = async ({ staffId, restaurantId, ownerId, updates }) => {
-  const restaurant = await Restaurant.findById(restaurantId);
-  if (!restaurant || restaurant.owner.toString() !== ownerId) {
-    throw new Error("Unauthorized: Only owner can update staff");
-  }
+export const updateStaffService = async ({ staffId, restaurantId, updates }) => {
+  // Authorization is now handled by RBAC middleware
 
-  // updates can only contain role and permissions, etc.
   const allowedUpdates = {};
   if (updates.role) allowedUpdates.role = updates.role;
   if (updates.permissions) allowedUpdates.permissions = updates.permissions;
-  if (updates.isActive !== undefined) allowedUpdates.isActive = updates.isActive;
+  if (updates.isActive !== undefined) {
+    allowedUpdates.status = updates.isActive ? "active" : "suspended";
+  }
 
-  const staff = await Staff.findOneAndUpdate(
-    { _id: staffId, restaurant: restaurantId },
+  const membership = await BranchMembership.findOneAndUpdate(
+    { _id: staffId, branch: restaurantId },
     { $set: allowedUpdates },
     { new: true }
   ).populate("user", "name email");
 
-  if (!staff) throw new Error("Staff member not found");
+  if (!membership) throw new Error("Staff membership not found");
 
   // Invalidate cache
-  await clearStaffCache(staff.user, restaurantId);
+  await clearStaffCache(membership.user, restaurantId);
 
-  return staff;
+  return membership;
 };
 
 
-export const deleteStaffService = async ({ staffId, restaurantId, ownerId }) => {
-  const restaurant = await Restaurant.findById(restaurantId);
-  if (!restaurant || restaurant.owner.toString() !== ownerId) {
-    throw new Error("Unauthorized: Only owner can delete staff");
-  }
+export const deleteStaffService = async ({ staffId, restaurantId }) => {
+  // Authorization is now handled by RBAC middleware
 
-  // Soft delete by setting isActive to false
-  const staff = await Staff.findOneAndUpdate(
-    { _id: staffId, restaurant: restaurantId },
-    { $set: { isActive: false } },
+  const membership = await BranchMembership.findOneAndUpdate(
+    { _id: staffId, branch: restaurantId },
+    { $set: { status: "removed" } },
     { new: true }
   );
 
-  if (!staff) throw new Error("Staff member not found");
+  if (!membership) throw new Error("Staff membership not found");
 
   // Invalidate cache
-  await clearStaffCache(staff.user, restaurantId);
+  await clearStaffCache(membership.user, restaurantId);
 
-  return staff;
-};
+  return membership;
+};

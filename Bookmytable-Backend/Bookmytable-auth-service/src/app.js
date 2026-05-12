@@ -7,10 +7,6 @@ import cors from 'cors'
 // Routes imports
 import authRoutes from './modules/auth/auth.routes.js'
 
-import layoutRoutes from './modules/layouts/layout.routes.js'
-import bookingRoutes from './modules/bookings/booking.routes.js'
-import availabilityRoutes from "./modules/availability/availability.routes.js";
-
 
 const app = express()
 
@@ -43,9 +39,6 @@ app.use(cors({
 
 app.use('/auth', authRoutes)
 
-app.use('/api/layouts', layoutRoutes)
-app.use('/api/bookings', bookingRoutes)
-app.use("/api/availability", availabilityRoutes)
 
 // 🔥 404 Handler
 app.use((req, res) => {

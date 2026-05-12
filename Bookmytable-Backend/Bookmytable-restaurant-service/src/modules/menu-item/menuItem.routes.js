@@ -1,5 +1,3 @@
-// src/routes/menuItem.routes.js
-
 import express from "express";
 import {
   createMenuItem,
@@ -7,17 +5,18 @@ import {
   updateMenuItem,
   deleteMenuItem,
 } from "./menuItem.controller.js";
-
+import { protect } from "../../middleware/auth.middleware.js";
+import { authorize } from "../../middleware/authorize.js";
 import upload from "../../middleware/upload.js";
 
 const router = express.Router();
 
-// ✅ Create & Get
-router.post("/:restaurantId", upload.single("image"), createMenuItem);
+// ✅ Public Get
 router.get("/:restaurantId", getMenuItems);
 
-// ✅ Update & Delete
-router.put("/:itemId", upload.single("image"), updateMenuItem);
-router.delete("/:itemId", deleteMenuItem);
+// 🔐 Protected Routes
+router.post("/:restaurantId", protect, authorize("MANAGE_MENU"), upload.single("image"), createMenuItem);
+router.put("/:itemId", protect, authorize("MANAGE_MENU"), upload.single("image"), updateMenuItem);
+router.delete("/:itemId", protect, authorize("MANAGE_MENU"), deleteMenuItem);
 
 export default router;

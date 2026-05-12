@@ -7,6 +7,7 @@ import {
   deleteStaffController,
 } from "./staff.controller.js";
 import { protect } from "../../middleware/auth.middleware.js";
+import { authorize } from "../../middleware/authorize.js";
 import { rateLimiter } from "../../middleware/rateLimit.middleware.js";
 
 const router = express.Router();
@@ -14,19 +15,20 @@ const router = express.Router();
 // 🚀 Apply basic rate limiting to all staff routes
 router.use(rateLimiter(20, 60)); // 20 requests per minute
 
-// 🔐 Owner invites staff
-router.post("/invite/:restaurantId", protect, inviteStaffController);
+// 🔐 Owner/Manager invites staff
+// Requires 'MANAGE_STAFF' permission
+router.post("/invite/:restaurantId", protect, authorize("MANAGE_STAFF"), inviteStaffController);
 
-// 👤 Staff accepts invite
+// 👤 Staff accepts invite (Public/Semi-public)
 router.post("/accept-invite", acceptInviteController);
 
-// 📋 List staff for a restaurant (Owner)
-router.get("/:restaurantId/list", protect, listStaffController);
+// 📋 List staff for a restaurant
+router.get("/:restaurantId/list", protect, authorize("MANAGE_STAFF"), listStaffController);
 
-// ✏️ Update staff role/permissions/status (Owner)
-router.patch("/:staffId", protect, updateStaffController);
+// ✏️ Update staff role/permissions/status
+router.patch("/:staffId", protect, authorize("MANAGE_STAFF"), updateStaffController);
 
-// 🗑️ Soft delete staff (Owner)
-router.delete("/:staffId", protect, deleteStaffController);
+// 🗑️ Soft delete staff
+router.delete("/:staffId", protect, authorize("MANAGE_STAFF"), deleteStaffController);
 
 export default router;

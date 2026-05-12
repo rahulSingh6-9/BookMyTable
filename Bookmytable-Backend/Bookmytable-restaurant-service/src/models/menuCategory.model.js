@@ -10,7 +10,7 @@ const menuCategorySchema = new mongoose.Schema(
     brand: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Brand",
-      index: true,
+     
     },
 
     /**

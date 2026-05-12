@@ -17,19 +17,25 @@ export const startAdminConsumer = async () => {
 
     await consumer.run({
       eachMessage: async ({ topic, message }) => {
-        const payload = JSON.parse(message.value.toString());
-        
         try {
+          const event = JSON.parse(message.value.toString());
+          console.log(`📥 [RestaurantService] Received Kafka event on topic [${topic}]`);
+
           if (topic === KAFKA_TOPICS.RESTAURANT_ADMIN_COMMAND) {
-            // Guard: only process ADMIN_COMMAND events targeted at RESTAURANT service
-            if (payload.eventType === "ADMIN_COMMAND" && payload.service === "RESTAURANT") {
-              await handleAdminRestaurantCommand(payload);
+            // Recognize both legacy and new professional event types
+            const isProfessionalCommand = event.type === "com.bookmytable.admin.restaurant.command";
+            const isLegacyCommand = event.eventType === "ADMIN_COMMAND" && event.service === "RESTAURANT";
+
+            if (isProfessionalCommand || isLegacyCommand) {
+              await handleAdminRestaurantCommand(event);
+            } else {
+              console.warn(`⚠️ [RestaurantService] Ignoring event on topic [${topic}] with type: ${event.type || event.eventType}`);
             }
           } else if (topic === KAFKA_TOPICS.STAFF_INVITED) {
-            await handleStaffInvite(payload);
+            await handleStaffInvite(event);
           }
         } catch (error) {
-          console.error(`❌ Error handling message on topic [${topic}]:`, error.message);
+          console.error(`❌ [RestaurantService] Error handling message on topic [${topic}]:`, error.message);
         }
       },
     });

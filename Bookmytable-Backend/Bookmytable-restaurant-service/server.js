@@ -23,4 +23,15 @@ const startServer = async () => {
   }
 };
 
-startServer();
+startServer();
+
+// 🚨 Global Error Handlers to prevent silent crashes
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+  // Optional: Graceful shutdown or keep running
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught Exception:", error);
+  // process.exit(1); // Keep it running for now to debug
+});

@@ -25,7 +25,7 @@ export const deleteImageFromCloudinary = async (publicId) => {
 
 
 // ✅ CREATE ITEM
-export const createMenuItemService = async (restaurantId, userId, data, file) => {
+export const createMenuItemService = async (branchId, data, file) => {
   const { category } = data;
 
   let imageUrl = null;
@@ -37,23 +37,17 @@ export const createMenuItemService = async (restaurantId, userId, data, file) =>
     imagePublicId = uploadResult.public_id;
   }
 
-  // 🔥 1. Restaurant check
-  const restaurant = await Restaurant.findById(restaurantId);
-  if (!restaurant) throw new Error("Restaurant not found");
-
-  if (restaurant.owner.toString() !== userId) {
-    const error = new Error("Unauthorized");
-    error.status = 403;
-    throw error;
-  }
+  // 🔥 1. Branch check
+  const branch = await Restaurant.findById(branchId);
+  if (!branch) throw new Error("Branch not found");
 
   // 🔥 2. Category check
   const categoryDoc = await MenuCategory.findById(category);
   if (!categoryDoc) throw new Error("Category not found");
 
   // 🔥 CRITICAL CHECK
-  if (categoryDoc.restaurant.toString() !== restaurantId) {
-    throw new Error("Category does not belong to this restaurant");
+  if (categoryDoc.branch.toString() !== branchId) {
+    throw new Error("Category does not belong to this branch");
   }
 
   // 🔥 3. Create item
@@ -61,25 +55,17 @@ export const createMenuItemService = async (restaurantId, userId, data, file) =>
     ...data,
     image: imageUrl,
     imagePublicId: imagePublicId,
-    restaurant: restaurantId,
+    branch: branchId,
+    brand: branch.brandId
   });
 
   return item;
 };
 
 // ✅ GET ITEMS (by category or all)
-export const getMenuItemsService = async (restaurantId, userId, categoryId) => {
-  const restaurant = await Restaurant.findById(restaurantId);
-  if (!restaurant) throw new Error("Restaurant not found");
-
-  if (restaurant.owner.toString() !== userId) {
-    const error = new Error("Unauthorized");
-    error.status = 403;
-    throw error;
-  }
-
+export const getMenuItemsService = async (branchId, categoryId) => {
   const filter = {
-    restaurant: restaurantId,
+    branch: branchId,
     isActive: true,
   };
 
@@ -95,17 +81,9 @@ export const getMenuItemsService = async (restaurantId, userId, categoryId) => {
 };
 
 // ✅ UPDATE ITEM
-export const updateMenuItemService = async (itemId, userId, data, file) => {
+export const updateMenuItemService = async (itemId, data, file) => {
   const item = await MenuItem.findById(itemId);
   if (!item) throw new Error("Item not found");
-
-  const restaurant = await Restaurant.findById(item.restaurant);
-
-  if (restaurant.owner.toString() !== userId) {
-    const error = new Error("Unauthorized");
-    error.status = 403;
-    throw error;
-  }
 
   let imageUrl = item.image;
   let imagePublicId = item.imagePublicId;
@@ -128,17 +106,9 @@ export const updateMenuItemService = async (itemId, userId, data, file) => {
 };
 
 // ✅ DELETE ITEM (soft delete)
-export const deleteMenuItemService = async (itemId, userId) => {
+export const deleteMenuItemService = async (itemId) => {
   const item = await MenuItem.findById(itemId);
   if (!item) throw new Error("Item not found");
-
-  const restaurant = await Restaurant.findById(item.restaurant);
-
-  if (restaurant.owner.toString() !== userId) {
-    const error = new Error("Unauthorized");
-    error.status = 403;
-    throw error;
-  }
 
   if (item.imagePublicId) {
     await deleteImageFromCloudinary(item.imagePublicId);

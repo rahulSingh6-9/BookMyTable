@@ -26,7 +26,7 @@ export const getAllRestaurants = async (req, res, next) => {
 export const rejectRestaurant = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const result = await rejectRestaurantService(id, req.user.id);
+        const result = await rejectRestaurantService(id, req.user);
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);
@@ -37,7 +37,7 @@ export const approveRestaurant = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const result = await approveRestaurantService(id, req.user.id);
+        const result = await approveRestaurantService(id, req.user);
 
         res.status(200).json({
             success: true,
@@ -53,7 +53,7 @@ export const suspendRestaurant = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const result = await suspendRestaurantService(id, req.user.id);
+        const result = await suspendRestaurantService(id, req.user);
 
 
         res.status(200).json({

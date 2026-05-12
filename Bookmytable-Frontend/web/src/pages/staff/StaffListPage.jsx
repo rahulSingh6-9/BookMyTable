@@ -12,36 +12,16 @@ import { EditStaffModal } from "@/components/staff/EditStaffModal";
 import { Loader } from "@/components/common/Loader";
 import { ErrorMessage } from "@/components/common/ErrorMessage";
 import { useMyRestaurant } from "@/hooks/useRestaurantSettings";
+import { useBranch } from "@/context/BranchContext";
 
 
 export default function StaffListPage() {
-  const { user } = useAuth();
-  const { data: restaurant, isLoading: isLoadingRestaurant } = useMyRestaurant();
-  const restaurantId = restaurant?._id;
+  const { hasPermission, activeBranch, isLoading: isLoadingRestaurant } = useBranch();
+  const restaurantId = activeBranch?._id;
   
   // RBAC checks for Frontend safety
-  // Robust check: either role is owner or manage_staff is in permissions
- const canManageStaff = useMemo(() => {
-  const roles = user?.roles || [];
-  const permissions = user?.permissions || [];
-
-  return (
-    roles.includes("owner") ||
-    roles.includes("admin") ||
-    permissions.includes("manage_staff")
-  );
-}, [user]);
-
-  const canEditPermissions = useMemo(() => {
-    const roles = user?.roles || [];
-    const permissions = user?.permissions || [];
-    
-    return (
-      roles.includes("owner") || 
-      roles.includes("admin") || 
-      permissions.includes("edit_permissions")
-    );
-  }, [user]);
+  const canManageStaff = hasPermission("MANAGE_STAFF");
+  const canEditPermissions = hasPermission("MANAGE_BRANCH"); // Owners/Admins usually have this
 
   const [searchTerm, setSearchTerm] = useState("");
   const [openInviteModal, setOpenInviteModal] = useState(false);

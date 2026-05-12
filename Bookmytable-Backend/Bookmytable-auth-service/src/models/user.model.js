@@ -29,9 +29,22 @@ const userSchema = new mongoose.Schema(
     // 🔥 MULTI ROLE SUPPORT
     roles: {
       type: [String],
-      enum: ["customer", "owner", "admin", "staff"],
+      enum: [
+        "customer", 
+        "admin", 
+        "super_admin",
+        "SUPER_ADMIN",
+        "PLATFORM_ADMIN",
+        "SUPPORT_ADMIN",
+        "FINANCE_ADMIN",
+        "OPERATIONS_ADMIN",
+        "CONTENT_MODERATOR",
+        "ANALYTICS_ADMIN",
+        "RESTAURANT_APPROVAL_MANAGER",
+        "STAFF_MANAGEMENT_ADMIN",
+      ],
       default: ["customer"],
-      index: true, // 🔥 add this
+      index: true,
     },
 
     phone: {

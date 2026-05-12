@@ -10,13 +10,16 @@ class NotificationService {
    * 3. Update DB status
    */
   async processNotification(options) {
-    const { type, event, recipient, payload, metadata } = options;
+    const { type, event, recipient, payload, metadata, brandId, branchId } = options;
     logInfo(`🔄 Starting notification process: ${event} for ${recipient}`);
+    
     const notification = await Notification.create({
       type,
       event,
       recipient,
       payload,
+      brandId,
+      branchId,
       status: "pending",
     });
 

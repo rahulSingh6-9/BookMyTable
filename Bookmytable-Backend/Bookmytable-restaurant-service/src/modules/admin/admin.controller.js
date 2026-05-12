@@ -1,10 +1,14 @@
-import { fetchAllRestaurantsForAdmin } from "./admin.service.js";
+import { 
+  fetchAllRestaurantsForAdmin,
+  fetchAllBrandsForAdmin,
+  fetchAllBranchesForAdmin,
+  fetchAllMembershipsForAdmin 
+} from "./admin.service.js";
 
-export const getAllRestaurantsForAdmin = async (req, res) => {
+const handleExportRequest = async (req, res, fetchFn) => {
   try {
     const { page, limit } = req.query;
-
-    const result = await fetchAllRestaurantsForAdmin({ page, limit });
+    const result = await fetchFn({ page, limit });
 
     res.json({
       success: true,
@@ -22,3 +26,8 @@ export const getAllRestaurantsForAdmin = async (req, res) => {
     });
   }
 };
+
+export const getAllRestaurantsForAdmin = (req, res) => handleExportRequest(req, res, fetchAllRestaurantsForAdmin);
+export const getAllBrandsForAdmin = (req, res) => handleExportRequest(req, res, fetchAllBrandsForAdmin);
+export const getAllBranchesForAdmin = (req, res) => handleExportRequest(req, res, fetchAllBranchesForAdmin);
+export const getAllMembershipsForAdmin = (req, res) => handleExportRequest(req, res, fetchAllMembershipsForAdmin);

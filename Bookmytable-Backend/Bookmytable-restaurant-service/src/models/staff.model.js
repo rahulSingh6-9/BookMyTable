@@ -12,7 +12,7 @@ const staffSchema = new mongoose.Schema(
 
     restaurant: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Restaurant",
+      ref: "RestaurantBranch",
       required: true,
       index: true,
     },

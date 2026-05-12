@@ -29,7 +29,27 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(morgan("dev"));
-
 app.use("/api", routes);
+
+// 🔍 404 Handler
+app.use((req, res) => {
+  console.warn(`[Gateway] 404 Not Found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    success: false,
+    message: `Gateway path not found: ${req.originalUrl}`,
+  });
+});
+
+// 🚨 Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("[Gateway Critical Error]:", err.stack);
+  
+  const status = err.status || 500;
+  res.status(status).json({
+    success: false,
+    message: err.message || "Internal Gateway Error",
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack })
+  });
+});
 
 export default app;

@@ -1,62 +1,52 @@
 import React from "react";
-import { useAuth } from "@/context/AuthContext";
-import { Navigate } from "react-router-dom";
+import { useBranch } from "@/context/BranchContext";
 
 /**
- * 🔒 PermissionGuard
- * High-order component to protect UI elements or routes based on permissions.
- * Supports both "some" (OR) and "every" (AND) logic.
+ * Hook for functional permission checks inside components.
+ * Compatible with legacy lowercase permission strings.
  */
-export const PermissionGuard = ({ 
-  permissions = [], 
-  requireAll = false, 
-  fallback = null, 
-  children,
-  redirectTo = null
-}) => {
-  const { user } = useAuth();
+export const usePermission = () => {
+  const { hasPermission: baseHasPermission, activeRole, permissions } = useBranch();
   
-  if (!user) return redirectTo ? <Navigate to={redirectTo} replace /> : fallback;
+  const hasPermission = (required) => {
+    if (!required) return true;
+    
+    // Normalize to array
+    const requiredList = Array.isArray(required) ? required : [required];
+    
+    // Check if any of the required permissions are met
+    return requiredList.some(p => {
+      // Try exact match
+      if (baseHasPermission(p)) return true;
+      
+      // Try uppercase match (migration support)
+      if (baseHasPermission(p.toUpperCase())) return true;
+      
+      // Try specialized mapping if needed
+      if (p === "view_logs" && baseHasPermission("VIEW_REPORTS")) return true;
+      if (p === "check_in_customers" && baseHasPermission("MANAGE_BOOKINGS")) return true;
+      
+      return false;
+    });
+  };
 
-  // Owners and Admins usually have all permissions bypass
-  const isAdmin = user.roles?.includes("owner") || user.roles?.includes("admin");
-  if (isAdmin) return <>{children}</>;
-
-  const userPermissions = user.permissions || [];
-  
-  const hasPermission = requireAll
-    ? permissions.every(p => userPermissions.includes(p))
-    : permissions.some(p => userPermissions.includes(p));
-
-  if (!hasPermission) {
-    if (redirectTo) {
-      return <Navigate to={redirectTo} replace />;
-    }
-    return fallback;
-  }
-
-  return <>{children}</>;
+  return {
+    hasPermission,
+    role: activeRole,
+    permissions
+  };
 };
 
 /**
- * Hook version for logic-heavy components
+ * Component for conditional rendering based on permissions.
+ * Usage: <PermissionGuard permissions={["manage_staff"]}> ... </PermissionGuard>
  */
-export const usePermission = () => {
-  const { user } = useAuth();
-  
-  const hasPermission = (permissions, requireAll = false) => {
-    if (!user) return false;
-    
-    const isAdmin = user.roles?.includes("owner") || user.roles?.includes("admin");
-    if (isAdmin) return true;
+export const PermissionGuard = ({ permissions, children, fallback = null }) => {
+  const { hasPermission } = usePermission();
 
-    const userPermissions = user.permissions || [];
-    const perms = Array.isArray(permissions) ? permissions : [permissions];
+  if (hasPermission(permissions)) {
+    return children;
+  }
 
-    return requireAll
-      ? perms.every(p => userPermissions.includes(p))
-      : perms.some(p => userPermissions.includes(p));
-  };
-
-  return { hasPermission, user };
+  return fallback;
 };

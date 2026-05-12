@@ -1,61 +1,62 @@
 import Table from '../../models/table.model.js';
 import Restaurant from '../../models/restaurant.model.js';
 
-export const getTableServices = async (restaurantId, userId) => {
-  // 1. Validate restaurant exists and user is the owner
-  const restaurant = await Restaurant.findById(restaurantId);
-  console.log("Backend restaurantId:", restaurant._id)   //****Testing
-
-  if (!restaurant) {
-    const error = new Error("Restaurant not found");
+export const getTableServices = async (branchId) => {
+  // Authorization is now handled by RBAC middleware
+  
+  const branch = await Restaurant.findById(branchId);
+  if (!branch) {
+    const error = new Error("Branch not found");
     error.status = 404;
     throw error;
   }
 
-  if (restaurant.owner.toString() !== userId) {
-    const error = new Error("Unauthorized: You do not own this restaurant");
-    error.status = 403;
-    throw error;
-  }
-
-  // 2. Fetch active tables sorted by tableCode
+  // Fetch active tables sorted by tableCode
   const tables = await Table.find({
-    restaurant: restaurantId,
+    branch: branchId,
     isActive: true,
   }).sort({ tableCode: 1 });
    
-  console.log(tables)
   return tables;
 };
 
 
-export const createTableService = async (restaurantId, userId, data) => {
-  const restaurant = await Restaurant.findById(restaurantId);
+export const createTableService = async (branchId, userId, data) => {
+  // 1. Branch check
+  const branch = await Restaurant.findById(branchId);
+  if (!branch) throw new Error("Branch not found");
 
-  if (!restaurant) throw new Error("Restaurant not found");
+  // 2. Check for duplicate tableCode in this branch
+  const existingTable = await Table.findOne({
+    branch: branchId,
+    tableCode: data.tableCode,
+    isActive: true, // Only check active tables
+  });
 
-  if (restaurant.owner.toString() !== userId) {
-    const error = new Error("Unauthorized");
-    error.status = 403;
+  if (existingTable) {
+    const error = new Error(`Table with code "${data.tableCode}" already exists in this branch.`);
+    error.status = 400;
     throw error;
   }
 
+  // 3. Create table
   const table = await Table.create({
-    restaurant: restaurantId,
+    branch: branchId,
+    brand: branch.brandId,
     tableCode: data.tableCode,
     capacity: data.capacity,
     type: data.type,
     floor: data.floor,
     section: data.section,
     position: data.position,
-    isActive: true, // 🔥 important
+    isActive: true,
   });
 
   return table;
 };
 
 
-export const updateTableService = async (tableId, userId, data) => {
+export const updateTableService = async (tableId, data) => {
   const table = await Table.findById(tableId);
 
   if (!table) {
@@ -64,25 +65,16 @@ export const updateTableService = async (tableId, userId, data) => {
     throw err;
   }
 
-  // 🔥 Ownership check
-  const restaurant = await Restaurant.findById(table.restaurant);
-
-  if (!restaurant || restaurant.owner.toString() !== userId) {
-    const err = new Error("Unauthorized");
-    err.status = 403;
-    throw err;
-  }
-
-  // 🔥 Prevent duplicate tableCode
+  // Prevent duplicate tableCode
   if (data.tableCode) {
     const existing = await Table.findOne({
-      restaurant: table.restaurant,
+      branch: table.branch,
       tableCode: data.tableCode,
       _id: { $ne: tableId },
     });
 
     if (existing) {
-      const err = new Error("Table code already exists");
+      const err = new Error("Table code already exists in this branch");
       err.status = 400;
       throw err;
     }
@@ -95,7 +87,7 @@ export const updateTableService = async (tableId, userId, data) => {
 };
 
 
-export const deleteTableService = async (tableId, userId) => {
+export const deleteTableService = async (tableId) => {
   const table = await Table.findById(tableId);
 
   if (!table) {
@@ -104,15 +96,7 @@ export const deleteTableService = async (tableId, userId) => {
     throw err;
   }
 
-  const restaurant = await Restaurant.findById(table.restaurant);
-
-  if (!restaurant || restaurant.owner.toString() !== userId) {
-    const err = new Error("Unauthorized");
-    err.status = 403;
-    throw err;
-  }
-
-  // 🔥 Soft delete
+  // Soft delete
   table.isActive = false;
   await table.save();
 

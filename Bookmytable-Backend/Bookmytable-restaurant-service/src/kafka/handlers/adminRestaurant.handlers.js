@@ -5,11 +5,22 @@ import { emitRestaurantStatusChanged } from "../producers/restaurant.producer.js
  * Handles ADMIN_COMMAND events from the admin-service
  * Topic: restaurant.admin.command
  */
+/**
+ * Handles professional ADMIN_COMMAND events for Restaurant Service
+ */
 export const handleAdminRestaurantCommand = async (event) => {
-  const { action, payload, adminId } = event;
-  const { id } = payload;
+  const { action, data, payload, actor, context, correlationId, id: eventId } = event;
+  
+  // Support both new "data" and old "payload" naming
+  const finalData = data || payload;
+  const restaurantId = finalData?.id;
 
-  console.log(`🛠️  [RestaurantService] Processing Admin command: ${action} on Restaurant ${id}`);
+  if (!restaurantId) {
+    console.warn(`⚠️ [RestaurantService] Admin command ${eventId} missing restaurant ID`, { event });
+    return;
+  }
+
+  console.log(`🛠️ [RestaurantService] [Trace: ${correlationId || 'N/A'}] Admin ${actor?.id || 'System'} performing ${action} on Restaurant ${restaurantId}`);
 
   let update = {};
   switch (action) {
@@ -23,24 +34,29 @@ export const handleAdminRestaurantCommand = async (event) => {
       update = { status: "rejected", isActive: false };
       break;
     default:
-      console.warn(`⚠️  [RestaurantService] Unknown admin action: ${action}`);
+      console.warn(`⚠️ [RestaurantService] Unknown admin action: ${action}`);
       return;
   }
 
   try {
-    const restaurant = await Restaurant.findByIdAndUpdate(id, update, { new: true }).populate("owner");
+    const restaurant = await Restaurant.findByIdAndUpdate(restaurantId, update, { new: true }).populate("owner");
 
     if (!restaurant) {
-      console.error(`❌ [RestaurantService] Restaurant ${id} not found`);
+      console.error(`❌ [RestaurantService] Restaurant ${restaurantId} not found for event ${eventId}`);
       return;
     }
 
-    console.log(`✅ [RestaurantService] Restaurant ${id} updated — status: ${restaurant.status}`);
+    console.log(`✅ [RestaurantService] Restaurant ${restaurantId} updated — status: ${restaurant.status}`);
 
-    // 📡 Emit standardized restaurant.updated event
-    await emitRestaurantStatusChanged(restaurant, adminId);
+    // 📡 Emit standardized domain event with correlation and context
+    await emitRestaurantStatusChanged({
+      ...restaurant.toObject(),
+      correlationId,
+      actorId: actor?.id,
+      tenantContext: context
+    }, action);
     
   } catch (error) {
-    console.error(`❌ [RestaurantService] Error updating restaurant ${id}:`, error.message);
+    console.error(`❌ [RestaurantService] Error updating restaurant ${restaurantId}:`, error.message);
   }
 };

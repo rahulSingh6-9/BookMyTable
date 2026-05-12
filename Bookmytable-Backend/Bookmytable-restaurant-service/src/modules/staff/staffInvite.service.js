@@ -16,29 +16,27 @@ const generateToken = () => {
 
 export const inviteStaffService = async ({
   restaurantId,
-  ownerId,
+  invitedBy,
   email,
   role,
   permissions,
 }) => {
-  // 1️⃣ Check restaurant ownership
-  const restaurant = await Restaurant.findById(restaurantId);
+  // 1️⃣ Check branch exists
+  const branch = await Restaurant.findById(restaurantId);
 
-  if (!restaurant) throw new Error("Restaurant not found");
+  if (!branch) throw new Error("Branch not found");
 
-  if (restaurant.owner.toString() !== ownerId) {
-    throw new Error("Unauthorized");
-  }
+  // Note: Authorization is now handled by RBAC middleware at the route level
 
   // 2️⃣ Prevent duplicate active invite
   const existingInvite = await StaffInvite.findOne({
     email,
-    restaurant: restaurantId,
+    branch: restaurantId,
     status: "pending",
   });
 
   if (existingInvite) {
-    throw new Error("Invite already sent");
+    throw new Error("Invite already sent and is still pending");
   }
 
   // 3️⃣ Generate token
@@ -47,23 +45,24 @@ export const inviteStaffService = async ({
   // 4️⃣ Create invite
   const invite = await StaffInvite.create({
     email,
-    restaurant: restaurantId,
+    branch: restaurantId,
+    brand: branch.brandId,
     role,
     permissions,
-    invitedBy: ownerId,
+    invitedBy,
     tokenHash,
     expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
   });
 
-  // 5️⃣ 🔥 EMIT EVENT (replace email sending)
+  // 5️⃣ 🔥 EMIT EVENT
   await emitStaffInviteEvent({
     email,
     role,
-    restaurantName: restaurant.name,
+    restaurantName: branch.branchName || branch.name,
     inviteLink: `${
       process.env.FRONTEND_URL || process.env.WEB_URL
     }/accept-invite?token=${rawToken}`,
-    invitedBy: ownerId,
+    invitedBy,
     restaurantId,
     inviteId: invite._id,
   });

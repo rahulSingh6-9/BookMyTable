@@ -10,14 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { useAuth } from "@/context/AuthContext";
-import { useMyRestaurant } from "@/hooks/useRestaurantSettings";
+
+import { useBranch } from "@/context/BranchContext";
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from "@/hooks/useCategories";
 import { useMenuItems, useCreateMenuItem, useUpdateMenuItem, useDeleteMenuItem } from "@/hooks/useMenuItems";
 
 export default function ManageMenu() {
-  const { data: restaurant } = useMyRestaurant();
-  const restaurantId = restaurant?._id;
+  const { activeBranchId } = useBranch();
+  const restaurantId = activeBranchId;
 
   const [selectedCategoryId, setSelectedCategoryId] = useState(null);
   

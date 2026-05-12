@@ -11,7 +11,7 @@ const tableLockSchema = new mongoose.Schema(
 
     restaurant: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Restaurant",
+      ref: "RestaurantBranch",
       required: true,
       index: true,
     },

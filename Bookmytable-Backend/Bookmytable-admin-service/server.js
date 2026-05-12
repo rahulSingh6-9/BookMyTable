@@ -5,7 +5,14 @@ import app from "./app.js";
 import mongoose from "mongoose";
 import { connectDB } from "./src/config/db.js";
 import { initKafka } from "./src/kafka/index.js";
-import { initialUserSync, initialRestaurantSync } from "./src/services/initialSync.service.js";
+import { 
+  initialUserSync, 
+  initialRestaurantSync,
+  initialBrandSync,
+  initialBranchSync,
+  initialMembershipSync
+} from "./src/services/initialSync.service.js";
+import "./src/models/index.js"; // 🔥 Register all models
 
 
 const startServer = async () => {
@@ -16,6 +23,9 @@ const startServer = async () => {
     // 1️⃣ Initial Sync (safe)
     await initialUserSync();
     await initialRestaurantSync();
+    await initialBrandSync();
+    await initialBranchSync();
+    await initialMembershipSync();
 
     // 2. Initialize Kafka
     await initKafka();
@@ -31,5 +41,14 @@ const startServer = async () => {
     process.exit(1);
   }
 };
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ [Admin Service] Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("❌ [Admin Service] Uncaught Exception:", error);
+  process.exit(1);
+});
 
 startServer();

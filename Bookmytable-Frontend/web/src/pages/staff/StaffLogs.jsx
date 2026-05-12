@@ -15,14 +15,23 @@ import {
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 
+import { useBranch } from "@/context/BranchContext";
+
 export default function StaffLogs() {
   const { user } = useAuth();
-  const restaurantId = user?.restaurantId || user?.restaurant?._id;
+  const { activeBranchId } = useBranch();
+
+  console.log("[StaffLogs] Component Mounted. Active Branch:", activeBranchId);
 
   const { data: logsData, isLoading, error } = useQuery({
-    queryKey: ["staff", "logs", restaurantId],
-    queryFn: () => getRestaurantLogs(restaurantId),
-    enabled: !!restaurantId,
+    queryKey: ["staff", "logs", activeBranchId],
+    queryFn: async () => {
+      console.log("[StaffLogs] Executing getRestaurantLogs for:", activeBranchId);
+      const response = await getRestaurantLogs(activeBranchId);
+      console.log("[StaffLogs] Logs received:", response?.data?.length || 0);
+      return response;
+    },
+    enabled: !!activeBranchId,
   });
 
   if (isLoading) return <Loader />;

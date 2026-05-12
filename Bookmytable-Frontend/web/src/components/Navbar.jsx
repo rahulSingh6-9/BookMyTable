@@ -11,7 +11,7 @@ import logo from "@/assets/BookMyTable_logo.jpg";
 
 import { useAuth } from "../context/AuthContext";
 
-function Navbar() {
+function Navbar({ children }) {
   const { user, logout } = useAuth();
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -82,6 +82,11 @@ function Navbar() {
               </Command>
             </PopoverContent>
           </Popover>
+        </div>
+
+        {/* Dynamic Context Slots (e.g. Branch Switcher) */}
+        <div className="flex-1 flex justify-center px-4">
+           {children}
         </div>
 
         {/* Desktop nav */}
