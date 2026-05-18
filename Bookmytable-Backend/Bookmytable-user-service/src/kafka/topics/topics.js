@@ -1,4 +1,7 @@
+import { USER_TOPICS } from "./user.topics.js";
+
 export const KAFKA_TOPICS = {
-  USER_ADMIN_COMMAND: "user.admin.command",
-  USER_UPDATED: "user.updated",
+  ...USER_TOPICS
 };
+
+export * from "./user.topics.js";

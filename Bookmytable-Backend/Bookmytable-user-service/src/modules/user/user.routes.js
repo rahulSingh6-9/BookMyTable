@@ -1,21 +1,42 @@
 import express from "express";
-import { getMe, updateProfile, changePassword } from "./user.controller.js";
+import { 
+  getMe, 
+  updateProfile, 
+  uploadAvatar, 
+  changePassword,
+  requestPhoneChange,
+  verifyPhoneOtp,
+  resendPhoneOtp,
+  requestEmailChange,
+  verifyEmailToken,
+  deactivateAccount
+} from "./user.controller.js";
 import { protect } from "../../middleware/auth.middleware.js";
 import { upload } from "../../config/multer.js";
 
-
 const router = express.Router();
 
-// 🔥 CURRENT USER PROFILE
+// 👤 CURRENT USER PROFILE INFO (GET)
 router.get("/me", protect, getMe);
 
-// 🔥 UPDATE PROFILE
-router.put("/me", protect, upload.single("avatar"), updateProfile);
+// 👤 PARTIAL PROFILE UPDATE (PATCH)
+router.patch("/me", protect, updateProfile);
 
-// 🔥 CHANGE PASSWORD
+// 🖼️ PROFILE AVATAR FILE UPLOAD (PATCH)
+router.patch("/me/avatar", protect, upload.single("avatar"), uploadAvatar);
+
+// 🔐 CHANGE PASSWORD (PUT)
 router.put("/change-password", protect, changePassword);
 
+// 📱 CONTACT & VERIFICATION FLOWS (POST)
+router.post("/me/phone/request", protect, requestPhoneChange);
+router.post("/me/phone/verify", protect, verifyPhoneOtp);
+router.post("/me/phone/resend", protect, resendPhoneOtp);
 
+router.post("/me/email/request", protect, requestEmailChange);
+router.post("/me/email/verify", protect, verifyEmailToken);
 
+// ❌ ACCOUNT SECURITY DEACTIVATION (POST)
+router.post("/me/deactivate", protect, deactivateAccount);
 
 export default router;

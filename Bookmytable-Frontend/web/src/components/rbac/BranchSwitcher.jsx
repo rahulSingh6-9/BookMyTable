@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 export const BranchSwitcher = ({ className, collapsed = false }) => {
   const { memberships, activeBranch, activeBranchId, switchBranch } = useBranch();
   const [open, setOpen] = useState(false);
+   console.log(activeBranch);
 
   const activeMembership = useMemo(() => 
     memberships.find(m => m.branch._id === activeBranchId),

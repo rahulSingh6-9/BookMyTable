@@ -1,11 +1,11 @@
-import dotenv from 'dotenv'
-dotenv.config()
-
 import express from 'express'
 import cors from 'cors'
+import { env } from './config/env.js'
+
 
 // Routes imports
 import authRoutes from './modules/auth/auth.routes.js'
+import verificationRoutes from './modules/verification/verification.routes.js'
 
 
 const app = express()
@@ -38,6 +38,7 @@ app.use(cors({
 }))
 
 app.use('/auth', authRoutes)
+app.use('/verification', verificationRoutes)
 
 
 // 🔥 404 Handler
@@ -58,7 +59,8 @@ app.use((err, req, res, next) => {
   res.status(status).json({
     success: false,
     message: message,
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack })
+    ...(env.NODE_ENV === "development" && { stack: err.stack })
+
   });
 });
 

@@ -1,9 +1,7 @@
+import { ADMIN_TOPICS } from "./admin.topics.js";
+
 export const KAFKA_TOPICS = {
-  USER_ADMIN_COMMAND: "user.admin.command",
-  RESTAURANT_ADMIN_COMMAND: "restaurant.admin.command",
-  USER_UPDATED: "user.updated",
-  RESTAURANT_UPDATED: "restaurant.updated",
-  BRAND_UPDATED: "brand.updated",
-  BRANCH_UPDATED: "branch.updated",
-  MEMBERSHIP_UPDATED: "membership.updated",
+  ...ADMIN_TOPICS
 };
+
+export * from "./admin.topics.js";

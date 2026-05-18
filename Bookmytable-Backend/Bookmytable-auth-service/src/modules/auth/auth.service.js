@@ -1,8 +1,8 @@
 import User from "../../models/user.model.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto"
-import { sendEmail } from "../../utils/sendEmail.js";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { emitEvent, AUTH_TOPICS } from "../../kafka/index.js";
 
 
 const ROLE_PERMISSIONS = {
@@ -137,6 +137,20 @@ export const signupUser = async ({ name, email, password, phone }) => {
 
   const token = generateToken(user, "web");
 
+  // 📡 Emit USER_REGISTERED event via Kafka
+  try {
+    await emitEvent(AUTH_TOPICS.USER_REGISTERED, {
+      id: user._id.toString(),
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      roles: user.roles,
+    });
+  } catch (err) {
+    console.error("❌ Failed to emit USER_REGISTERED event on signup:", err.message);
+  }
+
   return {
     token,
     user: {
@@ -148,6 +162,7 @@ export const signupUser = async ({ name, email, password, phone }) => {
     scope: "web",
   };
 };
+
 
 
 export const forgotPassword = async ({ email }) => {
@@ -174,23 +189,19 @@ export const forgotPassword = async ({ email }) => {
 
   const resetLink = `${process.env.WEB_URL}/reset-password?token=${rawToken}`;
 
-  // ✉️ Email content
-  const html = `
-    <h2>Password Reset</h2>
-    <p>Click the link below to reset your password:</p>
-    <a href="${resetLink}">Reset Password</a>
-    <p>This link will expire in 15 minutes.</p>
-  `;
-
-  // Send email
-  await sendEmail(user.email, "Reset Your Password", html);
+  // 🔥 Emit Kafka Event instead of direct email
+  await emitEvent(AUTH_TOPICS.PASSWORD_RESET_REQUESTED, {
+    email: user.email,
+    name: user.name,
+    resetLink,
+    expiresIn: "15 minutes"
+  });
 
   return {
-    message: "Reset link generated",
-    // resetLink: `http://localhost:8080/reset-password?token=${rawToken}`
+    message: "Reset link generated and sent via notification service",
   }
-
 }
+
 
 export const resetPassword = async ({ token, newPassword }) => {
   const hashedToken = crypto

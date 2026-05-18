@@ -52,7 +52,7 @@ const userSchema = new mongoose.Schema(
     emailVerified: {
       type: Boolean,
       default: false,
-      index: true,
+     
     },
 
     emailVerifiedAt: {
@@ -107,7 +107,7 @@ const userSchema = new mongoose.Schema(
         "super_admin",
       ],
       default: ["customer"],
-      index: true,
+      
     },
 
     /**
@@ -156,6 +156,62 @@ const userSchema = new mongoose.Schema(
       type: String,
     },
 
+    profile: {
+      fullName: {
+        type: String,
+        trim: true,
+      },
+      avatar: {
+        type: String,
+      },
+    },
+
+    verification: {
+      emailVerified: {
+        type: Boolean,
+        default: false,
+      },
+      phoneVerified: {
+        type: Boolean,
+        default: false,
+      },
+    },
+
+    pendingPhoneChange: {
+      phone: {
+        number: { type: String },
+        e164: { type: String },
+        countryCode: { type: String },
+      },
+      otpId: { type: String },
+      expiresAt: { type: Date },
+    },
+
+    pendingEmailChange: {
+      email: { type: String },
+      tokenId: { type: String },
+      expiresAt: { type: Date },
+    },
+
+    loyalty: {
+      tier: {
+        type: String,
+        enum: ["Bronze", "Silver", "Gold", "Platinum"],
+        default: "Bronze",
+      },
+      rewardPoints: {
+        type: Number,
+        default: 0,
+      },
+    },
+
+    statistics: {
+      totalBookings: {
+        type: Number,
+        default: 0,
+      },
+    },
+
     bio: {
       type: String,
       trim: true,
@@ -190,7 +246,7 @@ const userSchema = new mongoose.Schema(
         "pending_verification",
       ],
       default: "active",
-      index: true,
+    
     },
 
     isBlocked: {
@@ -298,6 +354,25 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+/**
+ * =========================================================
+ * PROFILE DATA SYNCHRONIZATION
+ * =========================================================
+ */
+userSchema.pre("save", function (next) {
+  if (!this.profile) this.profile = {};
+  if (this.name) this.profile.fullName = this.name;
+  if (this.avatar) this.profile.avatar = this.avatar;
+
+  if (!this.verification) this.verification = {};
+  this.verification.emailVerified = !!this.emailVerified;
+  this.verification.phoneVerified = !!(this.phone && this.phone.isVerified);
+
+  if (!this.loyalty) this.loyalty = { tier: "Bronze", rewardPoints: 0 };
+  
+  next();
+});
 
 /**
  * =========================================================

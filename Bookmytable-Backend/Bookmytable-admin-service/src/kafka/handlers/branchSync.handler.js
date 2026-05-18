@@ -2,23 +2,26 @@ import BranchReadModel from "../../models/branchReadModel.js";
 
 export const syncBranch = async (data) => {
   const branchId = data?.id || data?._id;
-
+  
   if (!branchId) {
-    console.error("❌ No Branch ID found for sync:", data);
+    console.error("❌ [BranchSync] No Branch ID found in payload:", data);
     return;
   }
 
-  const incomingUpdatedAt = new Date(data.updatedAt || Date.now());
+  console.log(`🔄 [BranchSync] Processing update for Branch: ${branchId}`, { status: data.status });
+
+  const incomingUpdatedAt = data.updatedAt ? new Date(data.updatedAt) : new Date();
   const existing = await BranchReadModel.findById(branchId);
 
   if (existing && existing.updatedAt && incomingUpdatedAt <= existing.updatedAt) {
+    console.log(`⏭️ [BranchSync] Skipping stale update for ${branchId} (Existing: ${existing.updatedAt.toISOString()}, Incoming: ${incomingUpdatedAt.toISOString()})`);
     return;
   }
 
-  const { __v, name, restaurantName, branchName, ...safeData } = data;
+  const { __v, name, restaurantName, branchName, id, _id, ...safeData } = data;
   const finalBranchName = branchName || name || restaurantName;
 
-  await BranchReadModel.findByIdAndUpdate(
+  const updated = await BranchReadModel.findByIdAndUpdate(
     branchId,
     {
       $set: {
@@ -31,5 +34,9 @@ export const syncBranch = async (data) => {
     { upsert: true, new: true }
   );
 
-  console.log(`🏠 Branch Read-Model Synced: ${branchId}`);
+  if (updated) {
+    console.log(`✅ [BranchSync] Branch Read-Model Synced: ${branchId} [Status: ${updated.status}]`);
+  } else {
+    console.error(`❌ [BranchSync] Failed to update BranchReadModel for ${branchId}`);
+  }
 };

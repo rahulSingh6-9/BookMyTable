@@ -11,7 +11,23 @@ const dayScheduleSchema = Joi.object({
 });
 
 export const createRestaurantSchema = Joi.object({
-  brandId: Joi.string().required(),
+  onboardingMode: Joi.string().valid("create_brand", "add_branch", "skip").default("skip"),
+  brandId: Joi.string().when("onboardingMode", {
+    is: "add_branch",
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  brandData: Joi.object({
+    name: Joi.string().required(),
+    description: Joi.string().allow(""),
+    logo: Joi.string().allow(""),
+    slug: Joi.string().required(),
+    normalizedName: Joi.string().required(),
+  }).when("onboardingMode", {
+    is: "create_brand",
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
   branchName: Joi.string().min(2).max(120).required(),
   slug: Joi.string().lowercase().required(),
   branchCode: Joi.string().uppercase().required(),

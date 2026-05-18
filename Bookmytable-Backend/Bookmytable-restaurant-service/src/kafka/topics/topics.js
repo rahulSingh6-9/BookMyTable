@@ -1,14 +1,9 @@
-/**
- * Kafka Topics used in Restaurant Service
- */
+import { RESTAURANT_TOPICS } from "./restaurant.topics.js";
+
 export const KAFKA_TOPICS = {
-  // Commands from Admin
-  RESTAURANT_ADMIN_COMMAND: "restaurant.admin.command",
-  
-  // Events emitted by Restaurant Service
-  RESTAURANT_UPDATED: "restaurant.updated",
-  STAFF_INVITED: "staff.invited",
-  
-  // Potential future topics
+  ...RESTAURANT_TOPICS,
+  // Keep legacy backward compatibility mappings
   NOTIFICATIONS: "notification.events"
 };
+
+export * from "./restaurant.topics.js";

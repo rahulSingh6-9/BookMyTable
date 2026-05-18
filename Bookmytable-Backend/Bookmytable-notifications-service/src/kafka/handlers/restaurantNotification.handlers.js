@@ -8,18 +8,41 @@ export const handleRestaurantUpdateNotification = async (event) => {
   try {
     const { action, payload, data, correlationId } = event;
     const finalPayload = payload || data; // Handle both old and new structures
-    const { branchName, name, status } = finalPayload;
-    const restaurantName = branchName || name;
-
-    logInfo("📥 [Handler] Received Restaurant Update Kafka Event", { action, status, restaurantName, correlationId });
-
-    // Identify recipient
-    const recipientEmail = finalPayload.ownerEmail || finalPayload.owner?.email; 
-
-    if (!recipientEmail) {
-      logError("⚠️ [Handler] No recipient email found in event payload. Skipping notification.");
+    
+    if (!finalPayload) {
+      logError("⚠️ [Handler] Received Restaurant Update event with no payload/data", { event });
       return;
     }
+
+    const { branchName, name, status, id } = finalPayload;
+    const restaurantName = branchName || name;
+
+    logInfo("📥 [Handler] Received Restaurant Update Kafka Event", { 
+      action, 
+      status, 
+      restaurantName, 
+      branchId: id,
+      correlationId 
+    });
+
+    // Identify recipient safely
+    const recipientEmail = 
+      finalPayload.owner?.email || 
+      finalPayload.ownerEmail || 
+      finalPayload.contact?.email; 
+
+    if (!recipientEmail) {
+      logError("⚠️ [Handler] No recipient email found in event payload. Skipping notification.", { 
+        branchId: id, 
+        owner: finalPayload.owner, // This will now log as an object if it is one
+        hasContactEmail: !!finalPayload.contact?.email 
+      });
+      return;
+    }
+
+    logInfo(`📧 [Handler] Dispatching notification to ${recipientEmail} for action ${action}`, {
+      recipientName: finalPayload.owner?.name || "Owner"
+    });
 
     // Map internal actions to notification events
     const actionMap = {

@@ -10,11 +10,15 @@ const PORT = process.env.PORT || 5002;
 const startServer = async () => {
   try {
     await connectDB();
-    await initKafka();
 
-
+    // Start listening on HTTP port immediately to guarantee API responsiveness
     app.listen(PORT, () => {
       console.log(`User Service running on ${PORT}`);
+    });
+
+    // Initialize Kafka asynchronously in background
+    initKafka().catch((error) => {
+      console.error("❌ Failed to initialize Kafka in background:", error);
     });
   } catch (error) {
     console.error("❌ Failed to start user-service:", error);

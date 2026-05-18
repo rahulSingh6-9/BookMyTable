@@ -20,6 +20,7 @@
     "express": "^5.2.1",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.3",
+    "kafkajs": "^2.2.4",
     "libphonenumber-js": "^1.12.42",
     "module-alias": "^2.3.4",
     "mongoose": "^9.3.3",

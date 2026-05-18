@@ -8,8 +8,10 @@ import menuItemRoutes from "./modules/menu-item/menuItem.routes.js"
 import settingsRoutes from "./modules/settings/settings.routes.js"
 import staffRoutes from "./modules/staff/staff.routes.js"
 import logRoutes from "./modules/log/log.routes.js"
-
+import onboardingRoutes from "./modules/onboarding/onboarding.routes.js"
+import brandRoutes from "./modules/brand/brand.routes.js";
 import adminRoutes from "./modules/admin/admin.routes.js";
+import businessWorkspaceRoutes from "./modules/businessWorkspace/businessWorkspace.routes.js";
 
 
 const app = express();
@@ -30,11 +32,14 @@ app.use("/internal", adminRoutes);
 
 app.use("/memberships", membershipRoutes)
 app.use("/restaurants", restaurantRoutes)
+app.use("/brands", brandRoutes)
 app.use("/tables", tableRoutes)
 app.use("/menu-categories", menuCategoryRoutes)
 app.use("/menu-items", menuItemRoutes)
 app.use("/availability", settingsRoutes)
 app.use("/staff", staffRoutes)
+app.use("/onboarding", onboardingRoutes)
+app.use("/business-workspace", businessWorkspaceRoutes);
 
 
 export default app;

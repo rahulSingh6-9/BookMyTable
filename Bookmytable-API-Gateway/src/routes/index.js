@@ -19,6 +19,7 @@ const {
 
 // Public routes
 router.use("/auth", createProxy(AUTH_SERVICE_URL, { "^": "/auth" }));
+router.use("/verification", createProxy(AUTH_SERVICE_URL, { "^": "/verification" }));
 
 router.use("/users", verifyToken, createProxy(USER_SERVICE_URL, { "^": "/users" }));
 
@@ -26,11 +27,14 @@ router.use("/users", verifyToken, createProxy(USER_SERVICE_URL, { "^": "/users" 
 router.use("/memberships", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/memberships" }))
 router.use("/booking", verifyToken, createProxy(BOOKING_SERVICE_URL));
 router.use("/restaurants", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/restaurants" }));
+router.use("/brands", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/brands" }));
 router.use("/tables", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/tables" }));
 
 router.use("/menu-categories", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/menu-categories" }));
 router.use("/menu-items", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/menu-items" }));
 router.use("/availability", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/availability" }));
+router.use("/onboarding", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/onboarding" }));
+router.use("/business-workspace", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/business-workspace" }));
 router.use("/logs", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/logs" }));
 
 // 👤 Staff Accept Invite (Public)

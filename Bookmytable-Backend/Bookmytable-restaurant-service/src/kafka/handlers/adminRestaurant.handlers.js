@@ -39,7 +39,8 @@ export const handleAdminRestaurantCommand = async (event) => {
   }
 
   try {
-    const restaurant = await Restaurant.findByIdAndUpdate(restaurantId, update, { new: true }).populate("owner");
+    const restaurant = await Restaurant.findByIdAndUpdate(restaurantId, update, { new: true })
+      .populate("ownerId", "name email");
 
     if (!restaurant) {
       console.error(`❌ [RestaurantService] Restaurant ${restaurantId} not found for event ${eventId}`);
@@ -48,13 +49,21 @@ export const handleAdminRestaurantCommand = async (event) => {
 
     console.log(`✅ [RestaurantService] Restaurant ${restaurantId} updated — status: ${restaurant.status}`);
 
-    // 📡 Emit standardized domain event with correlation and context
+    // 📡 Emit standardized specific domain event (e.g., restaurant.approved, restaurant.rejected)
     await emitRestaurantStatusChanged({
       ...restaurant.toObject(),
       correlationId,
       actorId: actor?.id,
       tenantContext: context
     }, action);
+
+    // 📡 Also emit restaurant.updated event for read-model sync
+    await emitRestaurantStatusChanged({
+      ...restaurant.toObject(),
+      correlationId,
+      actorId: actor?.id,
+      tenantContext: context
+    }, "UPDATE_RESTAURANT_STATUS"); // Falls back to restaurant.updated
     
   } catch (error) {
     console.error(`❌ [RestaurantService] Error updating restaurant ${restaurantId}:`, error.message);

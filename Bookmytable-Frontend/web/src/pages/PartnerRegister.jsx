@@ -7,8 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { useEffect, useCallback, useRef } from "react";
+import { saveOnboardingDraft, getOnboardingDraft, deleteOnboardingDraft, submitOnboardingDraft } from "@/services/onboarding.service";
+
+import { Briefcase } from "lucide-react";
 
 // Import step components
+import { Step0BrandSelection } from "@/components/partner/register/Step0BrandSelection";
 import { Step1BasicInfo } from "@/components/partner/register/Step1BasicInfo";
 import { Step2Location } from "@/components/partner/register/Step2Location";
 import { Step3Contact } from "@/components/partner/register/Step3Contact";
@@ -19,22 +24,24 @@ import { Step7BookingSettings } from "@/components/partner/register/Step7Booking
 import { Step8Review } from "@/components/partner/register/Step8Review";
 
 // Import schemas
-import { step1Schema, step2Schema, step3Schema } from "@/validation/restaurant.schema";
+import { step0Schema, step1Schema, step2Schema, step3Schema, step5Schema } from "@/validation/restaurant.schema";
 import { createRestaurant } from "@/services/restaurant.service";
 import { z } from "zod";
 
 const stepSchemas = [
+  step0Schema,
   step1Schema,
   step2Schema,
   step3Schema,
   z.object({}), // step 4
-  z.object({}), // step 5
+  step5Schema,  // step 5
   z.object({}), // step 6
   z.object({}), // step 7
   z.object({})  // step 8
 ];
 
 const steps = [
+  { id: 0, title: "Brand", icon: Briefcase },
   { id: 1, title: "Basic Info", icon: Store },
   { id: 2, title: "Location", icon: MapPin },
   { id: 3, title: "Contact", icon: Phone },
@@ -45,40 +52,268 @@ const steps = [
   { id: 8, title: "Review", icon: Send },
 ];
 
+const setNestedValue = (obj, pathArray, value) => {
+  let current = obj;
+  for (let i = 0; i < pathArray.length; i++) {
+    const key = pathArray[i];
+    if (i === pathArray.length - 1) {
+      current[key] = value;
+    } else {
+      if (!current[key]) current[key] = {};
+      current = current[key];
+    }
+  }
+};
+
+const safeZodResolver = (schema) => {
+  const baseResolver = zodResolver(schema);
+  return async (values, context, options) => {
+    try {
+      return await baseResolver(values, context, options);
+    } catch (error) {
+      console.error("Validation resolver caught error:", error);
+      if (error && error.name === "ZodError") {
+        const nestedErrors = {};
+        error.errors.forEach((err) => {
+          setNestedValue(nestedErrors, err.path, {
+            type: err.code,
+            message: err.message
+          });
+        });
+        return {
+          values: {},
+          errors: nestedErrors
+        };
+      }
+      return {
+        values: {},
+        errors: {
+          global: {
+            type: "validate",
+            message: error.message || "Validation failed"
+          }
+        }
+      };
+    }
+  };
+};
+
 export default function PartnerRegister() {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState([]);
+  const [skippedSteps, setSkippedSteps] = useState([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isReviewEditMode, setIsReviewEditMode] = useState(false);
+  const [returnStep, setReturnStep] = useState(null);
   
-  const currentSchema = stepSchemas[currentStep - 1] || z.object({});
+  const currentSchema = stepSchemas[currentStep] || z.object({});
 
   const methods = useForm({
-    resolver: zodResolver(currentSchema),
+    resolver: safeZodResolver(currentSchema),
     mode: "onChange",
     defaultValues: {
+      onboardingMode: "create_brand",
+      selectedBrandId: "",
+      brandName: "",
+      brandDescription: "",
+      brandLogo: "",
       restaurantName: "",
+      slug: "",
+      isManualSlug: false,
+      tags: [],
       description: "",
       cuisines: [],
       priceRange: "₹₹",
-      address: "",
+      addressLine1: "",
+      addressLine2: "",
+      landmark: "",
       city: "",
       state: "",
+      country: "India",
       pincode: "",
-      phone: "",
-      isPhoneVerified: false,
-      email: "",
+      lat: 12.9716,
+      lng: 77.5946,
+      contactInfo: {
+        primaryPhone: {
+          countryCode: "+91",
+          number: "",
+          e164: "",
+          isVerified: false
+        },
+        alternatePhone: {
+          countryCode: "+91",
+          number: "",
+          e164: ""
+        },
+        businessEmail: {
+          value: "",
+          isVerified: false
+        },
+        supportEmail: "",
+        website: "",
+        socialLinks: {
+          instagram: ""
+        }
+      },
       tables: [],
-      hours: [],
+      hours: {
+        mon: { isClosed: false, open: "10:00", close: "23:00", breaks: [] },
+        tue: { isClosed: false, open: "10:00", close: "23:00", breaks: [] },
+        wed: { isClosed: false, open: "10:00", close: "23:00", breaks: [] },
+        thu: { isClosed: false, open: "10:00", close: "23:00", breaks: [] },
+        fri: { isClosed: false, open: "10:00", close: "00:00", breaks: [] },
+        sat: { isClosed: false, open: "10:00", close: "00:00", breaks: [] },
+        sun: { isClosed: true, open: "10:00", close: "23:00", breaks: [] }
+      },
       autoConfirm: true,
       slotDuration: "60",
       advanceBookingDays: "30"
     }
   });
 
-  const { register, handleSubmit, trigger, formState: { errors, isValid }, watch, setValue } = methods;
+  const { register, handleSubmit, trigger, formState: { errors, isValid }, watch, setValue, reset } = methods;
+
+  // 🔄 Draft Recovery System
+  useEffect(() => {
+    const loadDraft = async () => {
+      try {
+        const response = await getOnboardingDraft();
+        if (response && response.data) {
+          const { currentStep: savedStep, formData, completedSteps: savedCompleted, skippedSteps: savedSkipped, draftData } = response.data;
+          
+          // Restore form data
+          reset(formData);
+          
+          // Restore state
+          if (savedStep !== undefined && savedStep !== null) setCurrentStep(savedStep);
+          if (savedCompleted) setCompletedSteps(savedCompleted);
+          if (savedSkipped) setSkippedSteps(savedSkipped);
+          
+          if (draftData) {
+            if (draftData.isReviewEditMode !== undefined) setIsReviewEditMode(draftData.isReviewEditMode);
+            if (draftData.returnStep !== undefined) setReturnStep(draftData.returnStep);
+          }
+          
+          toast.success("Resumed from your last draft");
+        }
+      } catch (error) {
+        console.error("Failed to load draft:", error);
+      }
+    };
+
+    loadDraft();
+  }, [reset]);
+
+  // 💾 Auto-Save System
+  const saveTimeoutRef = useRef(null);
+
+  const autoSave = useCallback(async (step, data, reviewEditState, returnStepState) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await saveOnboardingDraft(step, data, {
+          completedSteps,
+          skippedSteps,
+          draftData: {
+            isReviewEditMode: reviewEditState,
+            returnStep: returnStepState
+          }
+        });
+      } catch (error) {
+        console.error("Auto-save failed:", error);
+      }
+    }, 2000);
+  }, [completedSteps, skippedSteps]);
+
+  useEffect(() => {
+    const subscription = watch((value) => {
+      autoSave(currentStep, value, isReviewEditMode, returnStep);
+    });
+    return () => {
+      subscription.unsubscribe();
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [watch, currentStep, autoSave, isReviewEditMode, returnStep]);
+
+  const handleEditFromReview = async (step) => {
+    setIsReviewEditMode(true);
+    setReturnStep(8);
+    
+    // Save draft immediately with the new edit state to ensure refresh-safety!
+    const currentValues = watch();
+    try {
+      await saveOnboardingDraft(step, currentValues, {
+        completedSteps,
+        skippedSteps,
+        draftData: {
+          isReviewEditMode: true,
+          returnStep: 8
+        }
+      });
+    } catch (error) {
+      console.error("Failed to save draft on review edit redirect:", error);
+    }
+
+    setCurrentStep(step);
+    window.scrollTo(0, 0);
+  };
+
+  const handleReturnToReview = async () => {
+    // Validate current step fields before returning
+    const fieldsToValidate = getFieldsForStep(currentStep);
+    
+    let isStepValid = true;
+    if (fieldsToValidate.length > 0) {
+      isStepValid = await trigger(fieldsToValidate);
+    }
+    
+    if (isStepValid) {
+      if (currentStep === 3) {
+        const isVerified = watch("contactInfo.primaryPhone.isVerified");
+        if (!isVerified) {
+          toast.error("Please verify your primary phone number to continue");
+          return;
+        }
+      }
+
+      setIsReviewEditMode(false);
+      setReturnStep(null);
+      
+      const currentValues = watch();
+      try {
+        await saveOnboardingDraft(8, currentValues, {
+          completedSteps: [...new Set([...completedSteps, currentStep])],
+          skippedSteps: skippedSteps.filter(s => s !== currentStep),
+          draftData: {
+            isReviewEditMode: false,
+            returnStep: null
+          }
+        });
+      } catch (error) {
+        console.error("Failed to save draft on return to review:", error);
+      }
+
+      setCurrentStep(8);
+      window.scrollTo(0, 0);
+    } else {
+      toast.error("Please fix the validation errors on this step before returning to review.");
+    }
+  };
+
+  const handleHeaderStepClick = (stepId) => {
+    // If navigating back to Review step (8) via header click
+    if (stepId === 8 && isReviewEditMode) {
+      handleReturnToReview();
+    } else {
+      setCurrentStep(stepId);
+    }
+  };
 
   const totalSteps = steps.length;
-  const progress = (currentStep / totalSteps) * 100;
+  const progress = ((currentStep + 1) / totalSteps) * 100;
 
   const nextStep = async () => {
     // Validate current step fields before proceeding
@@ -91,34 +326,57 @@ export default function PartnerRegister() {
     
     if (isStepValid) {
       if (currentStep === 3) {
-        const isVerified = watch("isPhoneVerified");
+        const isVerified = watch("contactInfo.primaryPhone.isVerified");
         if (!isVerified) {
-          toast.error("Please verify your phone number to continue");
+          toast.error("Please verify your primary phone number to continue");
           return;
         }
       }
-      setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
+      
+      if (!completedSteps.includes(currentStep)) {
+        setCompletedSteps(prev => [...prev, currentStep]);
+      }
+      setSkippedSteps(prev => prev.filter(s => s !== currentStep));
+      
+      setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
       window.scrollTo(0, 0);
     } else {
       toast.error("Please fix the errors before continuing.");
     }
   };
 
+  const skipStep = () => {
+    if (!skippedSteps.includes(currentStep)) {
+      setSkippedSteps(prev => [...prev, currentStep]);
+    }
+    setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
+    window.scrollTo(0, 0);
+  };
+
   const prevStep = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 1));
+    setCurrentStep((prev) => Math.max(prev - 1, 0));
     window.scrollTo(0, 0);
   };
 
   const getFieldsForStep = (step) => {
     switch (step) {
-      case 1: return ["restaurantName", "description", "cuisines", "priceRange"];
-      case 2: return ["address", "city", "state", "pincode"];
-      case 3: return ["phone", "email"];
+      case 0: {
+        const mode = watch("onboardingMode");
+        if (mode === "create_brand") return ["brandName"];
+        if (mode === "add_branch") return ["selectedBrandId"];
+        return [];
+      }
+      case 1: return ["restaurantName", "slug", "description", "cuisines", "priceRange"];
+      case 2: return ["addressLine1", "city", "state", "country", "pincode", "lat", "lng"];
+      case 3: return ["contactInfo"];
+      case 5: return ["hours"];
+      case 6: return ["tables"];
+      case 7: return ["settings"];
       default: return [];
     }
   };
-
-  const onSubmit = async (data) => {
+  const onSubmit = async () => {
+    const data = methods.getValues();
     setIsLoading(true);
     try {
       const priceMap = {
@@ -128,33 +386,109 @@ export default function PartnerRegister() {
         "₹₹₹₹": "luxury"
       };
 
+      const timeToMinutes = (timeStr) => {
+        if (!timeStr) return null;
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return (hours * 60) + minutes;
+      };
+
+      const DEFAULT_HOURS = {
+        mon: { isClosed: false, open: "10:00", close: "23:00", breaks: [] },
+        tue: { isClosed: false, open: "10:00", close: "23:00", breaks: [] },
+        wed: { isClosed: false, open: "10:00", close: "23:00", breaks: [] },
+        thu: { isClosed: false, open: "10:00", close: "23:00", breaks: [] },
+        fri: { isClosed: false, open: "10:00", close: "00:00", breaks: [] },
+        sat: { isClosed: false, open: "10:00", close: "00:00", breaks: [] },
+        sun: { isClosed: true, open: "10:00", close: "23:00", breaks: [] }
+      };
+
+      const finalHours = (!data.hours || Array.isArray(data.hours) || !data.hours.mon) 
+        ? DEFAULT_HOURS 
+        : data.hours;
+
       const openingHours = {};
-      if (data.hours && data.hours.length > 0) {
-        data.hours.forEach(h => {
-          openingHours[h.day.toLowerCase()] = {
-            isOpen: h.isOpen,
-            slots: h.isOpen && h.open && h.close ? [{ open: h.open, close: h.close }] : []
-          };
-        });
+      Object.entries(finalHours).forEach(([day, schedule]) => {
+        openingHours[day] = {
+          isClosed: schedule.isClosed,
+          open: schedule.isClosed ? null : timeToMinutes(schedule.open),
+          close: schedule.isClosed ? null : timeToMinutes(schedule.close),
+          breaks: (schedule.breaks || []).map(b => ({
+            start: timeToMinutes(b.start),
+            end: timeToMinutes(b.end)
+          }))
+        };
+      });
+
+      // Helper to generate slug and normalized name
+      const generateBrandMeta = (name) => {
+        const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+        const normalizedName = name.toLowerCase().replace(/\s+/g, "");
+        return { slug, normalizedName };
       }
 
       const payload = {
-        name: data.restaurantName,
+        // Brand Data
+        onboardingMode: data.onboardingMode,
+        ...(data.onboardingMode === "create_brand" && {
+          brandData: {
+            name: data.brandName,
+            description: data.brandDescription,
+            logo: data.brandLogo,
+            coverImage: (data.images && data.images.length > 0) ? data.images[0] : "",
+            ...generateBrandMeta(data.brandName)
+          }
+        }),
+        ...(data.onboardingMode === "add_branch" && {
+          brandId: data.selectedBrandId
+        }),
+        
+        // Restaurant Branch Data
+        restaurantName: data.restaurantName,
+        branchName: data.restaurantName,
+        slug: data.slug,
+        tags: data.tags,
         description: data.description,
         cuisines: data.cuisines,
-        address: data.address,
+        logo: data.brandLogo || "",
+        coverImage: (data.images && data.images.length > 0) ? data.images[0] : "",
+        images: data.images || [],
+        tables: data.tables || [],
+        
+        // Root location fields expected by backend onboarding service
+        addressLine1: data.addressLine1,
+        addressLine2: data.addressLine2,
+        landmark: data.landmark,
         city: data.city,
-        phone: data.phone,
+        state: data.state,
+        country: data.country,
+        pincode: data.pincode,
+        lat: data.lat,
+        lng: data.lng,
+
+        address: data.addressLine1,
+        location: {
+          type: "Point",
+          coordinates: [parseFloat(data.lng) || 77.5946, parseFloat(data.lat) || 12.9716],
+          country: data.country,
+          state: data.state,
+          city: data.city,
+          addressLine1: data.addressLine1,
+          addressLine2: data.addressLine2,
+          landmark: data.landmark
+        },
+        contactInfo: data.contactInfo,
+        phone: data.contactInfo?.primaryPhone?.e164, // Fallback for legacy fields if needed
         priceRange: priceMap[data.priceRange] || "moderate",
         openingHours,
+        settings: data.settings || {}
       };
 
-      await createRestaurant(payload);
+      await submitOnboardingDraft(payload);
       toast.success("Registration submitted successfully!");
       setIsSubmitted(true);
     } catch (error) {
       console.error("Registration error:", error);
-      toast.error(error.response?.data?.message || "Failed to submit registration.");
+      toast.error(error.response?.data?.message || error.message || "Failed to submit registration.");
     } finally {
       setIsLoading(false);
     }
@@ -165,10 +499,12 @@ export default function PartnerRegister() {
       register,
       errors,
       setValue,
-      watch
+      watch,
+      skipStep
     };
 
     switch (currentStep) {
+      case 0: return <Step0BrandSelection />;
       case 1: return <Step1BasicInfo />;
       case 2: return <Step2Location {...props} />;
       case 3: return <Step3Contact {...props} />;
@@ -176,7 +512,7 @@ export default function PartnerRegister() {
       case 5: return <Step5Hours {...props} />;
       case 6: return <Step6TableSetup {...props} />;
       case 7: return <Step7BookingSettings {...props} />;
-      case 8: return <Step8Review onEdit={setCurrentStep} {...props} />;
+      case 8: return <Step8Review onEdit={handleEditFromReview} isLoading={isLoading} {...props} />;
       default: return null;
     }
   };
@@ -207,7 +543,7 @@ export default function PartnerRegister() {
 
   return (
     <div className="min-h-screen bg-secondary/30 pt-24 pb-20 px-4">
-      <div className="container mx-auto max-w-5xl">
+      <div className="container mx-auto max-w-10xl">
         <div className="mb-12 text-center md:text-left">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
             <div>
@@ -215,7 +551,7 @@ export default function PartnerRegister() {
               <p className="text-muted-foreground mt-1 text-lg">Join the BookMyTable network and start growing your business.</p>
             </div>
             <div className="hidden md:block text-right">
-              <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Step {currentStep} of {totalSteps}</span>
+              <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Step {currentStep + 1} of {totalSteps}</span>
               <Progress value={progress} className="h-2 w-48 mt-2" />
             </div>
           </div>
@@ -227,14 +563,14 @@ export default function PartnerRegister() {
                   className={`h-12 w-12 rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer ${
                     currentStep >= step.id ? "bg-primary text-primary-foreground shadow-xl shadow-primary/20 scale-110" : "bg-muted text-muted-foreground"
                   }`}
-                  onClick={() => currentStep > step.id && setCurrentStep(step.id)}
+                  onClick={() => (completedSteps.includes(step.id) || currentStep > step.id) && handleHeaderStepClick(step.id)}
                 >
                   {currentStep > step.id ? <Check className="h-6 w-6" /> : <step.icon className="h-6 w-6" />}
                 </div>
                 <span className={`text-[10px] uppercase font-bold tracking-widest mt-2 ${currentStep >= step.id ? "text-primary" : "text-muted-foreground"}`}>
                   {step.title}
                 </span>
-                {step.id !== totalSteps && (
+                {step.id !== totalSteps - 1 && (
                   <div className={`absolute top-6 left-1/2 w-full h-[2px] -translate-y-1/2 transition-colors duration-500 -z-10 ${currentStep > step.id ? "bg-primary" : "bg-muted"}`} />
                 )}
               </div>
@@ -242,8 +578,8 @@ export default function PartnerRegister() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.9fr_0.65fr] gap-8">
+          <div>
             <Card className="p-8 md:p-12 rounded-[2.5rem] border-border shadow-xl overflow-hidden min-h-[600px] flex flex-col bg-card">
               <FormProvider {...methods}>
                 <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col">
@@ -257,7 +593,7 @@ export default function PartnerRegister() {
                       className="flex-1"
                     >
                       <div className="mb-10">
-                        <h2 className="text-3xl font-bold text-foreground mb-2">{steps[currentStep-1].title}</h2>
+                        <h2 className="text-3xl font-bold text-foreground mb-2">{steps[currentStep].title}</h2>
                         <div className="h-1 w-20 bg-primary rounded-full" />
                       </div>
                       
@@ -270,13 +606,13 @@ export default function PartnerRegister() {
                       type="button"
                       variant="ghost" 
                       onClick={prevStep} 
-                      disabled={currentStep === 1}
+                      disabled={currentStep === 0}
                       className="rounded-full px-8 h-12 text-muted-foreground hover:text-foreground"
                     >
                       <ChevronLeft className="mr-2 h-5 w-5" /> Back
                     </Button>
                     
-                    {currentStep === totalSteps ? (
+                    {currentStep === totalSteps - 1 ? (
                       <Button 
                         type="submit"
                         disabled={isLoading}
@@ -285,13 +621,28 @@ export default function PartnerRegister() {
                         {isLoading ? "Submitting..." : "Submit Application"} <Send className="ml-2 h-6 w-6" />
                       </Button>
                     ) : (
-                      <Button 
-                        type="button"
-                        onClick={nextStep} 
-                        className="rounded-full px-10 h-12 font-bold transition-all hover:translate-x-1"
-                      >
-                        Continue <ChevronRight className="ml-2 h-5 w-5" />
-                      </Button>
+                      <div className="flex items-center gap-3">
+                        {isReviewEditMode && (
+                          <Button 
+                            type="button"
+                            onClick={handleReturnToReview} 
+                            className="rounded-full px-8 h-12 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg flex items-center transition-all hover:scale-105 active:scale-95 gap-2"
+                          >
+                            Return to Review <Check className="h-5 w-5" />
+                          </Button>
+                        )}
+                        <Button 
+                          type="button"
+                          onClick={nextStep} 
+                          className={`rounded-full px-10 h-12 font-bold transition-all hover:translate-x-1 ${
+                            isReviewEditMode 
+                              ? "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border" 
+                              : "bg-primary text-primary-foreground"
+                          }`}
+                        >
+                          Continue <ChevronRight className="ml-2 h-5 w-5" />
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </form>
@@ -299,7 +650,7 @@ export default function PartnerRegister() {
             </Card>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-5 w-full max-w-[320px] ml-auto">
             <Card className="p-8 rounded-[2rem] bg-foreground text-primary-foreground border-none shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                 <Store className="h-24 w-24" />

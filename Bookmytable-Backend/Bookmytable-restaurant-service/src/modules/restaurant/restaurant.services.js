@@ -1,5 +1,8 @@
 import Restaurant from '../../models/restaurant.model.js';
+import Brand from '../../models/brand.model.js';
 import BranchMembership from '../../models/branchmemberships.model.js';
+import Table from '../../models/table.model.js';
+import RestaurantSettings from '../../models/restaurantSettings.model.js';
 import { emitRestaurantCreated } from "../../kafka/index.js";
 import { ROLES } from "../../config/roles.js";
 
@@ -40,9 +43,35 @@ export const getMyRestaurantService = async (userId) => {
  * CREATE RESTAURANT (BRANCH)
  */
 export const createRestaurant = async (data, userId) => {
-  const { branchName, brandId } = data;
+  const { branchName, onboardingMode, brandData } = data;
+  let { brandId } = data;
 
-  // 1. Prevent duplicate branchName per brand (basic check)
+  // 1. Handle Brand Selection / Creation
+  if (onboardingMode === "create_brand") {
+    const newBrand = await Brand.create({
+      ...brandData,
+      ownerId: userId,
+      status: "approved", // Auto-approve for onboarding for now
+    });
+    brandId = newBrand._id;
+  } else if (onboardingMode === "skip") {
+    // Create a lightweight internal brand
+    const internalBrandName = `${branchName} Brand`;
+    const slug = internalBrandName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const normalizedName = internalBrandName.toLowerCase().replace(/\s+/g, "");
+    
+    const internalBrand = await Brand.create({
+      name: internalBrandName,
+      slug: `${slug}-${Date.now().toString().slice(-4)}`,
+      normalizedName,
+      ownerId: userId,
+      status: "approved",
+      description: "Automatically created brand for quick restaurant setup.",
+    });
+    brandId = internalBrand._id;
+  }
+
+  // 2. Prevent duplicate branchName per brand (basic check)
   const existing = await Restaurant.findOne({
     branchName,
     brandId,
@@ -53,13 +82,43 @@ export const createRestaurant = async (data, userId) => {
     throw new Error("A branch with this name already exists for your brand");
   }
 
-  // 2. Create Restaurant Branch
+  // 3. Create Restaurant Branch
   const restaurant = await Restaurant.create({
     ...data,
+    brandId, // Ensure brandId is set
     ownerId: userId,
   });
 
-  // 3. 🚀 CRITICAL: Create initial BranchMembership for the creator as 'owner'
+  // 4. Create Tables if provided
+  if (data.tables && Array.isArray(data.tables) && data.tables.length > 0) {
+    const tableDocs = data.tables.map(t => ({
+      branch: restaurant._id,
+      brand: brandId,
+      tableCode: t.tableCode,
+      capacity: t.capacity,
+      type: t.type || "indoor",
+      status: "available",
+      isActive: true
+    }));
+    await Table.insertMany(tableDocs);
+  }
+
+  // 5. Create Settings
+  if (data.settings) {
+    await RestaurantSettings.create({
+      brand: brandId,
+      branch: restaurant._id,
+      ...data.settings
+    });
+  } else {
+    // Create default settings if not provided
+    await RestaurantSettings.create({
+      brand: brandId,
+      branch: restaurant._id
+    });
+  }
+
+  // 6. CRITICAL: Create initial BranchMembership for the creator as 'owner'
   await BranchMembership.create({
     user: userId,
     branch: restaurant._id,
@@ -70,7 +129,7 @@ export const createRestaurant = async (data, userId) => {
     isPrimaryOwner: true
   });
 
-  // 📡 Emit Event
+  // Emit Event
   await emitRestaurantCreated(restaurant, userId);
 
   return restaurant;

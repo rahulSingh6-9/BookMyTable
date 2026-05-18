@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { customerRoutes } from "./modules/customer/routes/customer.routes";
 import Index from "./pages/Index";
 import Discover from "./pages/Discover";
 import RestaurantSearch from "./pages/RestaurantSearch";
@@ -22,6 +23,8 @@ import RestaurantSettings from "./pages/RestaurantSettings";
 import OwnerLayoutEditor from "./pages/OwnerLayoutEditor";
 import OwnerAvailability from "./pages/OwnerAvailability";
 import OwnerSubscription from "./pages/OwnerSubscription";
+import RestaurantBranding from "./pages/RestaurantBranding";
+import BusinessVerification from "./pages/BusinessVerification";
 import { StaffLayout } from "@/components/layout/StaffLayout";
 import StaffDashboard from "@/pages/staff/StaffDashboard";
 import StaffBookings from "@/pages/staff/StaffBookings";
@@ -156,14 +159,27 @@ const App = () => (
           path="/profile"
           element={
             <ProtectedRoute>
-              <ProfileLayout />
+              {customerRoutes.element}
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="bookings" replace />} />
-          <Route path="bookings" element={<ProfileBookings />} />
-          <Route path="favorites" element={<ProfileFavorites />} />
-          <Route path="settings" element={<ProfileAccountSettings />} />
+          {customerRoutes.children.map((route, idx) => (
+            <Route
+              key={idx}
+              index={route.index}
+              path={route.path}
+              element={route.element}
+            >
+              {route.children && route.children.map((subRoute, subIdx) => (
+                <Route
+                  key={subIdx}
+                  index={subRoute.index}
+                  path={subRoute.path}
+                  element={subRoute.element}
+                />
+              ))}
+            </Route>
+          ))}
         </Route>
 
         {/* ℹ️ INFO PAGES */}
@@ -245,6 +261,24 @@ const App = () => (
           />
           
           <Route path="subscription" element={<OwnerSubscription />} />
+          
+          {/* 🏢 BUSINESS WORKSPACE UPGRADE */}
+          <Route path="business-workspace">
+            <Route path="branding" 
+              element={
+                <PermissionProtectedRoute permission="MANAGE_BRANCH">
+                  <RestaurantBranding />
+                </PermissionProtectedRoute>
+              } 
+            />
+            <Route path="verification" 
+              element={
+                <PermissionProtectedRoute permission="MANAGE_BRANCH">
+                  <BusinessVerification />
+                </PermissionProtectedRoute>
+              } 
+            />
+          </Route>
           
           <Route path="staff" 
             element={

@@ -22,13 +22,6 @@ export const authorize = (permission) => {
         });
       }
 
-      // 2️⃣ Bypass for Global Platform Roles
-      const globalRoles = req.user.roles || [];
-      if (globalRoles.includes("admin") || globalRoles.includes("super_admin")) {
-        console.log(`[RBAC] Global Admin access granted: User ${req.user.id} to ${req.method} ${req.url}`);
-        return next();
-      }
-
       // 3️⃣ Extract Branch Context
       // Priority: Headers > Params > Query > Body
       const branchId = 
@@ -40,6 +33,18 @@ export const authorize = (permission) => {
         req.body.restaurantId;
 
       console.log(`[RBAC] Checking Permission: ${permission} | User: ${req.user.id} | Branch: ${branchId}`);
+
+      if (branchId) {
+        req.branchId = branchId;
+      }
+
+      // 2️⃣ Bypass for Global Platform Roles
+      const globalRoles = req.user.roles || [];
+      if (globalRoles.includes("admin") || globalRoles.includes("super_admin")) {
+        console.log(`[RBAC] Global Admin access granted: User ${req.user.id} to ${req.method} ${req.url}`);
+        req.activeRole = "owner"; // Elevate platform admin/super admin to owner context for operations
+        return next();
+      }
 
       if (!branchId) {
         return res.status(400).json({

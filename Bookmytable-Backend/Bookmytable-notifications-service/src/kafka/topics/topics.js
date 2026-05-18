@@ -1,7 +1,7 @@
+import { NOTIFICATION_TOPICS } from "./notification.topics.js";
+
 export const KAFKA_TOPICS = {
-  STAFF_INVITED: "staff.invited",
-  RESTAURANT_UPDATED: "restaurant.updated",
-  USER_UPDATED: "user.updated",
-  BOOKING_CREATED: "booking.created",
-  PAYMENT_SUCCESS: "payment.success",
+  ...NOTIFICATION_TOPICS
 };
+
+export * from "./notification.topics.js";

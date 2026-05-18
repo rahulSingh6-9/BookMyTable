@@ -10,6 +10,8 @@ const branchReadSchema = new mongoose.Schema(
     city: { type: String },
     address: { type: String },
     contactNumber: { type: String },
+    logo: { type: String },
+    coverImage: { type: String },
     isActive: { type: Boolean, default: true },
     updatedAt: { type: Date, default: Date.now },
   },

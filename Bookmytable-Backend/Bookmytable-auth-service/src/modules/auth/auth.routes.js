@@ -8,7 +8,8 @@ import {
   verifyResetTokenController,
 } from "./auth.controller.js";
 
-import { loginSchema, signupSchema } from "../../validation/auth.joi.js";
+import { loginSchema, signupSchema } from "./auth.validation.js";
+
 import { validate } from "../../middleware/validate.middleware.js";
 
 const router = express.Router();
