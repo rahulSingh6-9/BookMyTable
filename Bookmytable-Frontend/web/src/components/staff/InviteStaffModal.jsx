@@ -19,20 +19,39 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Mail, Shield, UserPlus } from "lucide-react";
 
 const ROLE_PERMISSIONS = {
-  receptionist: ["view_bookings", "check_in_customers"],
-  manager: ["view_bookings", "manage_tables", "manage_staff", "edit_permissions"],
-  waiter: ["view_bookings"],
+  owner: ["*"],
+  co_owner: ["*"],
+  manager: ["VIEW_BASIC_INFO", "CREATE_BOOKING", "VIEW_BOOKINGS", "MANAGE_RESERVATIONS", "MANAGE_MENU", "VIEW_MENU", "VIEW_ANALYTICS", "VIEW_REPORTS", "MANAGE_STAFF", "VIEW_STAFF", "MANAGE_TABLES", "MANAGE_BOOKINGS"],
+  assistant_manager: ["VIEW_BASIC_INFO", "CREATE_BOOKING", "VIEW_BOOKINGS", "MANAGE_RESERVATIONS", "VIEW_REPORTS", "MANAGE_TABLES"],
+  cashier: ["VIEW_BASIC_INFO", "CREATE_BOOKING", "VIEW_BOOKINGS", "MANAGE_RESERVATIONS"],
+  host: ["MANAGE_RESERVATIONS", "VIEW_TABLES", "VIEW_BOOKINGS"],
+  waiter: ["VIEW_ASSIGNED_TABLES", "UPDATE_ORDER_STATUS", "VIEW_MENU"],
+  chef: ["VIEW_BASIC_INFO", "VIEW_KITCHEN_ORDERS", "UPDATE_ORDER_STATUS", "VIEW_MENU"],
+  kitchen_staff: ["VIEW_KITCHEN_ORDERS"],
+  support_staff: ["VIEW_BASIC_INFO"]
 };
 
 const AVAILABLE_PERMISSIONS = [
-  { id: "view_bookings", label: "View Bookings" },
-  { id: "manage_tables", label: "Manage Tables" },
-  { id: "check_in_customers", label: "Check-in Customers" },
-  { id: "manage_staff", label: "Manage Staff" },
-  { id: "edit_permissions", label: "Edit Permissions" },
+  { id: "MANAGE_STAFF", label: "Manage Staff" },
+  { id: "VIEW_STAFF", label: "View Staff" },
+  { id: "MANAGE_MENU", label: "Manage Menu" },
+  { id: "VIEW_MENU", label: "View Menu" },
+  { id: "MANAGE_TABLES", label: "Manage Tables" },
+  { id: "VIEW_TABLES", label: "View Tables" },
+  { id: "VIEW_ASSIGNED_TABLES", label: "View Assigned Tables" },
+  { id: "MANAGE_BOOKINGS", label: "Manage Bookings" },
+  { id: "MANAGE_RESERVATIONS", label: "Manage Reservations" },
+  { id: "CREATE_BOOKING", label: "Create Booking" },
+  { id: "VIEW_BOOKINGS", label: "View Bookings" },
+  { id: "VIEW_ANALYTICS", label: "View Analytics" },
+  { id: "VIEW_REPORTS", label: "View Reports" },
+  { id: "VIEW_KITCHEN_ORDERS", label: "View Kitchen Orders" },
+  { id: "UPDATE_ORDER_STATUS", label: "Update Order Status" },
+  { id: "VIEW_BASIC_INFO", label: "View Basic Info" },
 ];
 
 export function InviteStaffModal({ open, onOpenChange, onInvite, isLoading, canEditPermissions }) {
@@ -44,25 +63,31 @@ export function InviteStaffModal({ open, onOpenChange, onInvite, isLoading, canE
 
   // Handle role selection - auto-fill permissions
   const handleRoleChange = (role) => {
-    setFormData((prev) => ({
-      ...prev,
-      role,
-      permissions: ROLE_PERMISSIONS[role] || [],
-    }));
+    // Delay state update to avoid Radix UI Presence conflicts during Select unmount
+    setTimeout(() => {
+      setFormData((prev) => ({
+        ...prev,
+        role,
+        permissions: ROLE_PERMISSIONS[role] || [],
+      }));
+    }, 0);
   };
 
   // Handle manual permission toggle
   const togglePermission = (permissionId) => {
     if (!canEditPermissions) return;
     
-    setFormData((prev) => {
-      const isSelected = prev.permissions.includes(permissionId);
-      const newPermissions = isSelected
-        ? prev.permissions.filter((p) => p !== permissionId)
-        : [...prev.permissions, permissionId];
-      
-      return { ...prev, permissions: newPermissions };
-    });
+    // Delay state update to avoid Radix UI Presence conflicts
+    setTimeout(() => {
+      setFormData((prev) => {
+        const isSelected = prev.permissions.includes(permissionId);
+        const newPermissions = isSelected
+          ? prev.permissions.filter((p) => p !== permissionId)
+          : [...prev.permissions, permissionId];
+        
+        return { ...prev, permissions: newPermissions };
+      });
+    }, 0);
   };
 
   const handleSubmit = (e) => {
@@ -71,15 +96,16 @@ export function InviteStaffModal({ open, onOpenChange, onInvite, isLoading, canE
     onInvite(formData);
   };
 
-  // Reset form when modal opens/closes
-  useEffect(() => {
-    if (open) {
+  // Handle modal open/close and reset state
+  const handleOpenChange = (newOpen) => {
+    if (newOpen) {
       setFormData({ email: "", role: "", permissions: [] });
     }
-  }, [open]);
+    onOpenChange(newOpen);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px] rounded-3xl overflow-hidden border-none shadow-2xl">
         <DialogHeader className="bg-primary/5 -mx-6 -mt-6 p-8 mb-4 border-b border-primary/10">
           <div className="flex items-center gap-4">
@@ -122,9 +148,14 @@ export function InviteStaffModal({ open, onOpenChange, onInvite, isLoading, canE
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-border/40 shadow-xl">
-                  <SelectItem value="receptionist" className="rounded-xl">Receptionist</SelectItem>
                   <SelectItem value="manager" className="rounded-xl">Manager</SelectItem>
+                  <SelectItem value="assistant_manager" className="rounded-xl">Assistant Manager</SelectItem>
+                  <SelectItem value="cashier" className="rounded-xl">Cashier</SelectItem>
+                  <SelectItem value="host" className="rounded-xl">Host</SelectItem>
                   <SelectItem value="waiter" className="rounded-xl">Waiter</SelectItem>
+                  <SelectItem value="chef" className="rounded-xl">Chef</SelectItem>
+                  <SelectItem value="kitchen_staff" className="rounded-xl">Kitchen Staff</SelectItem>
+                  <SelectItem value="support_staff" className="rounded-xl">Support Staff</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -143,29 +174,30 @@ export function InviteStaffModal({ open, onOpenChange, onInvite, isLoading, canE
                 )}
               </div>
               
-              <div className="grid grid-cols-1 gap-2 p-4 rounded-2xl bg-muted/20 border border-border/40">
-                {AVAILABLE_PERMISSIONS.map((permission) => (
-                  <div 
-                    key={permission.id} 
-                    className={`flex items-center space-x-3 p-2 rounded-xl transition-colors ${!canEditPermissions ? 'opacity-50' : 'hover:bg-primary/5 cursor-pointer'}`}
-                    onClick={() => togglePermission(permission.id)}
-                  >
-                    <Checkbox
-                      id={permission.id}
-                      checked={formData.permissions.includes(permission.id)}
-                      onCheckedChange={() => togglePermission(permission.id)}
-                      disabled={!canEditPermissions}
-                      className="rounded-md border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                    />
-                    <label
-                      htmlFor={permission.id}
-                      className="text-sm font-medium leading-none cursor-pointer select-none"
+              <ScrollArea className="h-[200px] rounded-2xl border border-border/40 bg-muted/20 p-4">
+                <div className="grid grid-cols-1 gap-2">
+                  {AVAILABLE_PERMISSIONS.map((permission) => (
+                    <div 
+                      key={permission.id} 
+                      className={`flex items-center space-x-3 p-2 rounded-xl transition-colors ${!canEditPermissions ? 'opacity-50' : 'hover:bg-primary/5 cursor-pointer'}`}
                     >
-                      {permission.label}
-                    </label>
-                  </div>
-                ))}
-              </div>
+                      <Checkbox
+                        id={permission.id}
+                        checked={formData.permissions.includes(permission.id)}
+                        onCheckedChange={() => togglePermission(permission.id)}
+                        disabled={!canEditPermissions}
+                        className="rounded-md border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                      <label
+                        htmlFor={permission.id}
+                        className="text-sm font-medium leading-none cursor-pointer select-none"
+                      >
+                        {permission.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
               {!canEditPermissions && (
                 <p className="text-[10px] text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-100 italic">
                   * You do not have permission to modify staff permissions.

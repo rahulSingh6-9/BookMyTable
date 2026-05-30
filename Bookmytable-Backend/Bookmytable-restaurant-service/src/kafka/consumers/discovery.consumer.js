@@ -26,7 +26,7 @@ export const startDiscoveryConsumer = async () => {
           const event = JSON.parse(message.value.toString());
           console.log(`📥 [DiscoveryConsumer] Received Kafka event on topic [${topic}]`);
           
-          await handleDiscoveryRestaurantUpdate(event);
+          await handleDiscoveryRestaurantUpdate({ ...event, topic });
         } catch (error) {
           console.error(`❌ [DiscoveryConsumer] Error handling message on topic [${topic}]:`, error.message);
         }

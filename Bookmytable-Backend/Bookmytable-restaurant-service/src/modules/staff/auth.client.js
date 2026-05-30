@@ -9,24 +9,26 @@ export const authServiceClient = {
    * If not, creates a new user.
    */
   async syncUser({ email, name, password, role }) {
-    // 💡 In a real microservice environment:
-    // const response = await axios.post(`${process.env.AUTH_SERVICE_URL}/internal/sync-user`, { email, name, password, role });
-    // return response.data.user;
+    const userServiceUrl = process.env.USER_SERVICE_URL || "http://localhost:5002";
+    const internalToken = process.env.INTERNAL_API_TOKEN || "";
+    
+    console.log(`[AuthServiceClient] Syncing user: ${email} via ${userServiceUrl}`);
+    
+    const response = await fetch(`${userServiceUrl}/internal/sync-user`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-token": internalToken
+      },
+      body: JSON.stringify({ email, name, password, role })
+    });
 
-    // For now, since we are in a monorepo-style setup but following microservice rules,
-    // we'll assume the Auth service handles this.
-    // To satisfy the "No duplication" rule, we'll return a mock userId based on email if we can't call the actual service.
+    const data = await response.json();
     
-    // HOWEVER, the prompt implies we should be "production-grade".
-    // Let's implement a placeholder that explains the logic.
-    console.log(`[AuthServiceClient] Syncing user: ${email}`);
-    
-    // Mocking a successful user creation/fetch from Auth Service
-    return {
-      _id: "6633772211aa00bbccddeeff", // Example ObjectId
-      email,
-      name,
-      role: "staff"
-    };
+    if (!response.ok) {
+      throw new Error(data.message || data.error || "Failed to sync user with auth service");
+    }
+
+    return data.user;
   }
 };

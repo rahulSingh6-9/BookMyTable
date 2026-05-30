@@ -11,7 +11,7 @@ export const syncSubscriptionPlan = async (data) => {
   const incomingUpdatedAt = new Date(data.updatedAt || Date.now());
   const existing = await SubscriptionPlanReadModel.findById(planId);
 
-  if (existing && existing.updatedAt && incomingUpdatedAt <= existing.updatedAt) {
+  if (existing && existing.updatedAt && incomingUpdatedAt < existing.updatedAt) {
     return;
   }
 

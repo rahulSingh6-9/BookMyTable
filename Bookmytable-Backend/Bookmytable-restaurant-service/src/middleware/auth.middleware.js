@@ -44,3 +44,31 @@ export const protect = (req, res, next) => {
 
   next();
 };
+
+export const optionalProtect = (req, res, next) => {
+  const userId = req.headers["x-user-id"];
+  const rolesHeader = req.headers["x-user-roles"];
+  const gatewaySecret = req.headers["x-internal-gateway"];
+
+  if (gatewaySecret !== process.env.GATEWAY_SECRET) {
+    return next(); // Just pass through, not authenticated from gateway
+  }
+
+  if (!userId) {
+    return next();
+  }
+
+  let roles = [];
+  try {
+    roles = rolesHeader ? JSON.parse(rolesHeader) : [];
+  } catch (err) {
+    roles = rolesHeader ? rolesHeader.split(",") : [];
+  }
+
+  req.user = {
+    id: userId,
+    roles: roles,
+  };
+
+  next();
+};

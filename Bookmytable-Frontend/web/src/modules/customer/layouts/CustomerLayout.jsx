@@ -23,7 +23,8 @@ import {
   ShieldCheck,
   KeyRound,
   Trash2,
-  ChevronDown
+  ChevronDown,
+  PanelLeft
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -94,32 +95,18 @@ export function CustomerLayout() {
         {/* DESKTOP SIDEBAR - COLLAPSIBLE */}
         <aside 
           className={cn(
-            "hidden lg:flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 relative select-none",
+            "hidden lg:flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 fixed left-0 top-16 bottom-0 z-30 select-none",
             collapsed ? "w-20" : "w-64"
           )}
         >
-          {/* Sidebar collapsing toggle */}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="absolute top-3 -right-3.5 h-7 w-7 rounded-full border border-sidebar-border bg-sidebar hover:bg-sidebar-accent flex items-center justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground shadow-sm z-50 transition"
-          >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </button>
-
-          {/* User Section inside sidebar */}
-          <div className={cn("p-4 border-b border-sidebar-border flex items-center gap-3 overflow-hidden", collapsed && "justify-center")}>
-            <Avatar className="h-10 w-10 border border-sidebar-border shadow-sm">
-              <AvatarImage src={userAvatar || ""} />
-              <AvatarFallback className="bg-sidebar-accent font-bold text-sm text-sidebar-accent-foreground">
-                {displayName.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            {!collapsed && (
-              <div className="min-w-0">
-                <div className="text-sm font-bold text-sidebar-foreground truncate">{displayName}</div>
-                <div className="text-xs text-primary font-semibold">Gold Member</div>
-              </div>
-            )}
+          {/* Sidebar Header with Toggle */}
+          <div className={cn("h-14 border-b border-sidebar-border flex items-center px-3 shrink-0", collapsed ? "justify-center" : "justify-end")}>
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="h-8 w-8 flex items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors shrink-0"
+            >
+              <PanelLeft className="h-5 w-5" />
+            </button>
           </div>
 
           {/* Navigation Links inside sidebar */}
@@ -145,8 +132,8 @@ export function CustomerLayout() {
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative text-left select-none border-none outline-none",
                         isActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-bold shadow-sm"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                          ? "bg-sidebar-accent/25 text-primary font-bold shadow-sm"
+                          : "text-sidebar-foreground/85 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                         collapsed && "justify-center px-0"
                       )}
                     >
@@ -169,11 +156,6 @@ export function CustomerLayout() {
                         </>
                       )}
 
-                      {collapsed && (
-                        <div className="absolute left-full ml-4 px-2 py-1 bg-slate-900 text-white text-xs font-semibold rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-md">
-                          {item.title}
-                        </div>
-                      )}
                     </button>
 
                     {/* Sub-navigation Children links */}
@@ -217,8 +199,8 @@ export function CustomerLayout() {
                     cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative select-none",
                       isActive
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-bold shadow-sm"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                        ? "bg-sidebar-accent/25 text-primary font-bold shadow-sm"
+                        : "text-sidebar-foreground/85 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                       collapsed && "justify-center px-0"
                     )
                   }
@@ -249,12 +231,6 @@ export function CustomerLayout() {
                         </Badge>
                       )}
 
-                      {/* Tooltip on collapse */}
-                      {collapsed && (
-                        <div className="absolute left-full ml-4 px-2 py-1 bg-slate-900 text-white text-xs font-semibold rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap shadow-md">
-                          {item.title}
-                        </div>
-                      )}
                     </>
                   )}
                 </NavLink>
@@ -279,7 +255,12 @@ export function CustomerLayout() {
         </aside>
 
         {/* CONTAINER FOR MAIN VIEWS - SCROLLABLE */}
-        <main className="flex-1 flex flex-col overflow-y-auto bg-slate-50/50 pb-20 lg:pb-0">
+        <main 
+          className={cn(
+            "flex-1 flex flex-col overflow-y-auto bg-slate-50/50 pb-20 lg:pb-0 transition-all duration-300",
+            collapsed ? "lg:ml-20" : "lg:ml-64"
+          )}
+        >
           <Outlet />
         </main>
 
@@ -318,8 +299,8 @@ export function CustomerLayout() {
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left select-none border-none outline-none",
                         isActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-bold shadow-sm"
-                          : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                          ? "bg-sidebar-accent/25 text-primary font-bold shadow-sm"
+                          : "text-sidebar-foreground/85 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                       )}
                     >
                       <item.icon className="h-4 w-4 text-sidebar-foreground/50 shrink-0" />
@@ -373,8 +354,8 @@ export function CustomerLayout() {
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all select-none",
                     location.pathname === item.url
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-bold shadow-sm"
-                      : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                      ? "bg-sidebar-accent/25 text-primary font-bold shadow-sm"
+                      : "text-sidebar-foreground/85 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                   )}
                 >
                   <item.icon className="h-4 w-4 text-sidebar-foreground/50 shrink-0" />

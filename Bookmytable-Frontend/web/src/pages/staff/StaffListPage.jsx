@@ -187,22 +187,26 @@ export default function StaffListPage() {
       </div>
 
       {/* InviteStaffModal Integration */}
-      <InviteStaffModal 
-        open={openInviteModal} 
-        onOpenChange={setOpenInviteModal}
-        onInvite={handleInvite}
-        isLoading={isInviting}
-        canEditPermissions={canEditPermissions}
-      />
+      {openInviteModal && (
+        <InviteStaffModal 
+          open={openInviteModal} 
+          onOpenChange={setOpenInviteModal}
+          onInvite={handleInvite}
+          isLoading={isInviting}
+          canEditPermissions={canEditPermissions}
+        />
+      )}
 
-      <EditStaffModal 
-        open={editModalOpen}
-        onOpenChange={setEditModalOpen}
-        staff={selectedStaff}
-        onUpdate={handleUpdate}
-        isLoading={isUpdating}
-        canEditPermissions={canEditPermissions}
-      />
+      {editModalOpen && (
+        <EditStaffModal 
+          open={editModalOpen}
+          onOpenChange={setEditModalOpen}
+          staff={selectedStaff}
+          onUpdate={handleUpdate}
+          isLoading={isUpdating}
+          canEditPermissions={canEditPermissions}
+        />
+      )}
     </div>
   );
 }

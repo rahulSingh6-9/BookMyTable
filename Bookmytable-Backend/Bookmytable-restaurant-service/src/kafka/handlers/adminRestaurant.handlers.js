@@ -25,13 +25,13 @@ export const handleAdminRestaurantCommand = async (event) => {
   let update = {};
   switch (action) {
     case "APPROVE_RESTAURANT":
-      update = { status: "approved", isActive: true };
+      update = { status: "approved", isActive: true, updatedAt: new Date() };
       break;
     case "SUSPEND_RESTAURANT":
-      update = { status: "suspended", isActive: false };
+      update = { status: "suspended", isActive: false, updatedAt: new Date() };
       break;
     case "REJECT_RESTAURANT":
-      update = { status: "rejected", isActive: false };
+      update = { status: "rejected", isActive: false, updatedAt: new Date() };
       break;
     default:
       console.warn(`⚠️ [RestaurantService] Unknown admin action: ${action}`);

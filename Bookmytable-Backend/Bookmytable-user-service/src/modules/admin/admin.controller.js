@@ -43,3 +43,29 @@ export const getAllUsersForAdmin = async (req, res) => {
     });
   }
 };
+
+import User from "../../models/user.model.js";
+
+export const internalSyncUser = async (req, res) => {
+  try {
+    const { email, name, password, role } = req.body;
+    
+    let user = await User.findOne({ email: email.toLowerCase() });
+    
+    if (!user) {
+      if (!password) {
+        return res.status(400).json({ success: false, message: "Password is required for new accounts" });
+      }
+      user = await User.create({
+        email,
+        name,
+        password,
+        roles: [role || "customer"] 
+      });
+    }
+
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

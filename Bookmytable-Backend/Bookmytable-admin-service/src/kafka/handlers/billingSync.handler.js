@@ -11,7 +11,7 @@ export const syncBilling = async (data) => {
   const incomingUpdatedAt = new Date(data.updatedAt || Date.now());
   const existing = await BillingReadModel.findById(billingId);
 
-  if (existing && existing.updatedAt && incomingUpdatedAt <= existing.updatedAt) {
+  if (existing && existing.updatedAt && incomingUpdatedAt < existing.updatedAt) {
     return;
   }
 

@@ -9,33 +9,38 @@ import { ShieldAlert, UserCog } from "lucide-react";
 import { toast } from "sonner";
 
 const AVAILABLE_PERMISSIONS = [
-  { id: "manage_staff", label: "Manage Staff", description: "Can invite and edit staff members" },
-  { id: "manage_menu", label: "Manage Menu", description: "Can update categories and items" },
-  { id: "manage_tables", label: "Manage Tables", description: "Can update table layouts" },
-  { id: "view_analytics", label: "View Analytics", description: "Can view revenue and stats" },
-  { id: "manage_bookings", label: "Manage Bookings", description: "Can confirm/cancel reservations" },
-  { id: "edit_permissions", label: "Edit Permissions", description: "Can change role permissions" },
+  { id: "MANAGE_STAFF", label: "Manage Staff", description: "Can invite and edit staff members" },
+  { id: "VIEW_STAFF", label: "View Staff", description: "Can view staff members" },
+  { id: "MANAGE_MENU", label: "Manage Menu", description: "Can update categories and items" },
+  { id: "VIEW_MENU", label: "View Menu", description: "Can view menu" },
+  { id: "MANAGE_TABLES", label: "Manage Tables", description: "Can update table layouts" },
+  { id: "VIEW_TABLES", label: "View Tables", description: "Can view tables" },
+  { id: "VIEW_ASSIGNED_TABLES", label: "View Assigned Tables", description: "Can view assigned tables" },
+  { id: "MANAGE_BOOKINGS", label: "Manage Bookings", description: "Can configure bookings" },
+  { id: "MANAGE_RESERVATIONS", label: "Manage Reservations", description: "Can confirm/cancel reservations" },
+  { id: "CREATE_BOOKING", label: "Create Booking", description: "Can create new bookings" },
+  { id: "VIEW_BOOKINGS", label: "View Bookings", description: "Can view bookings" },
+  { id: "VIEW_ANALYTICS", label: "View Analytics", description: "Can view revenue and stats" },
+  { id: "VIEW_REPORTS", label: "View Reports", description: "Can view reports" },
+  { id: "VIEW_KITCHEN_ORDERS", label: "View Kitchen Orders", description: "Can view kitchen orders" },
+  { id: "UPDATE_ORDER_STATUS", label: "Update Order Status", description: "Can update order status" },
+  { id: "VIEW_BASIC_INFO", label: "View Basic Info", description: "Can view basic branch info" },
 ];
 
 export function EditStaffModal({ open, onOpenChange, staff, onUpdate, isLoading }) {
-  const [role, setRole] = useState("");
-  const [selectedPermissions, setSelectedPermissions] = useState([]);
-  const [status, setStatus] = useState("");
-
-  useEffect(() => {
-    if (staff) {
-      setRole(staff.role || "waiter");
-      setSelectedPermissions(staff.permissions || []);
-      setStatus(staff.status || "active");
-    }
-  }, [staff]);
+  const [role, setRole] = useState(staff?.role || "waiter");
+  const [selectedPermissions, setSelectedPermissions] = useState(staff?.permissions || []);
+  const [status, setStatus] = useState(staff?.status || "active");
 
   const togglePermission = (permId) => {
-    setSelectedPermissions(prev => 
-      prev.includes(permId) 
-        ? prev.filter(p => p !== permId) 
-        : [...prev, permId]
-    );
+    // Delay state update to avoid Radix UI Presence conflicts
+    setTimeout(() => {
+      setSelectedPermissions(prev => 
+        prev.includes(permId) 
+          ? prev.filter(p => p !== permId) 
+          : [...prev, permId]
+      );
+    }, 0);
   };
 
   const handleSubmit = (e) => {
@@ -65,21 +70,26 @@ export function EditStaffModal({ open, onOpenChange, staff, onUpdate, isLoading 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-role" className="text-sm font-semibold">System Role</Label>
-                <Select value={role} onValueChange={setRole}>
+                <Select value={role} onValueChange={(val) => setTimeout(() => setRole(val), 0)}>
                   <SelectTrigger id="edit-role" className="rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
                     <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="receptionist">Receptionist</SelectItem>
+                    <SelectItem value="assistant_manager">Assistant Manager</SelectItem>
+                    <SelectItem value="cashier">Cashier</SelectItem>
+                    <SelectItem value="host">Host</SelectItem>
                     <SelectItem value="waiter">Waiter</SelectItem>
+                    <SelectItem value="chef">Chef</SelectItem>
+                    <SelectItem value="kitchen_staff">Kitchen Staff</SelectItem>
+                    <SelectItem value="support_staff">Support Staff</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="edit-status" className="text-sm font-semibold">Account Status</Label>
-                <Select value={status} onValueChange={setStatus}>
+                <Select value={status} onValueChange={(val) => setTimeout(() => setStatus(val), 0)}>
                   <SelectTrigger id="edit-status" className="rounded-xl">
                     <SelectValue />
                   </SelectTrigger>

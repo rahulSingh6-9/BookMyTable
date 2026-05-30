@@ -1,32 +1,81 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import logo from "@/assets/BookMyTable_logo.jpg";
+import api from "@/lib/api";
+import { toast } from "sonner";
+import { ROLE_PERMISSIONS } from "@/config/roles";
 
 import { useAuth } from "../context/AuthContext";
+import { useBranch } from "../context/BranchContext";
 
 export default function Login() {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, logout } = useAuth();
+  const { refreshMemberships, switchBranch } = useBranch();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [inviteDetails, setInviteDetails] = useState(null);
+  const [inviteFailure, setInviteFailure] = useState(null);
+  
   const navigate = useNavigate();
   const googleBtnRef = useRef(null);
 
   const location = useLocation();
-  const from = location.state?.from?.pathname || "/profile";
+  const searchParams = new URLSearchParams(location.search);
+  const inviteToken = searchParams.get("inviteToken");
+
+  useEffect(() => {
+    if (inviteToken) {
+      api.get(`/staff/invite/validate?token=${inviteToken}`)
+        .then((res) => setInviteDetails(res.data.data))
+        .catch((err) => console.error("Failed to load invite", err));
+    }
+  }, [inviteToken]);
+
+  const defaultFrom = "/profile";
+  const from = location.state?.from?.pathname || defaultFrom;
+
+  const handleLoginSuccess = async (userData) => {
+    if (inviteToken && inviteDetails) {
+      if (userData.email !== inviteDetails.email) {
+        setInviteFailure("This invitation belongs to another account");
+        return;
+      }
+
+      try {
+        await api.post("/staff/accept-invite", { token: inviteToken });
+        await refreshMemberships();
+        
+        if (inviteDetails.restaurantId) {
+          switchBranch(inviteDetails.restaurantId);
+        }
+
+        const perms = ROLE_PERMISSIONS[inviteDetails.role] || [];
+        if (perms.includes("*") || perms.includes("MANAGE_BRANCH")) {
+          navigate("/owner/dashboard", { replace: true });
+        } else {
+          navigate("/staff/dashboard", { replace: true });
+        }
+      } catch (err) {
+        setInviteFailure(err.response?.data?.message || "Failed to accept invitation");
+      }
+    } else {
+      navigate(from, { replace: true });
+    }
+  };
 
   const handleGoogleResponse = async (response) => {
     setLoading(true);
     try {
       const result = await loginWithGoogle(response.credential);
       if (result.success) {
-        navigate(from, { replace: true });
+        await handleLoginSuccess(result.user);
       }
     } catch (err) {
       console.error("Google authentication failed:", err);
@@ -81,7 +130,7 @@ export default function Login() {
     try {
       const result = await login(email, password);
       if (result.success) {
-        navigate(from, { replace: true });
+        await handleLoginSuccess(result.user);
       }
     } catch (error) {
       alert(error.message);
@@ -89,6 +138,36 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  if (inviteFailure) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 pt-16">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md"
+        >
+          <div className="mb-8 text-center">
+             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+             <h1 className="text-2xl font-bold text-foreground">Invitation Failed</h1>
+             <p className="mt-2 text-sm text-muted-foreground">{inviteFailure}</p>
+          </div>
+          
+          <div className="space-y-4">
+            <Button onClick={() => handleLoginSuccess(JSON.parse(localStorage.getItem("user")))} className="w-full">
+              Retry
+            </Button>
+            <Button variant="outline" onClick={() => { logout(); setInviteFailure(null); }} className="w-full">
+              Logout & Switch Account
+            </Button>
+            <Button variant="ghost" onClick={() => navigate("/login", { replace: true })} className="w-full">
+              Back to Normal Login
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 pt-16">
@@ -102,8 +181,12 @@ export default function Login() {
             <img src={logo} alt="BookMyTable" className="h-10 w-10 rounded-md object-cover" />
             <span className="text-xl font-bold text-foreground">Book<span className="text-primary">My</span>Table</span>
           </Link>
-          <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Sign in to your account</p>
+          <h1 className="text-2xl font-bold text-foreground">
+            {inviteToken ? "Join the Team" : "Welcome back"}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {inviteDetails ? `You are joining ${inviteDetails.restaurantName}` : "Sign in to your account"}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-card p-6 shadow-card space-y-4">
@@ -130,7 +213,7 @@ export default function Login() {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? "Signing in..." : inviteToken ? (inviteDetails ? `Join ${inviteDetails.restaurantName}` : "Join Team") : "Sign In"}
           </Button>
 
           <div className="relative my-4">

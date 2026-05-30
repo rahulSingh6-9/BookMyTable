@@ -44,14 +44,14 @@ export function RestaurantHero({ restaurant }) {
       <div className="absolute inset-0 bg-black/20" />
 
       {/* Top Nav Actions */}
-      <div className="absolute top-4 left-4 z-10">
+      <div className="absolute top-20 left-4 z-10">
         <Link to="/search">
           <Button variant="ghost" size="icon" className="bg-background/20 backdrop-blur-md text-white hover:bg-background/40 border border-white/20">
             <ChevronLeft className="h-5 w-5" />
           </Button>
         </Link>
       </div>
-      <div className="absolute top-4 right-4 z-10 flex gap-2">
+      <div className="absolute top-20 right-4 z-10 flex gap-2">
         <Button 
           variant="ghost" 
           size="icon" 

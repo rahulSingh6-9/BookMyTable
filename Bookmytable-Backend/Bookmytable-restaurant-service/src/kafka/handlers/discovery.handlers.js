@@ -9,7 +9,7 @@ export const handleDiscoveryRestaurantUpdate = async (event) => {
 
   try {
     // If it's a brand update, we need to update all restaurants belonging to that brand
-    if (event.topic === 'brand.updated' || event.type === 'brand.updated') {
+    if (event.topic === 'brand.updated' || event.eventType === 'brand.updated' || event.type === 'brand.updated') {
       const restaurants = await RestaurantBranch.find({ brandId: data.id || data._id });
       for (const restaurant of restaurants) {
         await syncRestaurantToDiscovery(restaurant._id);
@@ -35,17 +35,17 @@ const syncRestaurantToDiscovery = async (restaurantId) => {
   const discoveryData = {
     restaurantId: restaurant._id,
     brandId: restaurant.brandId,
-    name: restaurant.branchName,
+    name: restaurant.branchName || restaurant.name,
     slug: restaurant.slug,
     description: restaurant.description,
     
-    city: restaurant.address?.city,
-    area: restaurant.address?.area || restaurant.address?.addressLine1,
-    addressLine1: restaurant.address?.addressLine1,
+    city: restaurant.address?.city || restaurant.location?.city,
+    area: restaurant.address?.area || restaurant.address?.addressLine1 || restaurant.location?.addressLine1,
+    addressLine1: restaurant.address?.addressLine1 || restaurant.location?.addressLine1,
     
     location: restaurant.location,
     
-    cuisines: restaurant.cuisines || [],
+    cuisines: restaurant.cuisines || restaurant.cuisineTypes || [],
     tags: restaurant.tags || [],
     
     averageRating: restaurant.averageRating || 0,
@@ -65,6 +65,6 @@ const syncRestaurantToDiscovery = async (restaurantId) => {
   await DiscoveryRestaurant.findOneAndUpdate(
     { restaurantId: restaurant._id },
     { $set: discoveryData },
-    { upsert: true, new: true }
+    { upsert: true, new: true, runValidators: true }
   );
 };

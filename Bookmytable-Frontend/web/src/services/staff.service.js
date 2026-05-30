@@ -45,3 +45,13 @@ export const deleteStaff = async (staffId) => {
   return response.data;
 };
 
+export const revokeInvite = async (restaurantId, inviteId) => {
+  const response = await apiClient.post(`/staff/invite/${restaurantId}/${inviteId}/revoke`);
+  return response.data;
+};
+
+export const resendInvite = async (restaurantId, inviteId) => {
+  const response = await apiClient.post(`/staff/invite/${restaurantId}/${inviteId}/resend`);
+  return response.data;
+};
+

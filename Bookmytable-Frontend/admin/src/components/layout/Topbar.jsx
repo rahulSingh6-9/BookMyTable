@@ -47,7 +47,6 @@ export default function Topbar() {
   return (
     <header className="h-16 w-full flex items-center justify-between px-4 md:px-6 border-b border-border/40 bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 shadow-sm">
       <div className="flex items-center gap-4">
-        <SidebarTrigger className="text-muted-foreground hover:text-foreground transition-colors" />
         <div className="hidden md:flex relative w-64 lg:w-96">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input 

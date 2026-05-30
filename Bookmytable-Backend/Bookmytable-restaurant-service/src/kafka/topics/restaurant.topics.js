@@ -25,6 +25,9 @@ export const RESTAURANT_TOPICS = {
 
   // Staff invitation (Consumed/Produced)
   STAFF_INVITED: "staff.invited",
+  STAFF_JOINED: "staff.joined",
+  INVITATION_FAILED: "invitation.failed",
+  INVITATION_REVOKED: "invitation.revoked",
 
   // Subscription Events
   SUBSCRIPTION_PLAN_CREATED: "subscription.plan.created",

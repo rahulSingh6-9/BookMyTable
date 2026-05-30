@@ -6,7 +6,8 @@ import { logInfo, logError } from "../../utils/logger.js";
  */
 export const handleStaffInviteNotification = async (event) => {
   try {
-    const { email, role, restaurantName, inviteLink } = event.payload || event;
+    const payload = event.payload || event;
+    const { email, role, restaurantName } = payload;
 
     logInfo("📥 Received Staff Invite Kafka Event", { email, restaurantName });
 
@@ -15,7 +16,9 @@ export const handleStaffInviteNotification = async (event) => {
       event: "staff.invited",
       recipient: email,
       payload: event,
-      metadata: { email, role, restaurantName, inviteLink }
+      metadata: { 
+        ...payload, // Pass all expanded properties to the email template
+      }
     });
 
   } catch (error) {

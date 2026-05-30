@@ -10,8 +10,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Users, Store, CalendarCheck, MessageSquare, CreditCard, Bell, BarChart3, Settings, LogOut, ShieldAlert, Briefcase } from "lucide-react";
+import { LayoutDashboard, Users, Store, CalendarCheck, MessageSquare, CreditCard, Bell, BarChart3, Settings, LogOut, ShieldAlert, Briefcase, PanelLeft } from "lucide-react";
 
 import { useAdminAuth } from "../../context/AuthContext";
 
@@ -66,15 +67,10 @@ export function AppSidebar() {
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
-      <SidebarHeader className="py-4 border-b">
-        <div className="flex items-center gap-2 px-4">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
-            BMT
-          </div>
-          <span className="font-bold text-lg truncate sidebar-expanded-only text-foreground">Admin Portal</span>
-        </div>
+      <SidebarHeader className="h-14 border-b border-sidebar-border flex flex-row items-center justify-end px-3">
+        <SidebarTrigger className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors" />
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {filteredNavGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel className="text-muted-foreground">{group.label}</SidebarGroupLabel>
@@ -84,9 +80,13 @@ export function AppSidebar() {
                   const isActive = location.pathname === item.url;
                   return (
                     <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
-                        <Link to={item.url} className={`transition-colors flex items-center gap-3 ${isActive ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"}`}>
-                          <item.icon className="w-4 h-4" />
+                      <SidebarMenuButton 
+                        asChild 
+                        tooltip={item.title}
+                        className={isActive ? "bg-sidebar-accent/25 text-primary font-bold hover:bg-sidebar-accent/25 hover:text-primary" : "text-sidebar-foreground/85 hover:bg-muted/50 hover:text-sidebar-foreground"}
+                      >
+                        <Link to={item.url} className="flex items-center gap-3 w-full">
+                          <item.icon className="w-4 h-4 shrink-0" />
                           <span>{item.title}</span>
                         </Link>
                       </SidebarMenuButton>

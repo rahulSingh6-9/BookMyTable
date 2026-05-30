@@ -26,7 +26,7 @@ export const getHomepageSectionsData = async ({ city, area, lat, lng }) => {
 
   const queries = {
     "Trending Near You": geoQuery 
-      ? DiscoveryRestaurant.find({ ...baseQuery, ...geoQuery }).sort({ totalReviews: -1, averageRating: -1 }).limit(10)
+      ? DiscoveryRestaurant.find({ ...baseQuery, ...geoQuery }).limit(10)
       : DiscoveryRestaurant.find(baseQuery).sort({ totalReviews: -1, averageRating: -1 }).limit(10),
     "Top Rated": DiscoveryRestaurant.find(baseQuery).sort({ averageRating: -1, totalReviews: -1 }).limit(10),
     "New Openings": DiscoveryRestaurant.find(baseQuery).sort({ createdAt: -1 }).limit(10),
@@ -77,13 +77,18 @@ export const searchRestaurantsData = async ({ q, city, area, cuisine, lat, lng, 
         },
       },
     };
-    sortObj = {}; // $near automatically sorts by distance
+    sortObj = null; // $near automatically sorts by distance, MongoDB forbids combining it with .sort()
   }
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
-  const results = await DiscoveryRestaurant.find(query, q ? { score: { $meta: "textScore" } } : {})
-    .sort(sortObj)
+  let queryBuilder = DiscoveryRestaurant.find(query, q ? { score: { $meta: "textScore" } } : {});
+  
+  if (sortObj) {
+    queryBuilder = queryBuilder.sort(sortObj);
+  }
+
+  const results = await queryBuilder
     .skip(skip)
     .limit(parseInt(limit));
 

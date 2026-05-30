@@ -11,7 +11,7 @@ export const syncSubscriptionOverride = async (data) => {
   const incomingUpdatedAt = new Date(data.updatedAt || Date.now());
   const existing = await SubscriptionOverrideReadModel.findById(overrideId);
 
-  if (existing && existing.updatedAt && incomingUpdatedAt <= existing.updatedAt) {
+  if (existing && existing.updatedAt && incomingUpdatedAt < existing.updatedAt) {
     return;
   }
 

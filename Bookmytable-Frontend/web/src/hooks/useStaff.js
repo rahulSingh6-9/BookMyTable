@@ -76,3 +76,32 @@ export function useDeleteStaff(restaurantId) {
     },
   });
 }
+
+export function useRevokeInvite(restaurantId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (inviteId) => import("../services/staff.service").then(m => m.revokeInvite(restaurantId, inviteId)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pendingInvites", restaurantId] });
+      toast.success("Invitation revoked successfully");
+    },
+    onError: (error) => {
+      const message = error.response?.data?.message || error.message || "Failed to revoke invitation";
+      toast.error(message);
+    },
+  });
+}
+
+export function useResendInvite(restaurantId) {
+  return useMutation({
+    mutationFn: (inviteId) => import("../services/staff.service").then(m => m.resendInvite(restaurantId, inviteId)),
+    onSuccess: () => {
+      toast.success("Invitation resent successfully");
+    },
+    onError: (error) => {
+      const message = error.response?.data?.message || error.message || "Failed to resend invitation";
+      toast.error(message);
+    },
+  });
+}

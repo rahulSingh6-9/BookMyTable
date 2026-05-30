@@ -1,6 +1,6 @@
 import express from "express";
 import createProxy from "../proxies/serviceProxy.js";
-import { verifyToken, verifyAdmin } from "../middlewares/auth.middleware.js";
+import { verifyToken, verifyAdmin, optionalVerifyToken } from "../middlewares/auth.middleware.js";
 
 import dotenv from 'dotenv'
 dotenv.config()
@@ -44,7 +44,8 @@ router.use("/business-workspace", verifyToken, createProxy(RESTAURANT_SERVICE_UR
 router.use("/logs", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/logs" }));
 
 // 👤 Staff Accept Invite (Public)
-router.post("/staff/accept-invite", createProxy(RESTAURANT_SERVICE_URL, { "^": "/staff/accept-invite" }));
+router.get("/staff/invite/validate", createProxy(RESTAURANT_SERVICE_URL));
+router.post("/staff/accept-invite", optionalVerifyToken, createProxy(RESTAURANT_SERVICE_URL));
 
 // ✉️ Business Email Verification (Public)
 router.post("/onboarding/email/verify", createProxy(RESTAURANT_SERVICE_URL, { "^": "/onboarding/email/verify" }));

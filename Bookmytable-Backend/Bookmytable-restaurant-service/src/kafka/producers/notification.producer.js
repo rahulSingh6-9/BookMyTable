@@ -26,6 +26,34 @@ export const emitStaffInviteEvent = async (inviteData) => {
   }
 };
 
+export const emitStaffJoinedEvent = async (data) => {
+  try {
+    const event = StaffEvents.staffJoined(data);
+    await producer.send({
+      topic: KAFKA_TOPICS.STAFF_JOINED,
+      messages: [{ value: JSON.stringify(event) }],
+      acks: -1,
+    });
+    console.log(`📡 Staff Joined Event Emitted for: ${data.userId}`);
+  } catch (error) {
+    console.error("❌ Failed to emit staff joined event:", error.message);
+  }
+};
+
+export const emitInvitationRevokedEvent = async (data) => {
+  try {
+    const event = StaffEvents.invitationRevoked(data);
+    await producer.send({
+      topic: KAFKA_TOPICS.INVITATION_REVOKED,
+      messages: [{ value: JSON.stringify(event) }],
+      acks: -1,
+    });
+    console.log(`📡 Invitation Revoked Event Emitted for: ${data.inviteId}`);
+  } catch (error) {
+    console.error("❌ Failed to emit invitation revoked event:", error.message);
+  }
+};
+
 // Generic notification event producer if needed for a dedicated notification topic
 export const emitNotificationEvent = async (topic, payload) => {
     try {

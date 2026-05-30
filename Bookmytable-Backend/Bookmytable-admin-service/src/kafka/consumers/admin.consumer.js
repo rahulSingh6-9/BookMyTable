@@ -8,6 +8,7 @@ import { syncSubscriptionPlan } from "../handlers/subscriptionPlanSync.handler.j
 import { syncBrandSubscription } from "../handlers/brandSubscriptionSync.handler.js";
 import { syncBilling } from "../handlers/billingSync.handler.js";
 import { syncSubscriptionOverride } from "../handlers/subscriptionOverrideSync.handler.js";
+import { handleInvitationSync } from "../handlers/invitationSync.handler.js";
 
 const consumer = kafka.consumer({ groupId: "admin-service-group" });
 
@@ -35,7 +36,11 @@ export const startAdminConsumer = async () => {
         KAFKA_TOPICS.SUBSCRIPTION_ACTIVATED,
         KAFKA_TOPICS.SUBSCRIPTION_SUSPENDED,
         KAFKA_TOPICS.SUBSCRIPTION_OVERRIDE_CREATED,
-        KAFKA_TOPICS.BILLING_UPDATED
+        KAFKA_TOPICS.BILLING_UPDATED,
+        KAFKA_TOPICS.STAFF_INVITED,
+        KAFKA_TOPICS.STAFF_JOINED,
+        KAFKA_TOPICS.INVITATION_FAILED,
+        KAFKA_TOPICS.INVITATION_REVOKED
       ], 
       fromBeginning 
     });
@@ -74,6 +79,13 @@ export const startAdminConsumer = async () => {
             await syncSubscriptionOverride(data);
           } else if (topic === KAFKA_TOPICS.BILLING_UPDATED) {
             await syncBilling(data);
+          } else if (
+            topic === KAFKA_TOPICS.STAFF_INVITED ||
+            topic === KAFKA_TOPICS.STAFF_JOINED ||
+            topic === KAFKA_TOPICS.INVITATION_FAILED ||
+            topic === KAFKA_TOPICS.INVITATION_REVOKED
+          ) {
+            await handleInvitationSync(event.eventType, data);
           }
         } catch (err) {
           console.error(`❌ Error parsing/handling message on topic [${topic}]:`, err.message);

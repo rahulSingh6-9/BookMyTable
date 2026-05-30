@@ -11,7 +11,7 @@ export const syncBrand = async (data) => {
   const incomingUpdatedAt = new Date(data.updatedAt || Date.now());
   const existing = await BrandReadModel.findById(brandId);
 
-  if (existing && existing.updatedAt && incomingUpdatedAt <= existing.updatedAt) {
+  if (existing && existing.updatedAt && incomingUpdatedAt < existing.updatedAt) {
     return;
   }
 

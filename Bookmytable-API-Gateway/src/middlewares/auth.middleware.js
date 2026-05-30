@@ -33,6 +33,26 @@ export const verifyToken = (req, res, next) => {
   }
 };
 
+export const optionalVerifyToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return next();
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    req.headers["x-user-id"] = decoded._id;
+    req.headers["x-user-roles"] = JSON.stringify(decoded.roles || []);
+    req.headers["x-permissions"] = JSON.stringify(decoded.permissions || []);
+    req.headers["x-scope"] = decoded.scope || "web";
+    next();
+  } catch (err) {
+    console.error("❌ Optional Token verification failed:", err.message);
+    next();
+  }
+};
 
 export const verifyAdmin = (req, res, next) => {
   try {

@@ -45,16 +45,16 @@ export const BranchSwitcher = ({ className, collapsed = false }) => {
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between h-auto p-2 border-border/60 hover:bg-muted/50 transition-all rounded-xl shadow-sm",
-            collapsed && "px-2 py-2",
+            "h-auto border-border/60 hover:bg-muted/50 transition-all rounded-xl shadow-sm",
+            collapsed ? "justify-center p-1 w-8 h-8" : "justify-between p-2 flex-1 min-w-0",
             className
           )}
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <Avatar className="h-9 w-9 rounded-lg border border-border/50 shrink-0">
+          <div className="flex items-center gap-3 min-w-0 w-full justify-center">
+            <Avatar className={cn("rounded-lg border border-border/50 shrink-0", collapsed ? "h-6 w-6" : "h-9 w-9")}>
               <AvatarImage src={activeBranch?.logo} alt={activeBranch?.branchName} />
               <AvatarFallback className="rounded-lg bg-primary/10 text-primary">
-                <Store className="h-5 w-5" />
+                <Store className={cn(collapsed ? "h-3 w-3" : "h-5 w-5")} />
               </AvatarFallback>
             </Avatar>
             
@@ -83,13 +83,10 @@ export const BranchSwitcher = ({ className, collapsed = false }) => {
         sideOffset={12}
       >
         <Command className="bg-popover">
-          <div className="flex items-center border-b px-3">
-            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-            <CommandInput 
-              placeholder="Search for a branch..." 
-              className="border-none focus:ring-0 h-11 text-sm"
-            />
-          </div>
+          <CommandInput 
+            placeholder="Search for a branch..." 
+            className="h-11 text-sm"
+          />
           
           <div className="p-2 pb-0">
             <p className="px-2 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -97,7 +94,7 @@ export const BranchSwitcher = ({ className, collapsed = false }) => {
             </p>
           </div>
 
-          <CommandList className="max-h-[300px] p-1">
+          <CommandList className="max-h-[300px] p-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
               No branch found.
             </CommandEmpty>
@@ -113,17 +110,17 @@ export const BranchSwitcher = ({ className, collapsed = false }) => {
                       setOpen(false);
                     }}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors mb-1",
+                      "group flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors mb-1",
                       isActive 
-                        ? "bg-slate-900 text-white hover:bg-slate-800" 
-                        : "hover:bg-muted"
+                        ? "bg-accent text-accent-foreground" 
+                        : "hover:bg-accent hover:text-accent-foreground"
                     )}
                   >
-                    <Avatar className="h-8 w-8 rounded-lg border border-white/10 shrink-0">
+                    <Avatar className="h-8 w-8 rounded-lg border shrink-0 border-border/50">
                       <AvatarImage src={m.branch.logo} alt={m.branch.branchName} />
                       <AvatarFallback className={cn(
                         "rounded-lg text-xs font-bold",
-                        isActive ? "bg-white/10 text-white" : "bg-primary/10 text-primary"
+                        isActive ? "bg-background text-foreground shadow-sm" : "bg-primary/10 text-primary group-hover:bg-background group-hover:text-foreground group-hover:shadow-sm"
                       )}>
                         {m.branch?.branchName?.charAt(0) || "B"}
                       </AvatarFallback>
@@ -134,8 +131,8 @@ export const BranchSwitcher = ({ className, collapsed = false }) => {
                         {m.branch?.branchName || "Unnamed Branch"}
                       </span>
                       <span className={cn(
-                        "text-[10px] capitalize font-medium",
-                        isActive ? "text-slate-400" : "text-muted-foreground"
+                        "text-[10px] capitalize font-medium opacity-90",
+                        isActive ? "text-muted-foreground" : "text-muted-foreground"
                       )}>
                         {m.role?.replace("_", " ") || "Member"}
                       </span>

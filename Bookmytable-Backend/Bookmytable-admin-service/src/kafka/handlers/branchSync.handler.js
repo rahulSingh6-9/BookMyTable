@@ -13,7 +13,7 @@ export const syncBranch = async (data) => {
   const incomingUpdatedAt = data.updatedAt ? new Date(data.updatedAt) : new Date();
   const existing = await BranchReadModel.findById(branchId);
 
-  if (existing && existing.updatedAt && incomingUpdatedAt <= existing.updatedAt) {
+  if (existing && existing.updatedAt && incomingUpdatedAt < existing.updatedAt) {
     console.log(`⏭️ [BranchSync] Skipping stale update for ${branchId} (Existing: ${existing.updatedAt.toISOString()}, Incoming: ${incomingUpdatedAt.toISOString()})`);
     return;
   }

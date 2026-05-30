@@ -19,6 +19,11 @@ export const ADMIN_TOPICS = {
 
   USER_UPDATED: "user.updated",
 
+  STAFF_INVITED: "staff.invited",
+  STAFF_JOINED: "staff.joined",
+  INVITATION_FAILED: "invitation.failed",
+  INVITATION_REVOKED: "invitation.revoked",
+
   // Legacy compatibility mapping
   BRANCH_UPDATED: "branch.updated",
 

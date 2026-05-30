@@ -55,7 +55,8 @@ function Navbar({ children }) {
       className="fixed top-0 left-0 right-0 z-50 glass shadow-card"
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
-        <div className="flex items-center gap-6">
+        {/* Left Side (Logo & Location) */}
+        <div className="flex flex-1 items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
             <img src={logo} alt="BookMyTable" className="h-9 w-9 rounded-md object-cover" />
             <span className="text-lg font-bold text-foreground tracking-tight hidden sm:inline-block">
@@ -158,45 +159,42 @@ function Navbar({ children }) {
           </Popover>
         </div>
 
-        {/* Dynamic Context Slots (e.g. Branch Switcher) */}
+        {/* Center Side (Nav Links or Children) */}
         <div className="flex-1 flex justify-center px-4">
-           {children}
+           {children || (
+             <div className="hidden items-center gap-6 md:flex">
+               {navLinks.map((link) => (
+                 <Link
+                   key={link.href}
+                   to={link.href}
+                   className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                 >
+                   {link.label}
+                 </Link>
+               ))}
+             </div>
+           )}
         </div>
 
-        {/* Desktop nav */}
-        <div className="hidden items-center gap-6 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              to={link.href}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {link.label}
+        {/* Right Side (Profile / Auth) */}
+        <div className="flex flex-1 items-center justify-end gap-3 hidden md:flex">
+          {user ? ( 
+            <div>
+              <Link to="/profile" className="flex justify-center items-center gap-2">
+                <Avatar className="h-10 w-10 border shadow-sm">
+                  <AvatarImage src={user.avatar || ""} className="object-cover" />
+                  <AvatarFallback className="text-xl font-bold bg-muted text-foreground">
+                    {user.name?.charAt(0)?.toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm font-medium">Hi, {user.name}</span>
+              </Link>
+            </div>
+          ) : (
+            <Link to="/login">
+              <Button>Log in</Button>
             </Link>
-          ))}
-        </div>
-
-        <div className="hidden items-center gap-3 md:flex">
-          <Link to="/search">
-            <Button variant="ghost" size="icon" className="text-muted-foreground mr-2">
-              <Search className="h-4 w-4" />
-            </Button>
-          </Link>
-          {user ? ( <div >
-                      <Link to="/profile" className="flex justify-center items-center gap-2">
-                        <Avatar className="h-10 w-10 border shadow-sm">
-                          <AvatarImage src={user.avatar || ""} className="object-cover" />
-                          <AvatarFallback className="text-2xl">{user.name?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
-                        </Avatar>
-                      <span>Hi, {user.name}</span>
-                      </Link>
-                    </div>
-                  ) : (
-                    <Link to="/login">
-                      <Button>Log in</Button>
-                    </Link>
-                    )
-          }
+          )}
         </div>
 
         {/* Mobile toggle */}

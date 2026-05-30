@@ -60,11 +60,26 @@ export const inviteStaffService = async ({
     expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
   });
 
+  // Fetch contextual metadata for rich emails
+  const User = (await import("../../models/user.model.js")).default;
+  const Brand = (await import("../../models/brand.model.js")).default;
+  
+  const inviter = await User.findById(invitedBy).select("name email");
+  const brandDoc = branch.brandId ? await Brand.findById(branch.brandId).select("name logo") : null;
+
   // 5️⃣ 🔥 EMIT EVENT
   await emitStaffInviteEvent({
     email,
     role,
-    restaurantName: branch.branchName || branch.name,
+    restaurantName: branch.branchName || branch.name || brandDoc?.name || "the restaurant",
+    brandName: brandDoc?.name,
+    branchName: branch.branchName || branch.name,
+    inviterName: inviter?.name || "A Team Member",
+    inviteEmail: email,
+    logo: branch.logo || brandDoc?.logo,
+    coverImage: branch.coverImage,
+    token: rawToken,
+    expiresAt: invite.expiresAt,
     inviteLink: `${
       process.env.WEB_URL || process.env.FRONTEND_URL || "http://localhost:8080"
     }/accept-invite?token=${rawToken}`,

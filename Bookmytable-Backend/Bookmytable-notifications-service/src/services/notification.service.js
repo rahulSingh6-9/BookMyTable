@@ -53,6 +53,20 @@ class NotificationService {
         notificationId: notification._id, 
         error: error.message 
       });
+
+      if (event === "staff.invited") {
+        try {
+          const { producer } = await import("../kafka/config/kafka.js");
+          const { KAFKA_TOPICS } = await import("../kafka/topics/topics.js");
+          await producer.send({
+            topic: KAFKA_TOPICS.INVITATION_FAILED,
+            messages: [{ value: JSON.stringify({ eventType: "INVITATION_FAILED", payload: { inviteId: metadata.inviteId, error: error.message } }) }]
+          });
+        } catch (kafkaErr) {
+          logError("❌ Failed to emit INVITATION_FAILED", { error: kafkaErr.message });
+        }
+      }
+
       throw error;
     }
   }

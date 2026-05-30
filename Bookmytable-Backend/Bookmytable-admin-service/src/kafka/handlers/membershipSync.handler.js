@@ -11,7 +11,7 @@ export const syncMembership = async (data) => {
   const incomingUpdatedAt = new Date(data.updatedAt || Date.now());
   const existing = await MembershipReadModel.findById(membershipId);
 
-  if (existing && existing.updatedAt && incomingUpdatedAt <= existing.updatedAt) {
+  if (existing && existing.updatedAt && incomingUpdatedAt < existing.updatedAt) {
     return;
   }
 

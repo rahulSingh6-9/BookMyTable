@@ -12,7 +12,7 @@ export const syncUser = async (data) => {
   const existing = await UserReadModel.findById(userId);
 
   // Prevent stale overwrite
-  if (existing && existing.updatedAt && incomingUpdatedAt <= existing.updatedAt) {
+  if (existing && existing.updatedAt && incomingUpdatedAt < existing.updatedAt) {
     console.log(`⏭️ Stale update skipped for user ${userId}`);
     return;
   }

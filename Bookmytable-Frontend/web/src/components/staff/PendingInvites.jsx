@@ -1,9 +1,32 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Mail, Clock, ShieldAlert } from "lucide-react";
+import { Mail, Clock, ShieldAlert, MoreHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useRevokeInvite, useResendInvite } from "@/hooks/useStaff";
+import { useBranch } from "@/context/BranchContext";
 
 export function PendingInvites({ invites }) {
+  const { activeBranch } = useBranch();
+  const restaurantId = activeBranch?._id;
+  const revokeMutation = useRevokeInvite(restaurantId);
+  const resendMutation = useResendInvite(restaurantId);
+
+  const handleRevoke = (inviteId) => {
+    if (window.confirm("Are you sure you want to revoke this invitation?")) {
+      revokeMutation.mutate(inviteId);
+    }
+  };
+
+  const handleResend = (inviteId) => {
+    resendMutation.mutate(inviteId);
+  };
   if (!invites || invites.length === 0) return null;
 
   return (
@@ -24,6 +47,7 @@ export function PendingInvites({ invites }) {
               <TableHead className="text-amber-800/70 font-bold text-[10px] uppercase tracking-wider">Assigned Role</TableHead>
               <TableHead className="text-amber-800/70 font-bold text-[10px] uppercase tracking-wider">Sent At</TableHead>
               <TableHead className="text-amber-800/70 font-bold text-[10px] uppercase tracking-wider text-right">Status</TableHead>
+              <TableHead className="text-amber-800/70 font-bold text-[10px] uppercase tracking-wider text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -50,6 +74,23 @@ export function PendingInvites({ invites }) {
                   >
                     {invite.status === 'pending' ? 'Pending Acceptance' : invite.status}
                   </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleResend(invite._id)}>
+                        Resend Invite
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleRevoke(invite._id)} className="text-red-600">
+                        Revoke Invite
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}

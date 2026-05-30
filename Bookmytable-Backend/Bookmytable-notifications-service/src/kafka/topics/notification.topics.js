@@ -12,6 +12,9 @@ export const NOTIFICATION_TOPICS = {
   RESTAURANT_SUSPENDED: "restaurant.suspended",
   
   STAFF_INVITED: "staff.invited",
+  STAFF_JOINED: "staff.joined",
+  INVITATION_FAILED: "invitation.failed",
+  INVITATION_REVOKED: "invitation.revoked",
   RESTAURANT_UPDATED: "restaurant.updated",
   USER_UPDATED: "user.updated",
   BOOKING_CREATED: "booking.created",

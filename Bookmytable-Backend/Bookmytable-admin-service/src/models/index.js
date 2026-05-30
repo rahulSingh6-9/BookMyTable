@@ -9,6 +9,7 @@ import SubscriptionPlanReadModel from "./subscriptionPlanReadModel.js";
 import BrandSubscriptionReadModel from "./brandSubscriptionReadModel.js";
 import BillingReadModel from "./billingReadModel.js";
 import SubscriptionOverrideReadModel from "./subscriptionOverrideReadModel.js";
+import InvitationReadModel from "./invitationReadModel.js";
 
 export {
   BrandReadModel,
@@ -22,4 +23,5 @@ export {
   BrandSubscriptionReadModel,
   BillingReadModel,
   SubscriptionOverrideReadModel,
+  InvitationReadModel,
 };

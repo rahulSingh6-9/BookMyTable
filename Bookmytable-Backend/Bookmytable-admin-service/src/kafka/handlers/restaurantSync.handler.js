@@ -12,7 +12,7 @@ export const syncRestaurant = async (data) => {
   const existing = await RestaurantReadModel.findById(restaurantId);
 
   // Prevent stale overwrite
-  if (existing && existing.updatedAt && incomingUpdatedAt <= existing.updatedAt) {
+  if (existing && existing.updatedAt && incomingUpdatedAt < existing.updatedAt) {
     console.log(`⏭️ Stale update skipped for restaurant ${restaurantId}`);
     return;
   }

@@ -21,4 +21,5 @@ const kafka = new Kafka({
   }
 });
 
+export const producer = kafka.producer();
 export default kafka;
