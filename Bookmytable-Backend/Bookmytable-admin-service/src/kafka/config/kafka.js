@@ -6,7 +6,7 @@ const kafka = new Kafka({
   clientId: process.env.KAFKA_CLIENT_ID || "admin-service",
   brokers: process.env.KAFKA_BROKERS
     ? process.env.KAFKA_BROKERS.split(",")
-    : ["localhost:9092"],
+    : ["kafka:9092"],
   ssl: process.env.KAFKA_SSL === "true",
   sasl: process.env.KAFKA_USERNAME
     ? {

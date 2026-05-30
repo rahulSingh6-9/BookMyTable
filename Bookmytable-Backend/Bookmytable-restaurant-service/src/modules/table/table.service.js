@@ -26,6 +26,11 @@ export const createTableService = async (branchId, userId, data) => {
   const branch = await Restaurant.findById(branchId);
   if (!branch) throw new Error("Branch not found");
 
+  // 1b. Check SaaS table limits
+  const { checkLimit } = await import("../subscriptions/subscription.service.js");
+  const currentTablesCount = await Table.countDocuments({ brand: branch.brandId, isActive: true });
+  await checkLimit(branch.brandId, "maxTables", currentTablesCount);
+
   // 2. Check for duplicate tableCode in this branch
   const existingTable = await Table.findOne({
     branch: branchId,
@@ -52,9 +57,63 @@ export const createTableService = async (branchId, userId, data) => {
     isActive: true,
   });
 
+  const { recalculateUsage } = await import("../subscriptions/subscription.service.js");
+  recalculateUsage(branch.brandId).catch(err => console.error("Recalculate usage err:", err));
+
   return table;
 };
 
+export const bulkGenerateTablesService = async (branchId, userId, data) => {
+  const { prefix, capacity, type, floor, section, quantity } = data;
+  const qty = parseInt(quantity);
+  const cap = parseInt(capacity);
+  
+  if (!prefix || isNaN(qty) || isNaN(cap) || qty < 1 || qty > 100 || cap < 1) {
+    const error = new Error("Invalid parameters for bulk generation.");
+    error.status = 400;
+    throw error;
+  }
+
+  const branch = await Restaurant.findById(branchId);
+  if (!branch) throw new Error("Branch not found");
+
+  const { checkLimit } = await import("../subscriptions/subscription.service.js");
+  const currentTablesCount = await Table.countDocuments({ brand: branch.brandId, isActive: true });
+  await checkLimit(branch.brandId, "maxTables", currentTablesCount + qty);
+
+  // Fetch all existing table codes to prevent duplicates
+  const existingTables = await Table.find({ branch: branchId, isActive: true }, 'tableCode');
+  const existingCodes = new Set(existingTables.map(t => t.tableCode));
+
+  const newTables = [];
+  let addedCount = 0;
+  let nextNum = 1;
+
+  while (addedCount < qty) {
+    const code = `${prefix}${nextNum}`;
+    if (!existingCodes.has(code)) {
+      newTables.push({
+        branch: branchId,
+        brand: branch.brandId,
+        tableCode: code,
+        capacity: cap,
+        type: type || "indoor",
+        floor: floor,
+        section: section,
+        isActive: true,
+      });
+      addedCount++;
+    }
+    nextNum++;
+  }
+
+  const createdTables = await Table.insertMany(newTables);
+
+  const { recalculateUsage } = await import("../subscriptions/subscription.service.js");
+  recalculateUsage(branch.brandId).catch(err => console.error("Recalculate usage err:", err));
+
+  return createdTables;
+};
 
 export const updateTableService = async (tableId, data) => {
   const table = await Table.findById(tableId);
@@ -99,6 +158,9 @@ export const deleteTableService = async (tableId) => {
   // Soft delete
   table.isActive = false;
   await table.save();
+
+  const { recalculateUsage } = await import("../subscriptions/subscription.service.js");
+  if (table.brand) recalculateUsage(table.brand).catch(err => console.error("Recalculate usage err:", err));
 
   return table;
 };

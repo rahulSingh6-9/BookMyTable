@@ -38,7 +38,7 @@ const createServiceProxy = (target, pathRewrite = {}) => {
           fixRequestBody(proxyReq, req);
         }
 
-        // console.log(`[Gateway Proxy] Forwarding to ${target}${req.url}`);
+        console.log(`[Gateway Proxy] Forwarding to ${target}${proxyReq.path}`);
       },
 
       error: (err, req, res) => {

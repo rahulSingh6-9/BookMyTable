@@ -3,7 +3,10 @@ import { env } from "./env.js";
 
 export const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(env.MONGO_URI || "mongodb://localhost:27017/bookmytable");
+    const conn = await mongoose.connect("mongodb://host.docker.internal:27017/", {
+      dbName: "bookmytable", // 🔥 your DB name
+     
+    });
 
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);

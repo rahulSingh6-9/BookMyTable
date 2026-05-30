@@ -3,6 +3,7 @@ import { staffInviteTemplate } from "../providers/email/templates/staffInvite.te
 import { restaurantApprovedTemplate } from "../providers/email/templates/restaurantApproved.template.js";
 import { bookingConfirmedTemplate } from "../providers/email/templates/bookingConfirmed.template.js";
 import { restaurantWelcomeTemplate } from "../providers/email/templates/restaurantWelcome.template.js";
+import { businessEmailVerificationTemplate } from "../providers/email/templates/businessEmailVerification.template.js";
 import { logError } from "../utils/logger.js";
 
 class EmailService {
@@ -34,6 +35,10 @@ class EmailService {
         case "booking.confirmed":
         case "booking.created":
           templateData = bookingConfirmedTemplate(metadata);
+          break;
+
+        case "restaurant.business.email.verification.requested":
+          templateData = businessEmailVerificationTemplate(metadata);
           break;
 
         default:

@@ -19,9 +19,15 @@ import ManageTables from "./pages/ManageTables";
 import ManageReservations from "./pages/ManageReservations";
 import ManageMenu from "./pages/ManageMenu";
 import OwnerAnalytics from "./pages/OwnerAnalytics";
-import RestaurantSettings from "./pages/RestaurantSettings";
+import OwnerBookingPolicies from "./pages/settings/OwnerBookingPolicies";
+import OwnerAccountSettings from "./pages/settings/OwnerAccountSettings";
+import OwnerBillingSettings from "./pages/settings/OwnerBillingSettings";
+import OwnerNotificationsSettings from "./pages/settings/OwnerNotificationsSettings";
+import OwnerIntegrationsSettings from "./pages/settings/OwnerIntegrationsSettings";
+import OwnerSecuritySettings from "./pages/settings/OwnerSecuritySettings";
+import OwnerRolesAccessSettings from "./pages/settings/OwnerRolesAccessSettings";
 import OwnerLayoutEditor from "./pages/OwnerLayoutEditor";
-import OwnerAvailability from "./pages/OwnerAvailability";
+import OwnerAvailabilitySchedule from "./pages/operations/OwnerAvailabilitySchedule";
 import OwnerSubscription from "./pages/OwnerSubscription";
 import RestaurantBranding from "./pages/RestaurantBranding";
 import BusinessVerification from "./pages/BusinessVerification";
@@ -57,6 +63,7 @@ import TopRated from "./pages/TopRated";
 import NewOpenings from "./pages/NewOpenings";
 import PartnerRegister from "./pages/PartnerRegister";
 import ResetPassword from "./pages/ResetPassword";
+import VerifyBusinessEmail from "./pages/VerifyBusinessEmail";
 import StaffListPage from "./pages/staff/StaffListPage";
 import OwnerLogsPage from "./pages/logs/OwnerLogsPage";
 import NotAuthorized from "./pages/NotAuthorized";
@@ -120,6 +127,7 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-business-email" element={<VerifyBusinessEmail />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
 
 
@@ -228,13 +236,17 @@ const App = () => (
             } 
           />
           
-          <Route path="availability" 
-            element={
-              <PermissionProtectedRoute permission="MANAGE_SETTINGS">
-                <OwnerAvailability />
-              </PermissionProtectedRoute>
-            } 
-          />
+          <Route path="availability" element={<Navigate to="../operations/availability-schedule" replace />} />
+          
+          <Route path="operations">
+            <Route path="availability-schedule" 
+              element={
+                <PermissionProtectedRoute permission="MANAGE_SETTINGS">
+                  <OwnerAvailabilitySchedule />
+                </PermissionProtectedRoute>
+              } 
+            />
+          </Route>
           
           <Route path="menu" 
             element={
@@ -252,13 +264,23 @@ const App = () => (
             } 
           />
           
-          <Route path="settings" 
-            element={
-              <PermissionProtectedRoute permission="MANAGE_SETTINGS">
-                <RestaurantSettings />
-              </PermissionProtectedRoute>
-            } 
-          />
+          <Route path="settings">
+            <Route index element={<Navigate to="booking-policies" replace />} />
+            
+            <Route path="booking-policies" 
+              element={
+                <PermissionProtectedRoute permission="MANAGE_SETTINGS">
+                  <OwnerBookingPolicies />
+                </PermissionProtectedRoute>
+              } 
+            />
+            <Route path="account" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerAccountSettings /></PermissionProtectedRoute>} />
+            <Route path="billing" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerBillingSettings /></PermissionProtectedRoute>} />
+            <Route path="notifications" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerNotificationsSettings /></PermissionProtectedRoute>} />
+            <Route path="integrations" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerIntegrationsSettings /></PermissionProtectedRoute>} />
+            <Route path="security" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerSecuritySettings /></PermissionProtectedRoute>} />
+            <Route path="roles" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerRolesAccessSettings /></PermissionProtectedRoute>} />
+          </Route>
           
           <Route path="subscription" element={<OwnerSubscription />} />
           

@@ -3,7 +3,9 @@ import {
     getAllBrands, 
     approveBrand, 
     suspendBrand,
-    getBrandDetails 
+    getBrandDetails,
+    getBrandRestaurants,
+    getBrandMetrics
 } from "./adminBrand.controller.js";
 import { protect } from "../../middleware/auth.middleware.js";
 
@@ -16,6 +18,9 @@ router.use(protect); // All admin routes protected
 
 router.get("/", requirePermission(PERMISSIONS.BRANDS_VIEW), getAllBrands);
 router.get("/:id", requirePermission(PERMISSIONS.BRANDS_VIEW), getBrandDetails);
+router.get("/:id/restaurants", requirePermission(PERMISSIONS.BRANDS_VIEW), getBrandRestaurants);
+router.get("/:id/metrics", requirePermission(PERMISSIONS.BRANDS_VIEW), getBrandMetrics);
+
 router.patch("/:id/approve", requirePermission(PERMISSIONS.RESTAURANTS_APPROVE), approveBrand);
 router.patch("/:id/suspend", requirePermission(PERMISSIONS.RESTAURANTS_SUSPEND), suspendBrand);
 

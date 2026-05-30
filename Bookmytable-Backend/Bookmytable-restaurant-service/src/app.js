@@ -12,6 +12,8 @@ import onboardingRoutes from "./modules/onboarding/onboarding.routes.js"
 import brandRoutes from "./modules/brand/brand.routes.js";
 import adminRoutes from "./modules/admin/admin.routes.js";
 import businessWorkspaceRoutes from "./modules/businessWorkspace/businessWorkspace.routes.js";
+import subscriptionRoutes from "./modules/subscriptions/subscription.routes.js";
+import discoveryRoutes from "./modules/discovery/discovery.routes.js";
 
 
 const app = express();
@@ -40,6 +42,9 @@ app.use("/availability", settingsRoutes)
 app.use("/staff", staffRoutes)
 app.use("/onboarding", onboardingRoutes)
 app.use("/business-workspace", businessWorkspaceRoutes);
+app.use("/subscriptions", subscriptionRoutes);
+app.use("/discovery", discoveryRoutes);
+
 
 
 export default app;

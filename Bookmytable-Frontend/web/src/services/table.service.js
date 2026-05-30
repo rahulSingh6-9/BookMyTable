@@ -18,3 +18,7 @@ export const updateTable = async (tableId, data) => {
 export const deleteTable = async (tableId) => {
   return await apiClient.delete(`/tables/${tableId}`);
 };
+
+export const bulkGenerateTables = async (restaurantId, data) => {
+  return await apiClient.post(`/tables/${restaurantId}/bulk-generate`, data);
+};

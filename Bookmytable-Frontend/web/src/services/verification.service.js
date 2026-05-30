@@ -17,3 +17,21 @@ export const verifyPhoneOTP = async (phone, otp, purpose = 'restaurant_onboardin
     throw error.response?.data || error;
   }
 };
+
+export const requestBusinessEmailVerification = async (email) => {
+  try {
+    const response = await API.post('/onboarding/email/verify-request', { email });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
+export const verifyBusinessEmailToken = async (token, email) => {
+  try {
+    const response = await API.post('/onboarding/email/verify', { token, email });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};

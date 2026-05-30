@@ -24,6 +24,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllBrands, approveBrand, suspendBrand } from "@/services/brand.service";
 import { toast } from "sonner";
+import { BrandDetailsDrawer } from "@/components/brands/BrandDetailsDrawer";
 
 const capitalize = (str) =>
   str ? str.charAt(0).toUpperCase() + str.slice(1) : "Unknown";
@@ -41,6 +42,8 @@ const statusVariant = (status) => {
 export default function ManageBrands() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedBrandId, setSelectedBrandId] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-brands", statusFilter],
@@ -128,7 +131,13 @@ export default function ManageBrands() {
                 <DropdownMenuSeparator />
               </>
             )}
-            <DropdownMenuItem className="cursor-pointer">
+            <DropdownMenuItem 
+              className="cursor-pointer"
+              onClick={() => {
+                setSelectedBrandId(row.id);
+                setDrawerOpen(true);
+              }}
+            >
               <Eye className="mr-2 h-4 w-4" /> View Details
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -183,6 +192,12 @@ export default function ManageBrands() {
       ) : (
         <DataTable columns={columns} data={brands} />
       )}
+
+      <BrandDetailsDrawer 
+        brandId={selectedBrandId} 
+        open={drawerOpen} 
+        onOpenChange={setDrawerOpen} 
+      />
     </div>
   );
 }

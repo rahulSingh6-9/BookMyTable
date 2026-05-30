@@ -3,16 +3,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X, Hash, Link as LinkIcon, Info, Sparkles, Store } from "lucide-react";
+import { X, Hash, Link as LinkIcon, Info, Sparkles, Store, Utensils } from "lucide-react";
 import { useFormContext } from "react-hook-form";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const cuisines = ["Indian", "Chinese", "Italian", "Continental", "Fast Food", "Mexican", "Japanese", "Desserts"];
+const popularCuisines = [
+  "Indian", "Chinese", "Italian", "Japanese", "Mexican", "Continental", 
+  "Fast Food", "Desserts", "Cafe", "Bakery", "Street Food", "North Indian", 
+  "South Indian", "Biryani", "Pizza", "Burgers", "Seafood", "Vegetarian", "Vegan", "BBQ"
+];
 
 export function Step1BasicInfo() {
   const { register, formState: { errors }, setValue, watch } = useFormContext();
   const [tagInput, setTagInput] = useState("");
+  const [cuisineInput, setCuisineInput] = useState("");
 
   const selectedCuisines = watch("cuisines") || [];
   const priceRangeValue = watch("priceRange");
@@ -74,8 +79,25 @@ export function Step1BasicInfo() {
     const current = [...selectedCuisines];
     if (current.includes(cuisine)) {
       setValue("cuisines", current.filter(c => c !== cuisine), { shouldValidate: true });
-    } else {
+    } else if (current.length < 10) {
       setValue("cuisines", [...current, cuisine], { shouldValidate: true });
+    }
+  };
+
+  const addCuisine = (e) => {
+    if (e.key === "Enter" && cuisineInput.trim()) {
+      e.preventDefault();
+      // Capitalize first letter of each word
+      const newCuisine = cuisineInput.trim().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+      
+      const current = [...selectedCuisines];
+      // Case-insensitive check for duplicates
+      const isDuplicate = current.some(c => c.toLowerCase() === newCuisine.toLowerCase());
+      
+      if (!isDuplicate && current.length < 10) {
+        setValue("cuisines", [...current, newCuisine], { shouldValidate: true });
+        setCuisineInput("");
+      }
     }
   };
 
@@ -205,38 +227,77 @@ export function Step1BasicInfo() {
         </div>
       </div>
 
-      {/* Cuisines */}
-      <div className="space-y-2">
-        <Label>Cuisines (Select multiple)</Label>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {selectedCuisines.map(c => (
-            <Badge key={c} variant="secondary" className="pl-3 pr-1 py-1 gap-1">
-              {c}
-              <button 
-                type="button" 
-                onClick={() => toggleCuisine(c)}
-                className="hover:bg-muted p-0.5 rounded-full"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
+      {/* Cuisines Input */}
+      <div className="space-y-3">
+        <Label htmlFor="cuisines" className="flex items-center gap-2">
+          <Utensils className="h-4 w-4 text-primary" />
+          Cuisines (Select or add up to 10)
+        </Label>
+        
+        <div className="relative group">
+          <Input 
+            id="cuisines"
+            value={cuisineInput}
+            onChange={(e) => setCuisineInput(e.target.value)}
+            onKeyDown={addCuisine}
+            placeholder={selectedCuisines.length >= 10 ? "Maximum cuisines reached" : "Search or add cuisines (e.g. South Indian) and press Enter"}
+            disabled={selectedCuisines.length >= 10}
+            className="h-12 rounded-xl border-2 focus-visible:ring-primary/20 pl-4"
+          />
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground bg-muted px-2 py-1 rounded">
+            {selectedCuisines.length}/10
+          </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {cuisines.map(c => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => toggleCuisine(c)}
-              className={`text-xs px-3 py-2 rounded-lg border transition-all ${
-                selectedCuisines.includes(c) 
-                  ? "bg-primary/10 border-primary text-primary" 
-                  : "border-border bg-card hover:bg-muted"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
+
+        <div className="flex flex-wrap gap-2 min-h-[40px] p-2 rounded-2xl bg-muted/30 border border-dashed border-border">
+          <AnimatePresence>
+            {selectedCuisines.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60 italic ml-2 mt-1">No cuisines added yet.</p>
+            ) : (
+              selectedCuisines.map((c) => (
+                <motion.div
+                  key={c}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                >
+                  <Badge variant="secondary" className="pl-3 pr-1 py-1.5 gap-1.5 bg-background border-2 border-primary/20 text-primary rounded-xl group hover:border-primary/50 transition-colors shadow-sm">
+                    <span className="text-xs font-bold">{c}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => toggleCuisine(c)}
+                      className="hover:bg-destructive hover:text-destructive-foreground p-0.5 rounded-full transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Quick Select Cuisines */}
+        <div className="pt-2">
+          <p className="text-xs font-medium text-muted-foreground mb-3">Popular Options:</p>
+          <div className="flex flex-wrap gap-2">
+            {popularCuisines
+              .filter(c => !cuisineInput || c.toLowerCase().includes(cuisineInput.toLowerCase()))
+              .map(c => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => toggleCuisine(c)}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                  selectedCuisines.includes(c) 
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm" 
+                    : "border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
         </div>
         {errors.cuisines && (
           <p className="text-xs text-destructive">{errors.cuisines.message}</p>

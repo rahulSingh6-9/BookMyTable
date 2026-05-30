@@ -44,3 +44,11 @@ export function resetPassword(data) {
 export function verifyResetToken(token) {
   return apiClient.get(`/auth/verify-reset-token?token=${token}`);
 }
+
+/**
+ * Log in or sign up with Google.
+ * @param {string} idToken
+ */
+export function loginWithGoogle(idToken) {
+  return apiClient.post("/auth/google", { idToken });
+}

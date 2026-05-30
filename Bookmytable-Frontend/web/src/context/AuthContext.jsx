@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { getMe } from "../services/user.service.js";
-import { login as loginApi, signup as signupApi } from "../services/auth.service.js";
+import { login as loginApi, signup as signupApi, loginWithGoogle as loginWithGoogleApi } from "../services/auth.service.js";
 import { isAuthenticated as checkAuthenticated } from "../auth/helpers.js";
 import { socket } from "../services/socket.js";
 import { forgotPassword, resetPassword } from "../services/auth.service";
@@ -47,6 +47,35 @@ export const AuthProvider = ({ children }) => {
       const msg = error.message || "Invalid credentials";
       toast.error(msg);
       return { success: false };
+    }
+  };
+
+  // GOOGLE LOGIN FUNCTION
+  const loginWithGoogle = async (idToken) => {
+    try {
+      const response = await loginWithGoogleApi(idToken);
+      const token = response.data.data.token;
+
+      localStorage.setItem("token", token);
+
+      // Fetch full user profile
+      const userRes = await getMe();
+      const userData = userRes.data.data;
+
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+
+      // Connect socket
+      socket.auth = { token };
+      socket.connect();
+      socket.emit("join_user", userData._id);
+      socket.emit("user_logged_in", { userId: userData._id });
+
+      return { success: true, user: userData };
+    } catch (error) {
+      const msg = error.response?.data?.message || error.message || "Google authentication failed";
+      toast.error(msg);
+      return { success: false, error: msg };
     }
   };
 
@@ -125,6 +154,7 @@ export const AuthProvider = ({ children }) => {
         socket,
         logout,
         login,
+        loginWithGoogle,
         isLoading,
         isLoggedIn,
         forgotPassword,

@@ -1,17 +1,22 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Utensils, Clock, Shield, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { SmartSearch } from "@/components/SmartSearch";
 import { RestaurantCard } from "@/components/RestaurantCard";
-import { restaurants } from "@/lib/data";
 import heroImage from "@/assets/hero-restaurant.jpg";
+import { useLocationStore } from "@/store/useLocationStore";
+import { getHomepageSections } from "@/services/discovery.service";
+
 const stats = [
   { label: "Restaurants", value: "2,500+" },
   { label: "Happy Diners", value: "150K+" },
   { label: "Bookings Made", value: "1M+" },
   { label: "Cities", value: "45" }
 ];
+
 const features = [
   {
     icon: Clock,
@@ -34,41 +39,56 @@ const features = [
     description: "Powerful dashboard to manage tables, track analytics, and grow your business."
   }
 ];
+
 function Index() {
+  const { location, autoDetectLocation } = useLocationStore();
+
+  useEffect(() => {
+    if (!location.isAutoDetected && !location.lat) {
+      autoDetectLocation();
+    }
+  }, [location, autoDetectLocation]);
+
+  const { data: response, isLoading } = useQuery({
+    queryKey: ["homepage-sections", location.city, location.area, location.lat, location.lng],
+    queryFn: () => getHomepageSections({ city: location.city, area: location.area, lat: location.lat, lng: location.lng }),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const sections = response?.data?.data || [];
+
   return <div className="min-h-screen">
-      {
-    /* Hero */
-  }
+      {/* Hero */}
       <section className="relative overflow-hidden pt-16">
         <div className="absolute inset-0">
           <img
-    src={heroImage}
-    alt="Restaurant ambiance"
-    className="h-full w-full object-cover"
-  />
+            src={heroImage}
+            alt="Restaurant ambiance"
+            className="h-full w-full object-cover"
+          />
           <div className="absolute inset-0 bg-gradient-to-r from-foreground/80 via-foreground/60 to-foreground/30" />
         </div>
 
         <div className="relative container mx-auto px-4 py-24 lg:px-8 lg:py-36">
           <div className="max-w-2xl">
             <motion.h1
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.6 }}
-    className="mb-4 text-4xl font-bold text-primary-foreground sm:text-5xl lg:text-6xl"
-    style={{ letterSpacing: "-0.03em" }}
-  >
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="mb-4 text-4xl font-bold text-primary-foreground sm:text-5xl lg:text-6xl"
+              style={{ letterSpacing: "-0.03em" }}
+            >
               Tables found,
               <br />
               <span className="text-primary">not searched.</span>
             </motion.h1>
 
             <motion.p
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: 0.15, duration: 0.5 }}
-    className="mb-8 max-w-lg text-lg text-primary-foreground/70"
-  >
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15, duration: 0.5 }}
+              className="mb-8 max-w-lg text-lg text-primary-foreground/70"
+            >
               Discover and book the perfect table in seconds. Real-time availability, instant confirmation, zero hassle.
             </motion.p>
 
@@ -76,15 +96,13 @@ function Index() {
               <SmartSearch />
             </div>
 
-            {
-    /* Stats */
-  }
+            {/* Stats */}
             <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    transition={{ delay: 0.5 }}
-    className="mt-12 flex flex-wrap gap-8"
-  >
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="mt-12 flex flex-wrap gap-8"
+            >
               {stats.map((stat) => <div key={stat.label}>
                   <div className="text-2xl font-bold text-primary-foreground">{stat.value}</div>
                   <div className="text-sm text-primary-foreground/50">{stat.label}</div>
@@ -95,43 +113,52 @@ function Index() {
       </section>
 
       {/* Featured Categorized Sections */}
-      <section className="py-16 lg:py-24 space-y-16 overflow-hidden">
-        {Object.entries(
-          restaurants.reduce((acc, restaurant) => {
-            const category = restaurant.cuisine || "Other";
-            if (!acc[category]) acc[category] = [];
-            acc[category].push(restaurant);
-            return acc;
-          }, {})
-        ).map(([category, items]) => (
-          <div key={category} className="container mx-auto px-4 lg:px-8">
-            <div className="mb-8 flex items-end justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-foreground sm:text-3xl">{category} Delights</h2>
-                <p className="mt-1 text-muted-foreground">Premium {category.toLowerCase()} dining experiences near you</p>
+      <section className="py-16 lg:py-24 space-y-16 overflow-hidden min-h-[500px]">
+        {isLoading ? (
+          <div className="container mx-auto px-4 lg:px-8 text-center text-muted-foreground">
+            <div className="animate-pulse flex flex-col space-y-4">
+              <div className="h-8 bg-muted w-1/4 rounded"></div>
+              <div className="flex gap-4 overflow-hidden">
+                <div className="h-64 bg-muted min-w-[300px] rounded-lg"></div>
+                <div className="h-64 bg-muted min-w-[300px] rounded-lg"></div>
+                <div className="h-64 bg-muted min-w-[300px] rounded-lg"></div>
               </div>
-              <Link to={`/discover?cuisine=${category}`}>
-                <Button variant="ghost" className="hidden gap-1 sm:inline-flex">
-                  Explore All <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-
-            {/* Horizontal Scroll Layout */}
-            <div className="flex overflow-x-auto gap-6 pb-6 pt-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 lg:-mx-8 lg:px-8">
-              {items.map((restaurant, i) => (
-                <div key={restaurant.id} className="min-w-[85vw] sm:min-w-[300px] max-w-[320px] shrink-0 snap-start">
-                  <RestaurantCard restaurant={restaurant} index={i} />
-                </div>
-              ))}
             </div>
           </div>
-        ))}
+        ) : sections.length > 0 ? (
+          sections.map((section) => (
+            <div key={section.id} className="container mx-auto px-4 lg:px-8">
+              <div className="mb-8 flex items-end justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground sm:text-3xl">{section.title}</h2>
+                  <p className="mt-1 text-muted-foreground">{section.description}</p>
+                </div>
+                <Link to={`/search?collection=${section.id}`}>
+                  <Button variant="ghost" className="hidden gap-1 sm:inline-flex">
+                    Explore All <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+
+              {/* Horizontal Scroll Layout */}
+              <div className="flex overflow-x-auto gap-6 pb-6 pt-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 lg:-mx-8 lg:px-8">
+                {section.items.map((restaurant, i) => (
+                  <div key={restaurant.restaurantId || restaurant._id} className="min-w-[85vw] sm:min-w-[300px] max-w-[320px] shrink-0 snap-start">
+                    <RestaurantCard restaurant={restaurant} index={i} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="container mx-auto px-4 lg:px-8 text-center py-12">
+            <h3 className="text-xl font-medium text-foreground">No restaurants found in this area.</h3>
+            <p className="text-muted-foreground mt-2">Try searching a different location or check back later!</p>
+          </div>
+        )}
       </section>
 
-      {
-    /* How It Works */
-  }
+      {/* How It Works */}
       <section id="how-it-works" className="bg-secondary/50 py-16 lg:py-24">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="mb-12 text-center">
@@ -141,13 +168,13 @@ function Index() {
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {features.map((feature, i) => <motion.div
-    key={feature.title}
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    transition={{ delay: i * 0.1 }}
-    className="rounded-lg bg-card p-6 shadow-card"
-  >
+              key={feature.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="rounded-lg bg-card p-6 shadow-card"
+            >
                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
                   <feature.icon className="h-5 w-5 text-primary" />
                 </div>
@@ -158,16 +185,14 @@ function Index() {
         </div>
       </section>
 
-      {
-    /* CTA */
-  }
+      {/* CTA */}
       <section className="container mx-auto px-4 py-16 text-center lg:px-8 lg:py-24">
         <motion.div
-    initial={{ opacity: 0, scale: 0.95 }}
-    whileInView={{ opacity: 1, scale: 1 }}
-    viewport={{ once: true }}
-    className="rounded-2xl bg-foreground px-8 py-16"
-  >
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="rounded-2xl bg-foreground px-8 py-16"
+        >
           <h2 className="mb-4 text-2xl font-bold text-primary-foreground sm:text-3xl">
             Ready to find your table?
           </h2>
@@ -175,7 +200,7 @@ function Index() {
             Join 150,000+ diners who book smarter, not harder.
           </p>
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link to="/discover">
+            <Link to="/search">
               <Button size="lg" className="gap-2">
                 Start Exploring <ArrowRight className="h-4 w-4" />
               </Button>

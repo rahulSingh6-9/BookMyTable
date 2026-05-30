@@ -38,7 +38,25 @@ const performPagedSync = async ({
   while (true) {
     try {
       const fullUrl = `${url}?page=${page}&limit=${limit}`;
-      const res = await axios.get(fullUrl, { headers });
+      
+      let res;
+      let retries = 5;
+      while (retries > 0) {
+        try {
+          res = await axios.get(fullUrl, { headers });
+          break; // Success, break retry loop
+        } catch (error) {
+          // If it's a connection error (no response) and we have retries left
+          if (!error.response && retries > 1) {
+            console.warn(`⏳ Waiting for service at ${url} to be available... (${retries - 1} retries left)`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            retries--;
+          } else {
+            throw error; // No more retries or it's a response error (e.g. 400, 500)
+          }
+        }
+      }
+
       const items = res.data.data;
 
       if (!items || items.length === 0) break;
@@ -70,34 +88,34 @@ const performPagedSync = async ({
 export const initialUserSync = () => performPagedSync({
   model: UserReadModel,
   syncFn: syncUser,
-  url: `${process.env.USER_SERVICE_URL}/internal/users/export`,
+  url: `${process.env.USER_SERVICE_URL || 'http://user-service:5002'}/internal/users/export`,
   entityName: "user"
 });
 
 export const initialRestaurantSync = () => performPagedSync({
   model: RestaurantReadModel,
   syncFn: syncRestaurant,
-  url: `${process.env.RESTAURANT_SERVICE_URL}/internal/restaurants/export`,
+  url: `${process.env.RESTAURANT_SERVICE_URL || 'http://restaurant-service:5003'}/internal/restaurants/export`,
   entityName: "restaurant"
 });
 
 export const initialBrandSync = () => performPagedSync({
   model: BrandReadModel,
   syncFn: syncBrand,
-  url: `${process.env.RESTAURANT_SERVICE_URL}/internal/brands/export`,
+  url: `${process.env.RESTAURANT_SERVICE_URL || 'http://restaurant-service:5003'}/internal/brands/export`,
   entityName: "brand"
 });
 
 export const initialBranchSync = () => performPagedSync({
   model: BranchReadModel,
   syncFn: syncBranch,
-  url: `${process.env.RESTAURANT_SERVICE_URL}/internal/branches/export`,
+  url: `${process.env.RESTAURANT_SERVICE_URL || 'http://restaurant-service:5003'}/internal/branches/export`,
   entityName: "branch"
 });
 
 export const initialMembershipSync = () => performPagedSync({
   model: MembershipReadModel,
   syncFn: syncMembership,
-  url: `${process.env.RESTAURANT_SERVICE_URL}/internal/memberships/export`,
+  url: `${process.env.RESTAURANT_SERVICE_URL || 'http://restaurant-service:5003'}/internal/memberships/export`,
   entityName: "membership"
 });

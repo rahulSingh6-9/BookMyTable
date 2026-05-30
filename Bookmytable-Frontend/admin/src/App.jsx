@@ -13,6 +13,7 @@ import ManageRestaurants from "./pages/ManageRestaurants";
 import ManageBookings from "./pages/ManageBookings";
 import ManageReviews from "./pages/ManageReviews";
 import Payments from "./pages/Payments";
+import ManageSubscriptions from "./pages/ManageSubscriptions";
 import Notifications from "./pages/Notifications";
 import PlatformAnalytics from "./pages/PlatformAnalytics";
 import AdminLogsPage from "./pages/AdminLogsPage";
@@ -88,6 +89,12 @@ export default function App() {
                 <Route path="payments" element={
                   <PermissionProtectedRoute permission="payments.view">
                     <Payments />
+                  </PermissionProtectedRoute>
+                } />
+                
+                <Route path="subscriptions" element={
+                  <PermissionProtectedRoute permission="payments.view">
+                    <ManageSubscriptions />
                   </PermissionProtectedRoute>
                 } />
                 

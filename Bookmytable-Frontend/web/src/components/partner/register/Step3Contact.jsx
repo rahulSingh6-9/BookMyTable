@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { motion, AnimatePresence } from "framer-motion";
-import { sendPhoneOTP, verifyPhoneOTP } from "@/services/verification.service";
+import { sendPhoneOTP, verifyPhoneOTP, requestBusinessEmailVerification } from "@/services/verification.service";
 import { Badge } from "@/components/ui/badge";
 
 export function Step3Contact({ register, errors, setValue, watch }) {
@@ -29,9 +29,33 @@ export function Step3Contact({ register, errors, setValue, watch }) {
   const [resendTimer, setResendTimer] = useState(0);
   const [cooldown, setCooldown] = useState(false);
 
+  const [isEmailSending, setIsEmailSending] = useState(false);
+  const [isEmailLinkSent, setIsEmailLinkSent] = useState(false);
+
   const contactInfo = watch("contactInfo");
   const primaryPhone = contactInfo?.primaryPhone;
   const isPhoneVerified = primaryPhone?.isVerified;
+  const isEmailVerified = contactInfo?.businessEmail?.isVerified;
+
+  const handleSendEmailVerification = async () => {
+    const email = contactInfo?.businessEmail?.value;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("Please enter a valid business email address");
+      return;
+    }
+
+    try {
+      setIsEmailSending(true);
+      await requestBusinessEmailVerification(email);
+      setIsEmailLinkSent(true);
+      toast.success("Verification link sent! Check your email inbox.");
+    } catch (error) {
+      console.error("Error sending email verification:", error);
+      toast.error(error.message || "Failed to send verification link. Try again later.");
+    } finally {
+      setIsEmailSending(false);
+    }
+  };
 
   useEffect(() => {
     let timer;
@@ -154,15 +178,51 @@ export function Step3Contact({ register, errors, setValue, watch }) {
 
            {/* Email Field */}
            <div className="space-y-3">
-              <Label>Business Email Address</Label>
-              <div className="relative">
-                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                 <Input 
-                   type="email"
-                   placeholder="partners@yourbrand.com" 
-                   className="h-12 pl-12 rounded-xl border-2 focus-visible:ring-primary/20"
-                   {...register("contactInfo.businessEmail.value")}
-                 />
+              <Label className="flex justify-between items-center">
+                 <span>Business Email Address</span>
+                 {isEmailVerified ? (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 rounded-full">
+                       <CheckCircle2 className="h-3 w-3" /> Verified
+                    </Badge>
+                 ) : isEmailLinkSent ? (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1 rounded-full animate-pulse">
+                       Verification link sent
+                    </Badge>
+                 ) : (
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-1 rounded-full">
+                       ⚠ Unverified
+                    </Badge>
+                 )}
+              </Label>
+              <div className="flex gap-2">
+                 <div className="relative flex-1">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input 
+                      type="email"
+                      placeholder="partners@yourbrand.com" 
+                      className={`h-12 pl-12 rounded-xl border-2 transition-all ${isEmailVerified ? 'border-green-500/50 bg-green-50/10' : 'focus-visible:ring-primary/20'}`}
+                      value={contactInfo?.businessEmail?.value || ""}
+                      onChange={(e) => {
+                        setValue("contactInfo.businessEmail.value", e.target.value, { shouldValidate: true });
+                        if (isEmailVerified) {
+                          setValue("contactInfo.businessEmail.isVerified", false, { shouldValidate: true });
+                        }
+                        if (isEmailLinkSent) {
+                          setIsEmailLinkSent(false);
+                        }
+                      }}
+                    />
+                 </div>
+                 {!isEmailVerified && (
+                    <Button 
+                      type="button" 
+                      onClick={handleSendEmailVerification} 
+                      disabled={isEmailSending || !contactInfo?.businessEmail?.value}
+                      className="h-12 rounded-xl px-4 shadow-md transition-all hover:scale-[1.02]"
+                    >
+                       {isEmailSending ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Verify"}
+                    </Button>
+                 )}
               </div>
               {errors?.contactInfo?.businessEmail?.value && (
                  <p className="text-[10px] text-destructive font-medium px-1">

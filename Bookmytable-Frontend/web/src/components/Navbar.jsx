@@ -1,23 +1,52 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Menu, X, User, Bell, MapPin, ChevronDown, Check } from "lucide-react";
+import { Search, Menu, X, MapPin, ChevronDown, Check, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { restaurants, indianCities, globalCities, navLinks } from "@/lib/data";
+import { navLinks } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import logo from "@/assets/BookMyTable_logo.jpg";
-
 import { useAuth } from "../context/AuthContext";
+import { useLocationStore } from "@/store/useLocationStore";
+import { useQuery } from "@tanstack/react-query";
+import { getCities, getAreas } from "@/services/discovery.service";
 
 function Navbar({ children }) {
   const { user, logout } = useAuth();
-
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openLocation, setOpenLocation] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState(indianCities[0]);
-  const location = useLocation();
+  
+  // Dynamic Location Selector State
+  const { location: storedLocation, setCity, setArea } = useLocationStore();
+  const [view, setView] = useState("city"); // "city" | "area"
+
+  useEffect(() => {
+    if (openLocation) {
+      setView(storedLocation.city ? "area" : "city");
+    }
+  }, [openLocation, storedLocation.city]);
+
+  const { data: citiesRes, isLoading: loadingCities } = useQuery({
+    queryKey: ["cities"],
+    queryFn: getCities,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: areasRes, isLoading: loadingAreas } = useQuery({
+    queryKey: ["areas", storedLocation.city],
+    queryFn: () => getAreas(storedLocation.city),
+    enabled: !!storedLocation.city && view === "area",
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const cities = citiesRes?.data?.data || [];
+  const areas = areasRes?.data?.data || [];
+  
+  const displayLocation = storedLocation.area 
+    ? `${storedLocation.area}, ${storedLocation.city}`
+    : storedLocation.city || "Select Location";
 
   return (
     <motion.nav
@@ -37,47 +66,92 @@ function Navbar({ children }) {
           {/* Searchable Location Selector */}
           <Popover open={openLocation} onOpenChange={setOpenLocation}>
             <PopoverTrigger asChild>
-              <Button variant="ghost" className="gap-2 h-9 px-3 hover:bg-muted hidden sm:flex">
-                <MapPin className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">{currentLocation}</span>
-                <ChevronDown className="h-3 w-3 text-muted-foreground" />
+              <Button variant="ghost" className="gap-2 h-9 px-3 hover:bg-muted hidden sm:flex max-w-[200px] lg:max-w-[300px]">
+                <MapPin className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm font-medium truncate">{displayLocation}</span>
+                <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-0" align="start">
+            <PopoverContent className="w-[300px] p-0" align="start">
               <Command>
-                <CommandInput placeholder="Search city..." />
+                <div className="flex items-center px-3 border-b">
+                  {view === "area" && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 mr-1 -ml-2 shrink-0"
+                      onClick={() => setView("city")}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <CommandInput 
+                    placeholder={view === "city" ? "Search city..." : `Search areas in ${storedLocation.city}...`} 
+                    className="border-none focus:ring-0"
+                  />
+                </div>
+                
                 <CommandList>
-                  <CommandEmpty>No city found.</CommandEmpty>
-                  <CommandGroup heading="India">
-                    {indianCities.map((city) => (
+                  <CommandEmpty>
+                    {view === "city" ? "No city found." : "No area found."}
+                  </CommandEmpty>
+                  
+                  {view === "city" && (
+                    <CommandGroup heading="Cities">
+                      {loadingCities ? (
+                        <div className="p-4 text-sm text-center text-muted-foreground">Loading cities...</div>
+                      ) : cities.length > 0 ? (
+                        cities.map((city) => (
+                          <CommandItem
+                            key={city}
+                            value={city}
+                            onSelect={() => {
+                              setCity(city);
+                              setView("area");
+                            }}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${storedLocation.city === city ? "opacity-100 text-primary" : "opacity-0"}`} />
+                            {city}
+                          </CommandItem>
+                        ))
+                      ) : (
+                        <div className="p-4 text-sm text-center text-muted-foreground">No cities available</div>
+                      )}
+                    </CommandGroup>
+                  )}
+
+                  {view === "area" && (
+                    <CommandGroup heading={`Areas in ${storedLocation.city}`}>
                       <CommandItem
-                        key={city}
-                        value={city}
-                        onSelect={(currentValue) => {
-                          setCurrentLocation(city);
+                        value={`all-${storedLocation.city}`}
+                        onSelect={() => {
+                          setArea("");
                           setOpenLocation(false);
                         }}
                       >
-                        <Check className={`mr-2 h-4 w-4 ${currentLocation === city ? "opacity-100" : "opacity-0"}`} />
-                        {city}
+                        <Check className={`mr-2 h-4 w-4 ${!storedLocation.area ? "opacity-100 text-primary" : "opacity-0"}`} />
+                        <span className="font-medium">All of {storedLocation.city}</span>
                       </CommandItem>
-                    ))}
-                  </CommandGroup>
-                  <CommandGroup heading="Global">
-                    {globalCities.map((city) => (
-                      <CommandItem
-                        key={city}
-                        value={city}
-                        onSelect={(currentValue) => {
-                          setCurrentLocation(city);
-                          setOpenLocation(false);
-                        }}
-                      >
-                        <Check className={`mr-2 h-4 w-4 ${currentLocation === city ? "opacity-100" : "opacity-0"}`} />
-                        {city}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
+
+                      {loadingAreas ? (
+                        <div className="p-4 text-sm text-center text-muted-foreground">Loading areas...</div>
+                      ) : (
+                        areas.map((area) => (
+                          <CommandItem
+                            key={area}
+                            value={area}
+                            onSelect={() => {
+                              setArea(area);
+                              setOpenLocation(false);
+                            }}
+                          >
+                            <Check className={`mr-2 h-4 w-4 ${storedLocation.area === area ? "opacity-100 text-primary" : "opacity-0"}`} />
+                            {area}
+                          </CommandItem>
+                        ))
+                      )}
+                    </CommandGroup>
+                  )}
                 </CommandList>
               </Command>
             </PopoverContent>
@@ -154,7 +228,7 @@ function Navbar({ children }) {
               <Link to="/login" onClick={() => setMobileOpen(false)}>
                 <Button variant="outline" size="sm" className="w-full">Log in</Button>
               </Link>
-              <Link to="/discover" onClick={() => setMobileOpen(false)}>
+              <Link to="/search" onClick={() => setMobileOpen(false)}>
                 <Button size="sm" className="w-full">Book a Table</Button>
               </Link>
             </div>

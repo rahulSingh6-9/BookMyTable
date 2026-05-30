@@ -11,6 +11,7 @@ import { protect } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import { createRestaurantSchema } from "../../validation/restaurant.joi.js";
 import upload from "../../middleware/upload.js";
+import { requireFeature } from "../../middleware/subscriptionFeature.middleware.js";
 
 const router = express.Router();
 
@@ -24,8 +25,8 @@ router.get('/my', protect, getMyRestaurant);
 router.post("/", protect, validate(createRestaurantSchema), create);
 
 // 🖼️ MEDIA & BRANDING - Standalone upload / gallery routes
-router.patch("/:id/cover-image", protect, upload.single("image"), updateRestaurantCoverImage);
-router.post("/:id/gallery", protect, upload.array("files", 10), addRestaurantGalleryImage);
-router.delete("/:id/gallery/:imageId", protect, deleteRestaurantGalleryImage);
+router.patch("/:id/cover-image", protect, requireFeature("customBranding"), upload.single("image"), updateRestaurantCoverImage);
+router.post("/:id/gallery", protect, requireFeature("customBranding"), upload.array("files", 10), addRestaurantGalleryImage);
+router.delete("/:id/gallery/:imageId", protect, requireFeature("customBranding"), deleteRestaurantGalleryImage);
 
 export default router;

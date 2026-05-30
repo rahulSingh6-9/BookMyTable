@@ -20,3 +20,11 @@ export function approveBrand(id) {
 export function suspendBrand(id) {
     return api.patch(`/admin/brands/${id}/suspend`);
 }
+
+export function getBrandRestaurants(id) {
+    return api.get(`/admin/brands/${id}/restaurants`);
+}
+
+export function getBrandMetrics(id) {
+    return api.get(`/admin/brands/${id}/metrics`);
+}

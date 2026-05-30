@@ -1,16 +1,14 @@
 import dotenv from "dotenv";
+dotenv.config()
 import path from "path";
 import { fileURLToPath } from "url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, "../../.env") });
 
 import mongoose from "mongoose";
 
 
 export const connectDB = async () => {
   try {
-    const conn = await mongoose.connect("mongodb://localhost:27017/", {
+    const conn = await mongoose.connect("mongodb://host.docker.internal:27017/", {
       dbName: "bookmytable", // 🔥 your DB name
      
     });

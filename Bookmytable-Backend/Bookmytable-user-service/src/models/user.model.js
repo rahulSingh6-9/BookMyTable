@@ -80,6 +80,8 @@ const userSchema = new mongoose.Schema(
     authProviders: {
       google: {
         id: String,
+        googleId: { type: String, sparse: true, index: true },
+        email: { type: String, lowercase: true }
       },
 
       apple: {
@@ -89,6 +91,21 @@ const userSchema = new mongoose.Schema(
       phone: {
         id: String,
       },
+    },
+
+    authType: {
+      type: String,
+      default: "email_password"
+    },
+
+    isEmailVerified: {
+      type: Boolean,
+      default: false
+    },
+
+    isPhoneVerified: {
+      type: Boolean,
+      default: false
     },
 
     /**

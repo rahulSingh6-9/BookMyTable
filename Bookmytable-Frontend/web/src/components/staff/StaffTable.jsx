@@ -26,8 +26,9 @@ const roleColors = {
 
 export function StaffTable({ staff, onEdit, onDeactivate, canManageStaff, canEditPermissions }) {
   return (
-    <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-      <Table>
+    <TooltipProvider delayDuration={300}>
+      <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
+        <Table>
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="w-[250px]">Name / Email</TableHead>
@@ -59,30 +60,36 @@ export function StaffTable({ staff, onEdit, onDeactivate, canManageStaff, canEdi
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex flex-wrap gap-1 cursor-help max-w-[200px]">
-                          {(member.permissions || []).slice(0, 2).map((p) => (
-                            <Badge key={p} variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal">
-                              {p.replace(/_/g, ' ')}
+                  <Tooltip>
+                    <TooltipTrigger className="text-left w-full">
+                      <div className="flex flex-wrap gap-1 cursor-help max-w-[200px]">
+                        {(member.permissions || []).slice(0, 2).map((p, idx) => {
+                          const pName = typeof p === 'string' ? p : p.action;
+                          return (
+                            <Badge key={idx} variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+                              {pName ? pName.replace(/_/g, ' ') : ''}
                             </Badge>
-                          ))}
-                          {(member.permissions || []).length > 2 && (
-                            <span className="text-[10px] text-muted-foreground">+{(member.permissions || []).length - 2} more</span>
-                          )}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent className="p-3 rounded-xl shadow-xl border-border/40 bg-card">
-                        <div className="space-y-1.5">
-                          <p className="text-xs font-semibold border-b pb-1 mb-1">All Permissions</p>
-                          {(member.permissions || []).map(p => (
-                            <div key={p} className="text-[10px] capitalize text-muted-foreground">• {p.replace(/_/g, ' ')}</div>
-                          ))}
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                          );
+                        })}
+                        {(member.permissions || []).length > 2 && (
+                          <span className="text-[10px] text-muted-foreground">+{(member.permissions || []).length - 2} more</span>
+                        )}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="p-3 rounded-xl shadow-xl border-border/40 bg-card">
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold border-b pb-1 mb-1">All Permissions</p>
+                        {(member.permissions || []).map((p, idx) => {
+                          const pName = typeof p === 'string' ? p : p.action;
+                          return (
+                            <div key={idx} className="text-[10px] capitalize text-muted-foreground">
+                              • {pName ? pName.replace(/_/g, ' ') : ''}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
                 </TableCell>
                 <TableCell>
                   <Badge 
@@ -131,5 +138,6 @@ export function StaffTable({ staff, onEdit, onDeactivate, canManageStaff, canEdi
         </TableBody>
       </Table>
     </div>
+    </TooltipProvider>
   );
 }

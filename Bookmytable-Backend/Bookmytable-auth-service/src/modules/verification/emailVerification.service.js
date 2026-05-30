@@ -7,6 +7,7 @@ import { emitEvent, AUTH_TOPICS } from '../../kafka/index.js';
  */
 export const sendEmailVerificationOTP = async (email, purpose = 'email_verification') => {
   const otp = generateOTP();
+  console.log("Email otp: ", otp)
   const hashedOtp = await hashOTP(otp);
   
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins

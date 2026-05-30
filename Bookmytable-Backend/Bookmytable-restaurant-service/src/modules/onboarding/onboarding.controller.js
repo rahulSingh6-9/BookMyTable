@@ -126,3 +126,35 @@ export const submitOnboarding = async (req, res, next) => {
     });
   }
 };
+
+export const verifyRequestBusinessEmail = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    const { email } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: User context missing'
+      });
+    }
+
+    const result = await onboardingService.requestBusinessEmailVerification(userId, email);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyConfirmBusinessEmail = async (req, res, next) => {
+  try {
+    const { token, email } = req.body;
+    const result = await onboardingService.verifyBusinessEmail(token, email);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Email verification failed.'
+    });
+  }
+};

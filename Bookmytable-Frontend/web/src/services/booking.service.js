@@ -9,7 +9,17 @@ import apiClient from "../lib/api.js";
  * @param {{ restaurantId, tableId, date, time, guests, specialRequest? }} data
  */
 export function createBooking(data) {
-  return apiClient.post("/bookings", data);
+  return apiClient.post("/booking", data);
+}
+
+/**
+ * Get available slots for a restaurant on a specific date.
+ * @param {string} restaurantId
+ * @param {string} date
+ * @param {number} guests
+ */
+export function getRestaurantAvailability(restaurantId, date, guests, tableType) {
+  return apiClient.get(`/booking/public/availability/${restaurantId}`, { params: { date, guests, tableType } });
 }
 
 /**

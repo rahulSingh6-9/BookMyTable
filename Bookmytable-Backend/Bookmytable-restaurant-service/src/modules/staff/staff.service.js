@@ -3,6 +3,7 @@ import StaffInvite from "../../models/staffInvite.model.js";
 import BranchMembership from "../../models/branchmemberships.model.js";
 import Restaurant from "../../models/restaurant.model.js";
 import { authServiceClient } from "./auth.client.js";
+import "../../models/user.model.js";
 
 import { createLog } from "../log/log.service.js";
 import redis from "../../config/redis.js";
@@ -70,6 +71,14 @@ export const acceptInviteService = async ({ token, name, password }) => {
   invite.acceptedAt = new Date();
   await invite.save();
 
+  if (membership.branch) {
+    const branch = await Restaurant.findById(membership.branch).select("brandId");
+    if (branch && branch.brandId) {
+      const { recalculateUsage } = await import("../subscriptions/subscription.service.js");
+      recalculateUsage(branch.brandId).catch(err => console.error("Recalculate usage err:", err));
+    }
+  }
+
   return membership;
 };
 
@@ -116,13 +125,15 @@ export const clearStaffCache = async (userId, branchId) => {
 };
 
 
-export const listStaffService = async ({ restaurantId }) => {
+export const listStaffService = async ({ restaurantId, status = "active" }) => {
   // Authorization is now handled by RBAC middleware
   
-  const staffMembers = await BranchMembership.find({ 
-    branch: restaurantId, 
-    status: "active" 
-  }).populate("user", "name email");
+  const query = { branch: restaurantId };
+  if (status !== "all") {
+    query.status = status;
+  }
+
+  const staffMembers = await BranchMembership.find(query).populate("user", "name email");
 
   return staffMembers;
 };
@@ -149,6 +160,12 @@ export const updateStaffService = async ({ staffId, restaurantId, updates }) => 
   // Invalidate cache
   await clearStaffCache(membership.user, restaurantId);
 
+  const branch = await Restaurant.findById(restaurantId).select("brandId");
+  if (branch && branch.brandId) {
+    const { recalculateUsage } = await import("../subscriptions/subscription.service.js");
+    recalculateUsage(branch.brandId).catch(err => console.error("Recalculate usage err:", err));
+  }
+
   return membership;
 };
 
@@ -166,6 +183,12 @@ export const deleteStaffService = async ({ staffId, restaurantId }) => {
 
   // Invalidate cache
   await clearStaffCache(membership.user, restaurantId);
+
+  const branch = await Restaurant.findById(restaurantId).select("brandId");
+  if (branch && branch.brandId) {
+    const { recalculateUsage } = await import("../subscriptions/subscription.service.js");
+    recalculateUsage(branch.brandId).catch(err => console.error("Recalculate usage err:", err));
+  }
 
   return membership;
 };

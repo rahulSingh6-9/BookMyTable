@@ -6,6 +6,7 @@ import {
   resetpassword,
   forgotpassword,
   verifyResetTokenController,
+  googleLogin,
 } from "./auth.controller.js";
 
 import { loginSchema, signupSchema } from "./auth.validation.js";
@@ -19,6 +20,7 @@ const router = express.Router();
 // ✅ Separate login endpoints
 router.post("/login/web", validate(loginSchema), loginWeb);
 router.post("/login/admin", validate(loginSchema), loginAdmin);
+router.post("/google", googleLogin);
 
 // ✅ Keep signup same (web users only usually)
 router.post("/signup", validate(signupSchema), signup);

@@ -6,6 +6,7 @@ import adminBrandRoutes from "./src/modules/brands/adminBrand.routes.js";
 import adminLogRoutes from "./src/modules/logs/adminLog.routes.js";
 import adminUserRoutes from "./src/modules/users/adminUser.routes.js";
 import managementRoutes from "./src/modules/management/management.routes.js";
+import adminSubscriptionRoutes from "./src/modules/subscriptions/adminSubscription.routes.js";
 
 const app = express();
 
@@ -20,6 +21,8 @@ app.use("/admin/logs", adminLogRoutes);
 
 app.use("/admin/users", adminUserRoutes);
 app.use("/admin/management", managementRoutes);
+app.use("/admin/subscriptions", adminSubscriptionRoutes);
+
 
 // Global error handler
 app.use((err, req, res, next) => {

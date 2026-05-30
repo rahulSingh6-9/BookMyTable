@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getTables, createTable, updateTable, deleteTable } from "../services/table.service";
+import { getTables, createTable, updateTable, deleteTable, bulkGenerateTables } from "../services/table.service";
 import { toast } from "sonner";
 
 export function useTables(restaurantId) {
@@ -69,5 +69,19 @@ export function useDeleteTable(restaurantId) {
   });
 }
 
+export function useBulkGenerateTables(restaurantId) {
+  const queryClient = useQueryClient();
 
-
+  return useMutation({
+    mutationFn: (data) => bulkGenerateTables(restaurantId, data),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["tables", restaurantId] });
+      // Access the number of created tables from response data if available
+      const createdCount = res?.data?.created || "Tables";
+      toast.success(`${createdCount} generated successfully`);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || error.message || "Failed to generate tables");
+    },
+  });
+}

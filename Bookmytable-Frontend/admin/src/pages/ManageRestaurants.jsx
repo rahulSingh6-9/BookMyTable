@@ -24,6 +24,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllRestaurants, approveRestaurant, suspendRestaurant } from "@/services/restaurant.service";
 import { toast } from "sonner";
+import { RestaurantDetailsDrawer } from "@/components/restaurants/RestaurantDetailsDrawer";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 const capitalize = (str) =>
@@ -45,6 +46,8 @@ export default function ManageRestaurants() {
 
   // Drives both the dropdown UI and the API query param
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // 🔥 Fetch restaurants — re-fetches whenever statusFilter changes
   const { data, isLoading, error } = useQuery({
@@ -136,7 +139,13 @@ export default function ManageRestaurants() {
                 <DropdownMenuSeparator />
               </>
             )}
-            <DropdownMenuItem className="cursor-pointer">
+            <DropdownMenuItem 
+              className="cursor-pointer"
+              onClick={() => {
+                setSelectedRestaurantId(row.id);
+                setDrawerOpen(true);
+              }}
+            >
               <Eye className="mr-2 h-4 w-4" /> View Details
             </DropdownMenuItem>
             <DropdownMenuItem className="cursor-pointer">
@@ -206,6 +215,12 @@ export default function ManageRestaurants() {
       ) : (
         <DataTable columns={columns} data={restaurants} />
       )}
+
+      <RestaurantDetailsDrawer 
+        restaurantId={selectedRestaurantId} 
+        open={drawerOpen} 
+        onOpenChange={setDrawerOpen} 
+      />
     </div>
   );
 }

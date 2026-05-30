@@ -9,8 +9,10 @@ import apiClient from "../lib/api.js";
  * List all staff members for a restaurant
  * @param {string} restaurantId 
  */
-export const listStaff = async (restaurantId) => {
-  const response = await apiClient.get(`/staff/${restaurantId}/list`);
+export const listStaff = async (restaurantId, options = {}) => {
+  const query = new URLSearchParams(options).toString();
+  const url = query ? `/staff/${restaurantId}/list?${query}` : `/staff/${restaurantId}/list`;
+  const response = await apiClient.get(url);
   return response.data;
 };
 

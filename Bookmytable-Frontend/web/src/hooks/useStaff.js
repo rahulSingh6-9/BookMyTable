@@ -3,26 +3,26 @@ import { listStaff, inviteStaff, updateStaff, deleteStaff } from "../services/st
 import { toast } from "sonner";
 
 export function useStaff(restaurantId) {
+  const isValidId = typeof restaurantId === "string" && restaurantId !== "undefined" && restaurantId !== "null" && restaurantId.length > 0;
   return useQuery({
     queryKey: ["staff", restaurantId],
     queryFn: async () => {
       const response = await listStaff(restaurantId);
-      // Assuming response structure based on common patterns in the project
       return response.data || response; 
     },
-    enabled: !!restaurantId,
+    enabled: isValidId,
   });
 }
 
 export function usePendingInvites(restaurantId) {
+  const isValidId = typeof restaurantId === "string" && restaurantId !== "undefined" && restaurantId !== "null" && restaurantId.length > 0;
   return useQuery({
     queryKey: ["pendingInvites", restaurantId],
     queryFn: async () => {
-      // Assuming a separate endpoint or query param for pending invites
       const response = await listStaff(restaurantId, { status: "pending" });
       return response.data || response;
     },
-    enabled: !!restaurantId,
+    enabled: isValidId,
   });
 }
 

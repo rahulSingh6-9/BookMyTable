@@ -3,14 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Search, MapPin, Calendar, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
 function SmartSearch() {
   const navigate = useNavigate();
-  const [location, setLocation] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [date, setDate] = useState("");
   const [guests, setGuests] = useState("2");
+  
   const handleSearch = () => {
-    navigate("/discover");
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+    } else {
+      navigate("/search");
+    }
   };
+
   return <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -24,12 +31,12 @@ function SmartSearch() {
         <div className="flex flex-1 items-center gap-2 rounded-md bg-background px-3 py-2.5">
           <MapPin className="h-4 w-4 shrink-0 text-primary" />
           <input
-    type="text"
-    placeholder="Location or restaurant..."
-    value={location}
-    onChange={(e) => setLocation(e.target.value)}
-    className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
-  />
+            type="text"
+            placeholder="Restaurant name, cuisine..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+          />
         </div>
 
         <div className="hidden h-8 w-px bg-border md:block" />

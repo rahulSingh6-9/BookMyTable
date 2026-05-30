@@ -39,25 +39,12 @@ export default function CustomerDiscover() {
   const [selectedPrice, setSelectedPrice] = useState("All");
   const [sortBy, setSortBy] = useState("rating-desc");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
-  const [favorites, setFavorites] = useState(["1", "3", "5"]);
 
   // Keep internal state aligned if URL query params change
   useEffect(() => {
     setSearchQuery(urlSearch);
     setSelectedCuisine(urlCuisine);
   }, [urlSearch, urlCuisine]);
-
-  const toggleFavorite = (id, name, e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (favorites.includes(id)) {
-      setFavorites(prev => prev.filter(fId => fId !== id));
-      toast.success(`Removed ${name} from favorites`);
-    } else {
-      setFavorites(prev => [...prev, id]);
-      toast.success(`Added ${name} to favorites!`);
-    }
-  };
 
   const handleClearFilters = () => {
     setSearchQuery("");
@@ -321,8 +308,6 @@ export default function CustomerDiscover() {
                   <RestaurantCard 
                     key={restaurant.id} 
                     restaurant={restaurant} 
-                    isFavorite={favorites.includes(restaurant.id)}
-                    onToggleFavorite={(e) => toggleFavorite(restaurant.id, restaurant.name, e)}
                     onBook={() => navigate(`/book/${restaurant.id}`)}
                   />
                 ))}

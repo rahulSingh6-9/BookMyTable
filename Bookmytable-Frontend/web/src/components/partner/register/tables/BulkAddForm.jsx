@@ -6,17 +6,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
-export function BulkAddForm({ onAdd, existingCodes }) {
-  const [form, setForm] = useState({ prefix: "T", capacity: "2", quantity: "1", type: "indoor" });
+export function BulkAddForm({ onAdd, onGenerate, existingCodes }) {
+  const [form, setForm] = useState({ prefix: "T", capacity: "2", quantity: "1", type: "indoor", floor: "", section: "" });
 
   const handleAdd = () => {
     const qty = parseInt(form.quantity);
     const cap = parseInt(form.capacity);
     
-    if (qty < 1 || qty > 50) return toast.error("Quantity must be between 1 and 50");
-    if (cap < 1 || cap > 50) return toast.error("Capacity must be between 1 and 50");
+    if (qty < 1 || qty > 100) return toast.error("Quantity must be between 1 and 100");
+    if (cap < 1 || cap > 100) return toast.error("Capacity must be between 1 and 100");
     if (!form.prefix) return toast.error("Prefix is required");
+    if (!form.floor.trim()) return toast.error("Floor is required");
+    if (!form.section.trim()) return toast.error("Section is required");
 
+    // If onGenerate is provided, pass the raw form straight to the parent (Backend Flow)
+    if (onGenerate) {
+      onGenerate(form);
+      setForm({ prefix: "T", capacity: "2", quantity: "1", type: "indoor", floor: "", section: "" });
+      return;
+    }
+
+    // Otherwise, execute legacy logic (Frontend Flow)
     let addedCount = 0;
     let nextNum = 1;
     const newTables = [];
@@ -29,7 +39,9 @@ export function BulkAddForm({ onAdd, existingCodes }) {
           id: Math.random().toString(36).substring(7),
           tableCode: code,
           capacity: cap,
-          type: form.type
+          type: form.type,
+          floor: form.floor,
+          section: form.section
         });
         addedCount++;
       }
@@ -38,13 +50,13 @@ export function BulkAddForm({ onAdd, existingCodes }) {
 
     onAdd(newTables);
     toast.success(`Generated ${qty} table(s) successfully`);
-    setForm({ prefix: "T", capacity: "2", quantity: "1", type: "indoor" });
+    setForm({ prefix: "T", capacity: "2", quantity: "1", type: "indoor", floor: "", section: "" });
   };
 
   return (
     <div className="bg-primary/5 p-6 rounded-3xl border border-primary/10 mb-8">
       <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-6">Bulk Generate Tables</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 items-end">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 items-end">
         <div className="space-y-2">
           <Label className="text-xs">Prefix</Label>
           <Input 
@@ -81,11 +93,29 @@ export function BulkAddForm({ onAdd, existingCodes }) {
           </Select>
         </div>
         <div className="space-y-2">
+          <Label className="text-xs">Floor</Label>
+          <Input 
+            placeholder="e.g. Ground Floor" 
+            value={form.floor} 
+            onChange={(e) => setForm({...form, floor: e.target.value})}
+            className="h-10 bg-white"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-xs">Section</Label>
+          <Input 
+            placeholder="e.g. Family Zone" 
+            value={form.section} 
+            onChange={(e) => setForm({...form, section: e.target.value})}
+            className="h-10 bg-white"
+          />
+        </div>
+        <div className="space-y-2">
           <Label className="text-xs">Quantity</Label>
           <Input 
             type="number" 
             min="1"
-            max="50"
+            max="100"
             value={form.quantity} 
             onChange={(e) => setForm({...form, quantity: e.target.value})}
             className="h-10 bg-white"

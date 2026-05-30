@@ -21,7 +21,9 @@ const userSchema = new mongoose.Schema(
 
     password: {
       type: String,
-      required: true,
+      required: function() {
+        return !this.authProviders?.google?.googleId;
+      },
       minlength: 6,
       select: false,
     },
@@ -55,6 +57,32 @@ const userSchema = new mongoose.Schema(
 
     avatar: {
       type: String,
+    },
+
+    authProviders: {
+      google: {
+        googleId: { type: String, sparse: true, index: true },
+        email: { type: String, lowercase: true }
+      },
+      apple: {
+        id: String
+      },
+      phone: {
+        id: String
+      }
+    },
+    authType: {
+      type: String,
+      enum: ["email_password", "google"],
+      default: "email_password"
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false
+    },
+    isPhoneVerified: {
+      type: Boolean,
+      default: false
     },
 
     isBlocked: {

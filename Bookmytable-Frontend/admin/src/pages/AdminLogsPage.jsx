@@ -123,6 +123,13 @@ export default function AdminLogsPage() {
               <SelectItem value="STAFF_INVITED">Staff Invited</SelectItem>
               <SelectItem value="APPROVE_RESTAURANT">Store Approved</SelectItem>
               <SelectItem value="BOOKING_CANCELLED">Booking Cancelled</SelectItem>
+              <SelectItem value="CREATE_SUBSCRIPTION_PLAN">Create Subscription Plan</SelectItem>
+              <SelectItem value="UPDATE_SUBSCRIPTION_PRICING">Update Plan Pricing</SelectItem>
+              <SelectItem value="UPDATE_SUBSCRIPTION_FEATURES">Update Plan Features</SelectItem>
+              <SelectItem value="UPDATE_SUBSCRIPTION_LIMITS">Update Plan Limits</SelectItem>
+              <SelectItem value="EXTEND_SUBSCRIPTION_TRIAL">Extend Subscription Trial</SelectItem>
+              <SelectItem value="SUSPEND_SUBSCRIPTION">Suspend Subscription</SelectItem>
+              <SelectItem value="REACTIVATE_SUBSCRIPTION">Reactivate Subscription</SelectItem>
             </SelectContent>
           </Select>
         </div>

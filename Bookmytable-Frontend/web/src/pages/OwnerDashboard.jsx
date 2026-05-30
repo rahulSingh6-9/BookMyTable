@@ -43,13 +43,6 @@ export default function OwnerDashboard() {
 
         {/* Mid Section: Business & Staff Overview */}
         <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-5">
-           <div className="xl:col-span-3">
-              <BusinessProfileCard 
-                branch={activeBranch} 
-                brand={activeMembership?.brand} 
-                membership={activeMembership}
-              />
-           </div>
            <div className="xl:col-span-2">
               <StaffSummaryCard 
                 staff={staff}

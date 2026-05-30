@@ -220,3 +220,137 @@ export const emitRestaurantStatusChanged = async (restaurant, action = "STATUS_C
     correlationId: restaurant.correlationId || metadata.correlationId,
   });
 };
+
+export const emitSubscriptionPlanCreated = async (plan, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.SUBSCRIPTION_PLAN_CREATED,
+    eventType: "subscription.plan.created",
+    data: {
+      id: plan._id?.toString() || plan.id,
+      name: plan.name,
+      slug: plan.slug,
+      description: plan.description,
+      pricing: plan.pricing,
+      limits: plan.limits,
+      features: plan.features,
+      isTrialPlan: plan.isTrialPlan,
+      trialDays: plan.trialDays,
+      isActive: plan.isActive,
+      updatedAt: plan.updatedAt || new Date(),
+    },
+    correlationId,
+  });
+};
+
+export const emitSubscriptionPlanUpdated = async (plan, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.SUBSCRIPTION_PLAN_UPDATED,
+    eventType: "subscription.plan.updated",
+    data: {
+      id: plan._id?.toString() || plan.id,
+      name: plan.name,
+      slug: plan.slug,
+      description: plan.description,
+      pricing: plan.pricing,
+      limits: plan.limits,
+      features: plan.features,
+      isTrialPlan: plan.isTrialPlan,
+      trialDays: plan.trialDays,
+      isActive: plan.isActive,
+      updatedAt: plan.updatedAt || new Date(),
+    },
+    correlationId,
+  });
+};
+
+export const emitSubscriptionActivated = async (sub, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.SUBSCRIPTION_ACTIVATED,
+    eventType: "subscription.activated",
+    data: {
+      id: sub._id?.toString() || sub.id,
+      brandId: sub.brandId?.toString(),
+      subscriptionPlanId: sub.subscriptionPlanId?._id?.toString() || sub.subscriptionPlanId?.toString(),
+      status: sub.status,
+      billingCycle: sub.billingCycle,
+      startedAt: sub.startedAt,
+      expiresAt: sub.expiresAt,
+      trialEndsAt: sub.trialEndsAt,
+      autoRenew: sub.autoRenew,
+      paymentProvider: sub.paymentProvider,
+      paymentReference: sub.paymentReference,
+      createdBy: sub.createdBy?.toString(),
+      lastPaymentAt: sub.lastPaymentAt,
+      cancelledAt: sub.cancelledAt,
+      updatedAt: sub.updatedAt || new Date(),
+    },
+    correlationId,
+  });
+};
+
+export const emitSubscriptionSuspended = async (sub, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.SUBSCRIPTION_SUSPENDED,
+    eventType: "subscription.suspended",
+    data: {
+      id: sub._id?.toString() || sub.id,
+      brandId: sub.brandId?.toString(),
+      subscriptionPlanId: sub.subscriptionPlanId?._id?.toString() || sub.subscriptionPlanId?.toString(),
+      status: sub.status,
+      billingCycle: sub.billingCycle,
+      startedAt: sub.startedAt,
+      expiresAt: sub.expiresAt,
+      trialEndsAt: sub.trialEndsAt,
+      autoRenew: sub.autoRenew,
+      paymentProvider: sub.paymentProvider,
+      paymentReference: sub.paymentReference,
+      createdBy: sub.createdBy?.toString(),
+      lastPaymentAt: sub.lastPaymentAt,
+      cancelledAt: sub.cancelledAt,
+      updatedAt: sub.updatedAt || new Date(),
+    },
+    correlationId,
+  });
+};
+
+export const emitSubscriptionOverrideCreated = async (override, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.SUBSCRIPTION_OVERRIDE_CREATED,
+    eventType: "subscription.override.created",
+    data: {
+      id: override._id?.toString() || override.id,
+      brandId: override.brandId?.toString(),
+      subscriptionId: override.subscriptionId?.toString(),
+      overrideType: override.overrideType,
+      reason: override.reason,
+      details: override.details,
+      appliedBy: override.appliedBy?.toString(),
+      createdAt: override.createdAt || new Date(),
+      updatedAt: override.updatedAt || new Date(),
+    },
+    correlationId,
+  });
+};
+
+export const emitBillingUpdated = async (billing, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.BILLING_UPDATED,
+    eventType: "billing.updated",
+    data: {
+      id: billing._id?.toString() || billing.id,
+      brandId: billing.brandId?.toString(),
+      subscriptionId: billing.subscriptionId?.toString(),
+      amount: billing.amount,
+      currency: billing.currency,
+      paymentStatus: billing.paymentStatus,
+      paymentProvider: billing.paymentProvider,
+      transactionId: billing.transactionId,
+      invoiceUrl: billing.invoiceUrl,
+      paidAt: billing.paidAt,
+      metadata: billing.metadata,
+      updatedAt: billing.updatedAt || new Date(),
+    },
+    correlationId,
+  });
+};
+

@@ -43,6 +43,7 @@ export function AppSidebar() {
       label: "Insights",
       items: [
         { title: "Payments", url: "/admin/payments", icon: CreditCard, permission: "payments.view" },
+        { title: "Subscriptions", url: "/admin/subscriptions", icon: CreditCard, permission: "payments.view" },
         { title: "Notifications", url: "/admin/notifications", icon: Bell, permission: "settings.manage" },
         { title: "Analytics", url: "/admin/analytics", icon: BarChart3, permission: "analytics.view" },
         { title: "System Logs", url: "/admin/logs", icon: ShieldAlert, permission: "audit_logs.view" },

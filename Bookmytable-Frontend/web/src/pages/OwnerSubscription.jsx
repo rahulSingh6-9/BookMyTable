@@ -1,189 +1,538 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { Check, CreditCard, Crown, ReceiptText } from "lucide-react";
-import { toast } from "sonner";
-
+import { 
+  Check, 
+  Crown, 
+  ReceiptText, 
+  AlertTriangle, 
+  ShieldAlert, 
+  Calendar, 
+  ArrowUpRight, 
+  Zap, 
+  RefreshCw, 
+  Lock, 
+  Users, 
+  Grid, 
+  MapPin, 
+  CalendarDays,
+  FileText
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import apiClient from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-const plans = [
-  {
-    id: "starter",
-    name: "Starter",
-    price: "$29/mo",
-    description: "For small restaurants getting started.",
-    features: ["Basic bookings", "Table management", "Email support"],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: "$79/mo",
-    description: "Best for growing restaurants.",
-    features: ["Everything in Starter", "Layout editor", "Live availability", "Analytics"],
-    highlighted: true,
-  },
-  {
-    id: "scale",
-    name: "Scale",
-    price: "$149/mo",
-    description: "For multi-room, high volume operations.",
-    features: ["Everything in Pro", "Priority support", "Custom rules", "Advanced reports"],
-  },
-];
-
-const billingHistory = [
-  { id: "inv_1042", date: "2026-04-01", amount: "$79.00", status: "paid" },
-  { id: "inv_1009", date: "2026-03-01", amount: "$79.00", status: "paid" },
-  { id: "inv_0977", date: "2026-02-01", amount: "$79.00", status: "paid" },
-];
+import { cn } from "@/lib/utils";
 
 export default function OwnerSubscription() {
-  const [currentPlan, setCurrentPlan] = useState("pro");
-  const plan = useMemo(() => plans.find((p) => p.id === currentPlan), [currentPlan]);
+  // 1. Fetch Subscription Details
+  const { 
+    data: subscription, 
+    isLoading: isSubLoading, 
+    isError: isSubError, 
+    refetch: refetchSub,
+    isRefetching: isSubRefetching
+  } = useQuery({
+    queryKey: ["mySubscription"],
+    queryFn: async () => {
+      const res = await apiClient.get("/restaurants/subscriptions/my-subscription");
+      return res.data?.data;
+    },
+  });
 
-  const handleChangePlan = (planId) => {
-    setCurrentPlan(planId);
-    toast.success("Plan updated (mock)");
+  // 2. Fetch Active Usage
+  const { 
+    data: usagePayload, 
+    isLoading: isUsageLoading, 
+    isError: isUsageError, 
+    refetch: refetchUsage,
+    isRefetching: isUsageRefetching
+  } = useQuery({
+    queryKey: ["myUsage"],
+    queryFn: async () => {
+      const res = await apiClient.get("/restaurants/subscriptions/my-usage");
+      return res.data?.data;
+    },
+  });
+
+  // 3. Fetch Billing Invoices History
+  const {
+    data: invoiceHistory = [],
+    isLoading: isInvoicesLoading
+  } = useQuery({
+    queryKey: ["myInvoices"],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get("/restaurants/subscriptions/my-subscription");
+        const subId = res.data?.data?._id;
+        if (!subId) return [];
+        // Optional: query local billing records
+        const billingRes = await apiClient.get(`/restaurants/subscriptions/my-usage`);
+        return billingRes.data?.invoices || [];
+      } catch {
+        return [];
+      }
+    }
+  });
+
+  const isLoading = isSubLoading || isUsageLoading || isInvoicesLoading;
+  const isError = isSubError || isUsageError;
+
+  const handleRefresh = () => {
+    refetchSub();
+    refetchUsage();
   };
+
+  // Derive Trial Info
+  const trialDaysRemaining = useMemo(() => {
+    if (!subscription || subscription.status !== "trial") return 0;
+    const end = new Date(subscription.trialEndsAt || subscription.expiresAt);
+    const diffTime = end.getTime() - Date.now();
+    return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+  }, [subscription]);
+
+  // Format Status Badge
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "trial":
+        return <Badge className="bg-amber-500/10 text-amber-500 border border-amber-500/20 capitalize font-semibold">Free Trial</Badge>;
+      case "active":
+        return <Badge className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 capitalize font-semibold">Active</Badge>;
+      case "past_due":
+        return <Badge className="bg-rose-500/10 text-rose-500 border border-rose-500/20 capitalize font-semibold animate-pulse">Payment Due</Badge>;
+      case "suspended":
+        return <Badge className="bg-red-500/10 text-red-500 border border-red-500/20 capitalize font-semibold">Suspended</Badge>;
+      case "expired":
+        return <Badge className="bg-gray-500/10 text-gray-500 border border-gray-500/20 capitalize font-semibold">Expired</Badge>;
+      default:
+        return <Badge className="bg-gray-500/10 text-gray-500 border border-gray-500/20 capitalize font-semibold">{status}</Badge>;
+    }
+  };
+
+  // Calculate percentages and statuses for limits
+  const usage = usagePayload?.usage || {};
+  const limits = usagePayload?.limits || {};
+
+  const metrics = [
+    {
+      title: "Branches",
+      icon: MapPin,
+      used: usage.branchesUsed || 0,
+      max: limits.maxBranches || 1,
+      limitKey: "maxBranches"
+    },
+    {
+      title: "Dining Tables",
+      icon: Grid,
+      used: usage.tablesUsed || 0,
+      max: limits.maxTables || 10,
+      limitKey: "maxTables"
+    },
+    {
+      title: "Staff Members",
+      icon: Users,
+      used: usage.staffUsed || 0,
+      max: limits.maxStaff || 3,
+      limitKey: "maxStaff"
+    },
+    {
+      title: "Monthly Reservations",
+      icon: CalendarDays,
+      used: usage.reservationsThisMonth || 0,
+      max: limits.maxReservationsPerMonth || 100,
+      limitKey: "maxReservationsPerMonth"
+    }
+  ];
+
+  // Features mapping
+  const featuresList = [
+    { key: "analytics", label: "Analytics Dashboard", desc: "Detailed reservation analytics and guest tracking." },
+    { key: "qrOrdering", label: "QR Code Ordering", desc: "Contactless tableside QR menu ordering." },
+    { key: "loyaltyProgram", label: "Loyalty Program & Promos", desc: "Keep guests returning with digital rewards." },
+    { key: "customBranding", label: "Custom White-label Branding", desc: "Remove BookMyTable tags from booking links." },
+    { key: "multiBranchHQ", label: "Multi-branch Management HQ", desc: "Manage operational menus across multiple cities." },
+    { key: "prioritySupport", label: "24/7 Priority Support", desc: "Dedicated account support representative." }
+  ];
+
+  const planFeatures = subscription?.subscriptionPlanId?.features || {};
+
+  if (isLoading) {
+    return (
+      <div className="w-full min-h-screen p-8 space-y-8 animate-pulse">
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <div className="h-8 w-48 bg-muted rounded"></div>
+            <div className="h-4 w-72 bg-muted rounded"></div>
+          </div>
+          <div className="h-10 w-24 bg-muted rounded"></div>
+        </div>
+        <div className="h-32 bg-muted rounded-xl"></div>
+        <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+          <div className="space-y-6">
+            <div className="h-64 bg-muted rounded-xl"></div>
+            <div className="h-64 bg-muted rounded-xl"></div>
+          </div>
+          <div className="h-96 bg-muted rounded-xl"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="w-full min-h-[60vh] flex flex-col items-center justify-center p-8 text-center">
+        <div className="p-4 bg-rose-500/10 text-rose-500 rounded-full mb-4">
+          <ShieldAlert className="h-12 w-12" />
+        </div>
+        <h3 className="text-xl font-semibold mb-2">Subscription Loading Error</h3>
+        <p className="text-muted-foreground mb-6 max-w-md">
+          We encountered an issue synchronizing your current SaaS subscription model. Please verify that your brand onboarding is fully completed.
+        </p>
+        <div className="flex gap-4">
+          <Button onClick={handleRefresh} variant="outline" className="gap-2">
+            <RefreshCw className="h-4 w-4" /> Retry Connection
+          </Button>
+          <Link to="/onboarding">
+            <Button>Complete Onboarding</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if any limits are breached or close (>= 90%)
+  const highUsageMetrics = metrics.filter(m => (m.used / m.max) >= 0.9);
 
   return (
     <div className="w-full">
-      <div className="container mx-auto px-4 py-8 lg:px-8">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <div className="container mx-auto px-4 py-8 lg:px-8 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Subscription</h1>
-            <p className="text-muted-foreground">Manage your plan, payments, and billing history</p>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
+              Subscription Management
+              {(isSubRefetching || isUsageRefetching) && (
+                <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+              )}
+            </h1>
+            <p className="text-muted-foreground">Manage your brand billing cycle, monitor resource limits, and upgrade feature access.</p>
           </div>
+          <Button onClick={handleRefresh} variant="outline" className="gap-2 border-border shadow-sm h-10">
+            <RefreshCw className="h-4 w-4" /> Refresh Status
+          </Button>
+        </div>
 
-          <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-            <div className="grid gap-6">
-              <Card className="shadow-card">
-                <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Crown className="h-5 w-5 text-primary" />
-                      Current plan
-                    </CardTitle>
-                    <CardDescription>Your active subscription and payment status.</CardDescription>
+        {/* Expiry Warning Banner for Trials */}
+        {subscription?.status === "trial" && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className={cn(
+              "p-5 rounded-xl border flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm",
+              trialDaysRemaining <= 7 
+                ? "bg-rose-500/10 border-rose-500/20 text-rose-800 dark:text-rose-200" 
+                : "bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-200"
+            )}
+          >
+            <div className="flex items-center gap-3.5 text-left w-full md:w-auto">
+              <div className={cn(
+                "p-2.5 rounded-lg", 
+                trialDaysRemaining <= 7 ? "bg-rose-500/20 text-rose-600 dark:text-rose-400" : "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+              )}>
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-lg">Your Free Trial ends in {trialDaysRemaining} days!</h4>
+                <p className="text-sm opacity-90">
+                  {trialDaysRemaining <= 7 
+                    ? "Upgrade now to avoid immediate disruption to your reservations and branch operations." 
+                    : "Unlock advanced layouts, tableside QR ordering, and custom customer branding by upgrading."}
+                </p>
+              </div>
+            </div>
+            <Link to="/pricing" className="w-full md:w-auto">
+              <Button className={cn(
+                "w-full md:w-auto font-semibold gap-2 shadow-sm text-white",
+                trialDaysRemaining <= 7 ? "bg-rose-600 hover:bg-rose-700" : "bg-amber-600 hover:bg-amber-700"
+              )}>
+                <Zap className="h-4 w-4" /> Upgrade to Pro
+              </Button>
+            </Link>
+          </motion.div>
+        )}
+
+        {/* Approaching Limit Warning */}
+        {highUsageMetrics.length > 0 && subscription?.status !== "trial" && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-200 rounded-xl flex items-start gap-3"
+          >
+            <AlertTriangle className="h-5 w-5 mt-0.5 text-amber-500 flex-shrink-0" />
+            <div>
+              <span className="font-semibold">Resource Warning:</span> You are approaching limits for {" "}
+              {highUsageMetrics.map((m, idx) => (
+                <strong key={m.title} className="font-bold">
+                  {m.title} ({m.used}/{m.max}){idx < highUsageMetrics.length - 1 ? ", " : ""}
+                </strong>
+              ))}. Consider upgrading your subscription plan to expand capabilities.
+            </div>
+          </motion.div>
+        )}
+
+        {/* Layout Grid */}
+        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+          
+          {/* Main Left Columns */}
+          <div className="space-y-6">
+            
+            {/* Card 1: Subscription Overview */}
+            <Card className="shadow-sm border-border bg-card">
+              <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-xl flex items-center gap-2.5">
+                    <Crown className="h-5 w-5 text-primary" />
+                    Subscription Overview
+                  </CardTitle>
+                  <CardDescription>Your active contract parameters and workspace plan.</CardDescription>
+                </div>
+                {getStatusBadge(subscription?.status)}
+              </CardHeader>
+              <CardContent className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center py-2 border-b border-border">
+                    <span className="text-sm text-muted-foreground">Current Plan</span>
+                    <span className="font-semibold text-foreground text-base">{subscription?.subscriptionPlanId?.name || "Trial Tier"}</span>
                   </div>
-                  <Badge variant="outline" className="capitalize">
-                    {plan?.name || "Pro"}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">Billing</div>
-                    <div className="font-medium text-foreground">{plan?.price || "$79/mo"}</div>
+                  <div className="flex justify-between items-center py-2 border-b border-border">
+                    <span className="text-sm text-muted-foreground">Billing Cycle</span>
+                    <span className="font-medium text-foreground capitalize">{subscription?.billingCycle || "Monthly"}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">Payment status</div>
-                    <Badge variant="secondary" className="gap-1">
-                      <CreditCard className="h-3.5 w-3.5" /> Active
+                </div>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center py-2 border-b border-border">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                      <Calendar className="h-4 w-4 text-muted-foreground" /> Next Renewal Date
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {subscription?.expiresAt ? new Date(subscription.expiresAt).toLocaleDateString(undefined, {
+                        year: 'numeric', month: 'long', day: 'numeric'
+                      }) : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-border">
+                    <span className="text-sm text-muted-foreground">Auto-Renewal</span>
+                    <Badge variant={subscription?.autoRenew ? "default" : "outline"} className="text-xs">
+                      {subscription?.autoRenew ? "Enabled" : "Disabled"}
                     </Badge>
                   </div>
-                  <Separator />
-                  <div className="text-xs text-muted-foreground">
-                    This is a mock billing UI. Connect to Stripe later for real invoices and plan changes.
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {plans.map((p) => {
-                  const isCurrent = p.id === currentPlan;
+            {/* Card 2: Resource Analytics and Usage */}
+            <Card className="shadow-sm border-border bg-card">
+              <CardHeader>
+                <CardTitle className="text-xl">Resource Limits & Usage</CardTitle>
+                <CardDescription>Dynamic usage metrics aggregated across all active dining branches.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6 sm:grid-cols-2">
+                {metrics.map((metric) => {
+                  const percent = Math.min(100, Math.round((metric.used / metric.max) * 100));
+                  const isNearLimit = percent >= 90;
+                  const isBreached = metric.used > metric.max;
+
                   return (
-                    <Card
-                      key={p.id}
-                      className={`shadow-card ${p.highlighted ? "border-primary/20" : ""}`}
-                    >
-                      <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                          <span>{p.name}</span>
-                          {p.highlighted && <Badge className="bg-primary/10 text-primary border border-primary/20">Popular</Badge>}
-                        </CardTitle>
-                        <CardDescription>{p.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="text-2xl font-bold text-foreground">{p.price}</div>
-                        <ul className="space-y-2 text-sm">
-                          {p.features.map((f) => (
-                            <li key={f} className="flex items-start gap-2 text-muted-foreground">
-                              <Check className="h-4 w-4 mt-0.5 text-accent" />
-                              <span>{f}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <Button
-                          className="w-full"
-                          variant={isCurrent ? "outline" : "default"}
-                          onClick={() => handleChangePlan(p.id)}
-                          disabled={isCurrent}
-                        >
-                          {isCurrent ? "Current plan" : "Choose plan"}
-                        </Button>
-                      </CardContent>
-                    </Card>
+                    <div key={metric.title} className="p-4 rounded-xl border border-border bg-muted/30 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <metric.icon className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-semibold text-sm">{metric.title}</span>
+                        </div>
+                        <span className={cn(
+                          "text-xs font-bold px-2 py-0.5 rounded-full border",
+                          isBreached 
+                            ? "bg-rose-500/10 text-rose-600 border-rose-500/20" 
+                            : isNearLimit 
+                              ? "bg-amber-500/10 text-amber-600 border-amber-500/20" 
+                              : "bg-primary/10 text-primary border-primary/20"
+                        )}>
+                          {metric.used} / {metric.max}
+                        </span>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className={cn(
+                            "h-full rounded-full transition-all duration-500",
+                            isBreached 
+                              ? "bg-rose-500" 
+                              : isNearLimit 
+                                ? "bg-amber-500" 
+                                : "bg-primary"
+                          )} 
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>{percent}% Consumed</span>
+                        {isBreached ? (
+                          <span className="text-rose-500 font-medium">Limit Breached!</span>
+                        ) : isNearLimit ? (
+                          <span className="text-amber-500 font-medium">Approaching Limit</span>
+                        ) : (
+                          <span>Within Limits</span>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
-              </div>
+              </CardContent>
+            </Card>
 
-              <Card className="shadow-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ReceiptText className="h-5 w-5 text-primary" />
-                    Billing history
-                  </CardTitle>
-                  <CardDescription>Recent invoices (mock)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/50">
-                          <TableHead>Invoice</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Status</TableHead>
+            {/* Card 3: Feature Matrix Access */}
+            <Card className="shadow-sm border-border bg-card">
+              <CardHeader>
+                <CardTitle className="text-xl">Feature Access Control</CardTitle>
+                <CardDescription>Features enabled on your brand level subscription plan.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                {featuresList.map((feature) => {
+                  const isEnabled = !!planFeatures[feature.key] || planFeatures[feature.key] === true;
+
+                  return (
+                    <div 
+                      key={feature.key} 
+                      className={cn(
+                        "p-4 rounded-xl border flex items-start gap-3.5 transition-all",
+                        isEnabled 
+                          ? "bg-card border-border shadow-xs" 
+                          : "bg-muted/30 border-dashed border-border opacity-70"
+                      )}
+                    >
+                      <div className={cn(
+                        "p-2 rounded-lg mt-0.5",
+                        isEnabled ? "bg-emerald-500/10 text-emerald-500" : "bg-muted text-muted-foreground"
+                      )}>
+                        {isEnabled ? <Check className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                      </div>
+                      <div className="space-y-0.5">
+                        <h4 className="font-semibold text-sm flex items-center gap-1.5">
+                          {feature.label}
+                          {!isEnabled && (
+                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">Locked</Badge>
+                          )}
+                        </h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{feature.desc}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
+            {/* Card 4: Billing History Table */}
+            <Card className="shadow-sm border-border bg-card">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <ReceiptText className="h-5 w-5 text-primary" />
+                  Billing History
+                </CardTitle>
+                <CardDescription>View recent invoices and digital payments generated for your brand.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead>Invoice ID</TableHead>
+                        <TableHead>Invoice Date</TableHead>
+                        <TableHead>Charge Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {invoiceHistory.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="h-24 text-center text-muted-foreground text-sm">
+                            <div className="flex flex-col items-center justify-center py-4 space-y-1">
+                              <FileText className="h-8 w-8 text-muted-foreground/60 mb-1" />
+                              <span>No invoice billing records found.</span>
+                              <span className="text-xs opacity-75">Your billing history will appear here once paid plans activate.</span>
+                            </div>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {billingHistory.map((row) => (
+                      ) : (
+                        invoiceHistory.map((row) => (
                           <TableRow key={row.id}>
-                            <TableCell className="font-mono text-xs">{row.id}</TableCell>
-                            <TableCell>{row.date}</TableCell>
-                            <TableCell className="font-medium">{row.amount}</TableCell>
+                            <TableCell className="font-mono text-xs text-foreground font-semibold">{row.id}</TableCell>
+                            <TableCell>{new Date(row.date).toLocaleDateString()}</TableCell>
+                            <TableCell className="font-medium text-foreground">{row.amount}</TableCell>
                             <TableCell>
-                              <Badge variant="secondary" className="capitalize">
+                              <Badge variant="secondary" className="capitalize bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                                 {row.status}
                               </Badge>
                             </TableCell>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className="shadow-card h-fit lg:sticky lg:top-24">
-              <CardHeader>
-                <CardTitle className="text-base">Next steps</CardTitle>
-                <CardDescription>Ready for backend integration</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm text-muted-foreground">
-                <div>- Wire plan change to Stripe checkout / customer portal.</div>
-                <div>- Fetch invoices from backend and support downloads.</div>
-                <div>- Gate features based on plan (layout editor, live view, analytics).</div>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </div>
-        </motion.div>
+
+          {/* Right Sidebar - Action Panel */}
+          <div className="space-y-6">
+            
+            <Card className="shadow-sm border-border bg-card sticky top-24">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Need to upgrade limits?</CardTitle>
+                <CardDescription>Choose a premium plan to expand branch nodes, staff seats, and guest capacity.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-muted/40 rounded-xl border border-border space-y-3">
+                  <h4 className="font-semibold text-sm flex items-center gap-1.5">
+                    <Zap className="h-4 w-4 text-primary" /> Pro Plan Highlights
+                  </h4>
+                  <ul className="space-y-2 text-xs text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <Check className="h-3.5 w-3.5 text-accent" /> Up to 5 branches
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-3.5 w-3.5 text-accent" /> Up to 100 Dining Tables
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-3.5 w-3.5 text-accent" /> Custom Guest QR Code Ordering
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-3.5 w-3.5 text-accent" /> 24/7 Priority Support SLAs
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <Link to="/pricing">
+                    <Button className="w-full gap-2 shadow-sm font-semibold text-white bg-primary hover:bg-primary/90">
+                      View Pricing Plans <ArrowUpRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Separator className="my-3" />
+                  <div className="text-[11px] text-muted-foreground leading-relaxed">
+                    By clicking to upgrade, you'll be redirected to the public pricing details. Upgrading recalculates and shifts your quotas immediately.
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-

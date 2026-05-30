@@ -7,7 +7,8 @@ import { useNavigate } from "react-router-dom";
 import { FavoriteRestaurantCard } from "@/components/profile/FavoriteRestaurantCard";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
-import { restaurants } from "@/lib/data";
+import { getFavorites } from "@/services/user.service";
+import { useFavoritesStore } from "@/store/useFavoritesStore";
 
 function FavoriteCardSkeleton() {
   return (
@@ -30,22 +31,43 @@ function FavoriteCardSkeleton() {
 export default function ProfileFavorites() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [favoriteIds, setFavoriteIds] = useState(() => restaurants.slice(0, 6).map((r) => r.id));
+  const [favorites, setFavorites] = useState([]);
+  const { favoriteIds, toggleFavorite, initialize } = useFavoritesStore();
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 650);
-    return () => clearTimeout(t);
+    initialize();
+  }, [initialize]);
+
+  useEffect(() => {
+    fetchFavorites();
   }, []);
 
-  const favorites = useMemo(
-    () => restaurants.filter((r) => favoriteIds.includes(r.id)),
-    [favoriteIds]
-  );
-
-  const handleRemove = (restaurant) => {
-    setFavoriteIds((prev) => prev.filter((id) => id !== restaurant.id));
-    toast.success("Removed from favorites");
+  const fetchFavorites = async () => {
+    try {
+      setLoading(true);
+      const res = await getFavorites();
+      // Ensure the response is an array before setting state
+      if (res.data && Array.isArray(res.data.data)) {
+        setFavorites(res.data.data);
+      } else if (Array.isArray(res.data)) {
+        setFavorites(res.data);
+      } else {
+        setFavorites([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch favorites:", error);
+      toast.error("Failed to load your favorite restaurants");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleRemove = async (restaurant) => {
+    const resId = restaurant.restaurantId || restaurant._id || restaurant.id;
+    toggleFavorite(resId, restaurant.name);
+  };
+
+  const renderFavorites = favorites.filter((r) => favoriteIds.includes(r.restaurantId || r._id || r.id));
 
   return (
     <div className="p-4 lg:p-6">
@@ -61,10 +83,10 @@ export default function ProfileFavorites() {
               <FavoriteCardSkeleton key={i} />
             ))}
           </div>
-        ) : favorites.length > 0 ? (
+        ) : renderFavorites.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {favorites.map((r, i) => (
-              <FavoriteRestaurantCard key={r.id} restaurant={r} index={i} onRemove={handleRemove} />
+            {renderFavorites.map((r, i) => (
+              <FavoriteRestaurantCard key={r._id || r.id} restaurant={r} index={i} onRemove={handleRemove} />
             ))}
           </div>
         ) : (

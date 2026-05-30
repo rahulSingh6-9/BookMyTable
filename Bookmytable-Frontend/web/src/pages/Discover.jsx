@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, SlidersHorizontal, MapPin } from "lucide-react";
+import { Search, SlidersHorizontal, MapPin, Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RestaurantCard } from "@/components/RestaurantCard";
-import { restaurants, cuisineFilters, indianCities, globalCities } from "@/lib/data";
 import { SearchBar } from "@/components/search/SearchBar";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter, SheetClose } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,14 +10,46 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Check } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { useLocationStore } from "@/store/useLocationStore";
+import { getHomepageSections, searchRestaurants, getCities } from "@/services/discovery.service";
+
+// Static cuisine filters since there's no dedicated /cuisines API
+const CUISINE_FILTERS = [
+  "All", "Italian", "Chinese", "Mexican", "Indian", "Thai", "Japanese", "American", "Mediterranean", "Desserts", "Fast Food"
+];
 
 export default function Discover() {
-  const [search, setSearch] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Extract initial state from URL or default
+  const urlSearch = searchParams.get("q") || "";
+  const urlCollection = searchParams.get("collection") || "";
+
+  const [search, setSearch] = useState(urlSearch);
   const [activeCuisine, setActiveCuisine] = useState("All");
   const [selectedCity, setSelectedCity] = useState("All");
-  const [priceFilters, setPriceFilters] = useState([]); // ['$', '$$']
-  const [minRating, setMinRating] = useState(0);
+  
+  // Advanced filters
+  const [priceFilters, setPriceFilters] = useState([]); // Currently mocked UI, backend doesn't support $ filtering yet, but we keep the UI
+  const [minRating, setMinRating] = useState(0); // Backend supports sorting, not filtering by rating yet, but we keep the UI
   const [openLocation, setOpenLocation] = useState(false);
+
+  // Sync search state with URL if needed
+  useEffect(() => {
+    if (urlSearch && search === "") {
+      setSearch(urlSearch);
+    }
+  }, [urlSearch]);
+
+  const { location, autoDetectLocation } = useLocationStore();
+
+  useEffect(() => {
+    if (!location.isAutoDetected && !location.lat) {
+      autoDetectLocation();
+    }
+  }, [location, autoDetectLocation]);
 
   const togglePriceFilter = (price) => {
     setPriceFilters(prev => 
@@ -26,16 +57,51 @@ export default function Discover() {
     );
   };
 
-  const filtered = restaurants.filter((r) => {
-    const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) || 
-                        r.cuisine.toLowerCase().includes(search.toLowerCase()) ||
-                        (r.city && r.city.toLowerCase().includes(search.toLowerCase()));
-    const matchCuisine = activeCuisine === "All" || r.cuisine === activeCuisine;
-    const matchCity = selectedCity === "All" || r.city === selectedCity;
-    const matchPrice = priceFilters.length === 0 || priceFilters.includes(r.priceRange);
-    const matchRating = r.rating >= minRating;
-    return matchSearch && matchCuisine && matchCity && matchPrice && matchRating;
+  // 1. Fetch distinct cities
+  const { data: citiesRes } = useQuery({
+    queryKey: ["cities"],
+    queryFn: getCities,
+    staleTime: 10 * 60 * 1000, // 10 minutes
   });
+  const cities = citiesRes?.data?.data || [];
+
+  // Determine if we should show Homepage Sections OR Search Results
+  // We show search results if any filter is active (search text, cuisine, or specific city selected)
+  // Collection from URL is treated as a search filter temporarily or we just let it fall back
+  const isSearchActive = Boolean(search.trim().length > 0 || activeCuisine !== "All" || selectedCity !== "All" || urlCollection);
+
+  // 2. Fetch Homepage Sections (Default view)
+  const { data: sectionsRes, isLoading: sectionsLoading } = useQuery({
+    queryKey: ["homepage-sections", location.city, location.area, location.lat, location.lng],
+    queryFn: () => getHomepageSections({ city: location.city, area: location.area, lat: location.lat, lng: location.lng }),
+    enabled: !isSearchActive,
+    staleTime: 5 * 60 * 1000,
+  });
+  const sections = sectionsRes?.data?.data || [];
+
+  // 3. Fetch Search Results (Active view)
+  const { data: searchRes, isLoading: searchLoading } = useQuery({
+    queryKey: ["search", search, activeCuisine, selectedCity, location.lat, location.lng],
+    queryFn: () => {
+      const params = {};
+      if (search.trim()) params.q = search;
+      if (activeCuisine !== "All") params.cuisine = activeCuisine;
+      if (selectedCity !== "All") params.city = selectedCity;
+      
+      // If searching, we might want to sort by distance if they haven't explicitly typed a city
+      if (location.lat && location.lng && selectedCity === "All" && !search.trim()) {
+        params.lat = location.lat;
+        params.lng = location.lng;
+      }
+      
+      return searchRestaurants(params);
+    },
+    enabled: isSearchActive,
+  });
+  const searchResults = searchRes?.data?.data?.results || [];
+
+  // We can filter searchResults locally by rating/price to fulfill UI requirements since backend doesn't support it yet
+  const filteredSearchResults = searchResults.filter(r => r.averageRating >= minRating);
 
   return (
     <div className="min-h-screen pt-16">
@@ -69,13 +135,14 @@ export default function Discover() {
                     <h4 className="font-medium text-sm">Price Range</h4>
                     <div className="grid grid-cols-2 gap-4">
                       {["$", "$$", "$$$", "$$$$"].map((price) => (
-                        <div key={price} className="flex items-center space-x-2">
+                        <div key={price} className="flex items-center space-x-2 opacity-50 cursor-not-allowed" title="Coming soon">
                           <Checkbox 
                             id={`price-${price}`} 
                             checked={priceFilters.includes(price)}
                             onCheckedChange={() => togglePriceFilter(price)}
+                            disabled
                           />
-                          <Label htmlFor={`price-${price}`} className="text-sm font-medium leading-none cursor-pointer">
+                          <Label htmlFor={`price-${price}`} className="text-sm font-medium leading-none">
                             {price} {price === "$" ? "(Value)" : price === "$$$$" ? "(Luxury)" : ""}
                           </Label>
                         </div>
@@ -132,23 +199,8 @@ export default function Discover() {
                       <Check className={`mr-2 h-4 w-4 ${selectedCity === "All" ? "opacity-100" : "opacity-0"}`} />
                       All Cities
                     </CommandItem>
-                    <CommandGroup heading="India">
-                      {indianCities.map((city) => (
-                        <CommandItem
-                          key={city}
-                          value={city}
-                          onSelect={() => {
-                            setSelectedCity(city);
-                            setOpenLocation(false);
-                          }}
-                        >
-                          <Check className={`mr-2 h-4 w-4 ${selectedCity === city ? "opacity-100" : "opacity-0"}`} />
-                          {city}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                    <CommandGroup heading="Global">
-                      {globalCities.map((city) => (
+                    <CommandGroup heading="Available Cities">
+                      {cities.map((city) => (
                         <CommandItem
                           key={city}
                           value={city}
@@ -169,7 +221,7 @@ export default function Discover() {
           </div>
 
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            {cuisineFilters.map((c) => (
+            {CUISINE_FILTERS.map((c) => (
               <button
                 key={c}
                 onClick={() => setActiveCuisine(c)}
@@ -183,44 +235,65 @@ export default function Discover() {
       </div>
 
       <div className="container mx-auto px-4 py-8 lg:px-8">
-        <div className="mb-8 text-sm text-muted-foreground">
-          {filtered.length} restaurant{filtered.length !== 1 ? "s" : ""} found
-        </div>
-
-        {filtered.length === 0 ? (
-          <div className="py-20 text-center border-2 border-dashed border-border/50 rounded-3xl bg-card">
-            <p className="text-lg font-medium text-foreground">No restaurants found</p>
-            <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
+        
+        {/* Loading State */}
+        {(sectionsLoading && !isSearchActive) || (searchLoading && isSearchActive) ? (
+          <div className="py-20 flex flex-col items-center justify-center text-center text-muted-foreground">
+            <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+            <p className="text-lg font-medium text-foreground">Loading restaurants...</p>
+            <p className="text-sm">Finding the best tables for you</p>
           </div>
+        ) : isSearchActive ? (
+          /* Search Results View */
+          <>
+            <div className="mb-8 text-sm text-muted-foreground">
+              {filteredSearchResults.length} restaurant{filteredSearchResults.length !== 1 ? "s" : ""} found
+            </div>
+            {filteredSearchResults.length === 0 ? (
+              <div className="py-20 text-center border-2 border-dashed border-border/50 rounded-3xl bg-card">
+                <p className="text-lg font-medium text-foreground">No restaurants found</p>
+                <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredSearchResults.map((restaurant, i) => (
+                  <RestaurantCard key={restaurant.restaurantId || restaurant._id} restaurant={restaurant} index={i} />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
+          /* Homepage Sections View (Default) */
           <div className="flex flex-col gap-12">
-            {/* Group filtered restaurants by cuisine dynamically */}
-            {Object.entries(
-              filtered.reduce((acc, restaurant) => {
-                const category = restaurant.cuisine || "Other";
-                if (!acc[category]) acc[category] = [];
-                acc[category].push(restaurant);
-                return acc;
-              }, {})
-            ).map(([category, items]) => (
-              <section key={category} className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold tracking-tight text-foreground">{category}</h2>
-                  <Button variant="ghost" size="sm" className="hidden sm:inline-flex text-muted-foreground hover:text-foreground">
-                    View All
-                  </Button>
-                </div>
-                
-                {/* Horizontal Scroll Layout */}
-                <div className="flex overflow-x-auto gap-6 pb-6 pt-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 lg:-mx-8 lg:px-8">
-                  {items.map((restaurant, i) => (
-                    <div key={restaurant.id} className="min-w-[85vw] sm:min-w-[300px] max-w-[320px] shrink-0 snap-start">
-                      <RestaurantCard restaurant={restaurant} index={i} />
+            {sections.length === 0 ? (
+              <div className="py-20 text-center border-2 border-dashed border-border/50 rounded-3xl bg-card">
+                <p className="text-lg font-medium text-foreground">No restaurants nearby</p>
+                <p className="text-sm text-muted-foreground">Try changing your location or use the search bar</p>
+              </div>
+            ) : (
+              sections.map((section) => (
+                <section key={section.id} className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold tracking-tight text-foreground">{section.title}</h2>
+                      <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
                     </div>
-                  ))}
-                </div>
-              </section>
-            ))}
+                    <Button variant="ghost" size="sm" className="hidden sm:inline-flex text-muted-foreground hover:text-foreground" onClick={() => setSearchParams({ collection: section.id })}>
+                      View All
+                    </Button>
+                  </div>
+                  
+                  {/* Horizontal Scroll Layout (Exact same as Homepage) */}
+                  <div className="flex overflow-x-auto gap-6 pb-6 pt-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 lg:-mx-8 lg:px-8">
+                    {section.items.map((restaurant, i) => (
+                      <div key={restaurant.restaurantId || restaurant._id} className="min-w-[85vw] sm:min-w-[300px] max-w-[320px] shrink-0 snap-start">
+                        <RestaurantCard restaurant={restaurant} index={i} />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))
+            )}
           </div>
         )}
       </div>

@@ -7,7 +7,10 @@ import {
   resendPhoneOtpService,
   requestEmailChangeService,
   verifyEmailTokenService,
-  deactivateAccountService
+  deactivateAccountService,
+  addFavoriteService,
+  removeFavoriteService,
+  getFavoritesService
 } from "./user.service.js";
 
 /**
@@ -82,7 +85,7 @@ export const updateProfile = async (req, res, next) => {
   } catch (error) {
     console.error("❌ Profile Update Error:", error);
     const err = new Error(error.message || "Failed to update profile");
-    err.status = 500;
+    err.status = error.status || 500;
     next(err);
   }
 };
@@ -121,7 +124,7 @@ export const uploadAvatar = async (req, res, next) => {
   } catch (error) {
     console.error("❌ Avatar Upload Error:", error);
     const err = new Error(error.message || "Failed to upload avatar");
-    err.status = 500;
+    err.status = error.status || 500;
     next(err);
   }
 };
@@ -299,6 +302,73 @@ export const deactivateAccount = async (req, res, next) => {
 
     const result = await deactivateAccountService(userId, password);
     res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * =========================================================
+ * ADD FAVORITE RESTAURANT
+ * =========================================================
+ */
+export const addFavorite = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { restaurantId } = req.params;
+
+    if (!restaurantId) {
+      return res.status(400).json({
+        success: false,
+        message: "Restaurant ID is required",
+      });
+    }
+
+    const result = await addFavoriteService(userId, restaurantId);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * =========================================================
+ * REMOVE FAVORITE RESTAURANT
+ * =========================================================
+ */
+export const removeFavorite = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { restaurantId } = req.params;
+
+    if (!restaurantId) {
+      return res.status(400).json({
+        success: false,
+        message: "Restaurant ID is required",
+      });
+    }
+
+    const result = await removeFavoriteService(userId, restaurantId);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * =========================================================
+ * GET ALL FAVORITE RESTAURANTS FOR USER
+ * =========================================================
+ */
+export const getFavorites = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const restaurants = await getFavoritesService(userId);
+    
+    res.status(200).json({
+      success: true,
+      data: restaurants,
+    });
   } catch (error) {
     next(error);
   }

@@ -25,4 +25,12 @@ export const RESTAURANT_TOPICS = {
 
   // Staff invitation (Consumed/Produced)
   STAFF_INVITED: "staff.invited",
+
+  // Subscription Events
+  SUBSCRIPTION_PLAN_CREATED: "subscription.plan.created",
+  SUBSCRIPTION_PLAN_UPDATED: "subscription.plan.updated",
+  SUBSCRIPTION_ACTIVATED: "subscription.activated",
+  SUBSCRIPTION_SUSPENDED: "subscription.suspended",
+  SUBSCRIPTION_OVERRIDE_CREATED: "subscription.override.created",
+  BILLING_UPDATED: "billing.updated",
 };

@@ -1,5 +1,5 @@
 import express from 'express';
-import { createTable, deleteTable, getTables, updateTable } from './table.controller.js';
+import { createTable, deleteTable, getTables, updateTable, bulkGenerateTables } from './table.controller.js';
 import { protect } from '../../middleware/auth.middleware.js';
 import { authorize } from '../../middleware/authorize.js';
 
@@ -10,6 +10,9 @@ router.get('/:restaurantId', protect, authorize("MANAGE_TABLES"), getTables);
 
 // ➕ Create table
 router.post('/:restaurantId', protect, authorize("MANAGE_TABLES"), createTable);
+
+// ➕ Bulk Generate tables
+router.post('/:restaurantId/bulk-generate', protect, authorize("MANAGE_TABLES"), bulkGenerateTables);
 
 // ✏️ Update table
 // Note: For update/delete, we pass restaurantId via header or query if not in params, 

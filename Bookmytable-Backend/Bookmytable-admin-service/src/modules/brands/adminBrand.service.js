@@ -39,3 +39,60 @@ export const suspendBrandService = async (id, adminId) => {
     
     return { success: true };
 };
+
+// ============================================================
+// AGGREGATION SERVICES (BFF Pattern)
+// ============================================================
+import axios from 'axios';
+
+const RESTAURANT_SERVICE_URL = process.env.RESTAURANT_SERVICE_URL || 'http://localhost:5003';
+const BOOKING_SERVICE_URL = process.env.BOOKING_SERVICE_URL || 'http://localhost:5005';
+
+export const getBrandRestaurantsService = async (brandId) => {
+    try {
+        let restaurants = [];
+        try {
+            // Using internal BFF fetch or directly querying RestaurantReadModel
+            // Since Admin has a RestaurantReadModel, we can query it!
+            const { default: RestaurantReadModel } = await import("../../models/restaurantReadModel.js");
+            restaurants = await RestaurantReadModel.find({ brandId }).lean();
+        } catch (e) {
+            console.warn("Failed to fetch brand restaurants", e.message);
+        }
+        return restaurants;
+    } catch (error) {
+        throw new Error(`Error fetching brand restaurants: ${error.message}`);
+    }
+};
+
+export const getBrandMetricsService = async (brandId) => {
+    try {
+        const { default: RestaurantReadModel } = await import("../../models/restaurantReadModel.js");
+        const restaurants = await RestaurantReadModel.find({ brandId }).lean();
+        const restaurantIds = restaurants.map(r => r._id);
+
+        let metrics = {
+            totalRestaurants: restaurants.length,
+            approvedRestaurants: restaurants.filter(r => r.status === 'approved').length,
+            pendingRestaurants: restaurants.filter(r => r.status === 'pending').length,
+            suspendedRestaurants: restaurants.filter(r => r.status === 'suspended').length,
+            totalStaff: 0,
+            totalBookings: 0,
+        };
+
+        try {
+            const response = await axios.post(`${RESTAURANT_SERVICE_URL}/api/restaurants/metrics/bulk`, { restaurantIds }, {
+                headers: { 'x-internal-service': 'admin-service' }
+            });
+            const bulkMetrics = response.data.data || {};
+            metrics.totalStaff = bulkMetrics.totalStaff || 0;
+            metrics.totalBookings = bulkMetrics.totalBookings || 0;
+        } catch (e) {
+            console.warn("Failed to fetch brand metrics from Restaurant Service", e.message);
+        }
+
+        return metrics;
+    } catch (error) {
+        throw new Error(`Error fetching brand metrics: ${error.message}`);
+    }
+};

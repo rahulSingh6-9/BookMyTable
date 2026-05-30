@@ -5,6 +5,7 @@ import {
   resetPassword,
   forgotPassword,
   verifyResetToken,
+  googleAuthService,
 } from "./auth.service.js";
 
 // 🟢 WEB LOGIN
@@ -100,6 +101,21 @@ export const verifyResetTokenController = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Token is valid",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 🔵 GOOGLE SIGNUP/LOGIN CONTROLLER
+export const googleLogin = async (req, res, next) => {
+  try {
+    const result = await googleAuthService(req.body);
+
+    res.status(200).json({
+      success: true,
+      message: result.isNewUser ? "Google registration successful" : "Google login successful",
       data: result,
     });
   } catch (error) {

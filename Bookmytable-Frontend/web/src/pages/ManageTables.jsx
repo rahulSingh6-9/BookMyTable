@@ -13,10 +13,11 @@ import { useLayout } from "@/hooks/useLayout";
 import { TABLE_TYPES } from "@/lib/mockData";
 import { LayoutEditor } from "@/components/visual-layout/LayoutEditor";
 import { RoomSelector } from "@/components/visual-layout/RoomSelector";
+import { BulkAddForm } from "@/components/partner/register/tables/BulkAddForm";
 import { toast } from "sonner";
 
 import { useBranch } from "@/context/BranchContext";
-import { useTables, useCreateTable, useUpdateTable, useDeleteTable } from "@/hooks/useTables";
+import { useTables, useCreateTable, useUpdateTable, useDeleteTable, useBulkGenerateTables } from "@/hooks/useTables";
 
 
 
@@ -33,8 +34,21 @@ export default function ManageTables() {
   const { mutate: createTable, isPending: isCreating } = useCreateTable(restaurantId);
   const { mutate: updateTable, isPending: isUpdating } = useUpdateTable(restaurantId);
   const { mutate: deleteTable, isPending: isDeleting } = useDeleteTable(restaurantId);
+  const { mutate: bulkGenerateTables, isPending: isBulkGenerating } = useBulkGenerateTables(restaurantId);
 
   const { data: tables = [], isLoading } = useTables(restaurantId);
+
+  const sortedTables = [...tables].sort((a, b) => {
+    const floorA = a.floor || "";
+    const floorB = b.floor || "";
+    if (floorA !== floorB) return floorA.localeCompare(floorB);
+
+    const sectionA = a.section || "";
+    const sectionB = b.section || "";
+    if (sectionA !== sectionB) return sectionA.localeCompare(sectionB);
+
+    return (a.tableCode || "").localeCompare(b.tableCode || "", undefined, { numeric: true, sensitivity: 'base' });
+  });
 
   const { rooms, activeRoom, activeRoomId, setActiveRoomId, updateTablePosition, saveLayout } = useLayout(restaurantId);
 
@@ -133,9 +147,14 @@ export default function ManageTables() {
             </div>
 
             <TabsContent value="list" className="animate-in fade-in slide-in-from-bottom-2 focus-visible:outline-none focus-visible:ring-0">
+              
+              <div className="mb-6">
+                <BulkAddForm onGenerate={bulkGenerateTables} />
+              </div>
+
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 <AnimatePresence>
-                  {tables.map((t) => (
+                  {sortedTables.map((t) => (
                     <motion.div
                       key={t._id}
                       layout
@@ -182,7 +201,7 @@ export default function ManageTables() {
                 </AnimatePresence>
               </div>
 
-              {tables.length === 0 && (
+              {sortedTables.length === 0 && (
                 <div className="text-center py-20 border-2 border-dashed border-border/50 rounded-3xl bg-card">
                   <p className="text-muted-foreground mb-4">No tables yet. Add your first table to get started.</p>
                   <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Add Table</Button>

@@ -4,6 +4,10 @@ import { syncUser } from "../handlers/userSync.handler.js";
 import { syncBrand } from "../handlers/brandSync.handler.js";
 import { syncBranch } from "../handlers/branchSync.handler.js";
 import { syncMembership } from "../handlers/membershipSync.handler.js";
+import { syncSubscriptionPlan } from "../handlers/subscriptionPlanSync.handler.js";
+import { syncBrandSubscription } from "../handlers/brandSubscriptionSync.handler.js";
+import { syncBilling } from "../handlers/billingSync.handler.js";
+import { syncSubscriptionOverride } from "../handlers/subscriptionOverrideSync.handler.js";
 
 const consumer = kafka.consumer({ groupId: "admin-service-group" });
 
@@ -25,7 +29,13 @@ export const startAdminConsumer = async () => {
         KAFKA_TOPICS.BRAND_CREATED,
         KAFKA_TOPICS.BRAND_UPDATED,
         KAFKA_TOPICS.MEMBERSHIP_CREATED,
-        KAFKA_TOPICS.MEMBERSHIP_UPDATED
+        KAFKA_TOPICS.MEMBERSHIP_UPDATED,
+        KAFKA_TOPICS.SUBSCRIPTION_PLAN_CREATED,
+        KAFKA_TOPICS.SUBSCRIPTION_PLAN_UPDATED,
+        KAFKA_TOPICS.SUBSCRIPTION_ACTIVATED,
+        KAFKA_TOPICS.SUBSCRIPTION_SUSPENDED,
+        KAFKA_TOPICS.SUBSCRIPTION_OVERRIDE_CREATED,
+        KAFKA_TOPICS.BILLING_UPDATED
       ], 
       fromBeginning 
     });
@@ -56,6 +66,14 @@ export const startAdminConsumer = async () => {
             await syncBrand(data);
           } else if (topic === KAFKA_TOPICS.MEMBERSHIP_CREATED || topic === KAFKA_TOPICS.MEMBERSHIP_UPDATED) {
             await syncMembership(data);
+          } else if (topic === KAFKA_TOPICS.SUBSCRIPTION_PLAN_CREATED || topic === KAFKA_TOPICS.SUBSCRIPTION_PLAN_UPDATED) {
+            await syncSubscriptionPlan(data);
+          } else if (topic === KAFKA_TOPICS.SUBSCRIPTION_ACTIVATED || topic === KAFKA_TOPICS.SUBSCRIPTION_SUSPENDED) {
+            await syncBrandSubscription(data);
+          } else if (topic === KAFKA_TOPICS.SUBSCRIPTION_OVERRIDE_CREATED) {
+            await syncSubscriptionOverride(data);
+          } else if (topic === KAFKA_TOPICS.BILLING_UPDATED) {
+            await syncBilling(data);
           }
         } catch (err) {
           console.error(`❌ Error parsing/handling message on topic [${topic}]:`, err.message);

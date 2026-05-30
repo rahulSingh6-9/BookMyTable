@@ -1,4 +1,4 @@
-import { getTableServices, createTableService, updateTableService, deleteTableService } from "./table.service.js";
+import { getTableServices, createTableService, updateTableService, deleteTableService, bulkGenerateTablesService } from "./table.service.js";
 import { createLog } from "../log/log.service.js";
 import { ROLES } from "../../config/roles.js";
 
@@ -46,6 +46,34 @@ export const createTable = async (req, res, next) => {
     });
   } catch (error) {
     next(error)
+  }
+};
+
+export const bulkGenerateTables = async (req, res, next) => {
+  try {
+    const { restaurantId } = req.params;
+    const userId = req.user.id;
+    
+    const createdTables = await bulkGenerateTablesService(restaurantId, userId, req.body);
+
+    // 📝 Log Action
+    createLog({
+      action: "TABLES_BULK_GENERATED",
+      performedBy: userId,
+      role: req.activeRole || ROLES.OWNER,
+      restaurant: restaurantId,
+      metadata: { prefix: req.body.prefix, quantity: req.body.quantity, createdCount: createdTables.length },
+      ipAddress: req.ip,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `${createdTables.length} tables generated successfully`,
+      created: createdTables.length,
+      data: createdTables,
+    });
+  } catch (error) {
+    next(error);
   }
 };
 

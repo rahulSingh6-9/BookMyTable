@@ -105,6 +105,7 @@ export default function PartnerRegister() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isReviewEditMode, setIsReviewEditMode] = useState(false);
   const [returnStep, setReturnStep] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   const currentSchema = stepSchemas[currentStep] || z.object({});
 
@@ -272,9 +273,14 @@ export default function PartnerRegister() {
     
     if (isStepValid) {
       if (currentStep === 3) {
-        const isVerified = watch("contactInfo.primaryPhone.isVerified");
-        if (!isVerified) {
+        const isPhoneVerified = watch("contactInfo.primaryPhone.isVerified");
+        if (!isPhoneVerified) {
           toast.error("Please verify your primary phone number to continue");
+          return;
+        }
+        const isEmailVerified = watch("contactInfo.businessEmail.isVerified");
+        if (!isEmailVerified) {
+          toast.error("Please verify your business email address to continue");
           return;
         }
       }
@@ -326,9 +332,14 @@ export default function PartnerRegister() {
     
     if (isStepValid) {
       if (currentStep === 3) {
-        const isVerified = watch("contactInfo.primaryPhone.isVerified");
-        if (!isVerified) {
+        const isPhoneVerified = watch("contactInfo.primaryPhone.isVerified");
+        if (!isPhoneVerified) {
           toast.error("Please verify your primary phone number to continue");
+          return;
+        }
+        const isEmailVerified = watch("contactInfo.businessEmail.isVerified");
+        if (!isEmailVerified) {
+          toast.error("Please verify your business email address to continue");
           return;
         }
       }
@@ -377,6 +388,12 @@ export default function PartnerRegister() {
   };
   const onSubmit = async () => {
     const data = methods.getValues();
+    const isPhoneVerified = data.contactInfo?.primaryPhone?.isVerified;
+    const isEmailVerified = data.contactInfo?.businessEmail?.isVerified;
+    if (!isPhoneVerified || !isEmailVerified) {
+      toast.error("Please ensure both your business phone and email are fully verified before submitting.");
+      return;
+    }
     setIsLoading(true);
     try {
       const priceMap = {

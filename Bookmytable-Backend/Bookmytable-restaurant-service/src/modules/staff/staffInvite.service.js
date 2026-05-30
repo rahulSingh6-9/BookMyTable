@@ -26,6 +26,12 @@ export const inviteStaffService = async ({
 
   if (!branch) throw new Error("Branch not found");
 
+  // 1b. Check SaaS staff limits
+  const { checkLimit } = await import("../subscriptions/subscription.service.js");
+  const { default: BranchMembership } = await import("../../models/branchmemberships.model.js");
+  const currentStaffCount = await BranchMembership.countDocuments({ brand: branch.brandId, status: "active" });
+  await checkLimit(branch.brandId, "maxStaff", currentStaffCount);
+
   // Note: Authorization is now handled by RBAC middleware at the route level
 
   // 2️⃣ Prevent duplicate active invite
@@ -60,7 +66,7 @@ export const inviteStaffService = async ({
     role,
     restaurantName: branch.branchName || branch.name,
     inviteLink: `${
-      process.env.FRONTEND_URL || process.env.WEB_URL
+      process.env.WEB_URL || process.env.FRONTEND_URL || "http://localhost:8080"
     }/accept-invite?token=${rawToken}`,
     invitedBy,
     restaurantId,

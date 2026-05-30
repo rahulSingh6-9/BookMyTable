@@ -6,6 +6,7 @@ import RestaurantSettings from '../../models/restaurantSettings.model.js';
 import Table from '../../models/table.model.js';
 import BranchMembership from '../../models/branchmemberships.model.js';
 import Log from '../../models/log.model.js';
+import BusinessEmailVerification from '../../models/businessEmailVerification.model.js';
 import mongoose from 'mongoose';
 import { ROLES } from "../../config/roles.js";
 import { 
@@ -22,6 +23,26 @@ import crypto from "crypto";
 export const saveDraft = async (userId, data) => {
   const { currentStep, formData, completedSteps, skippedSteps, draftData, uploadedMedia } = data;
   
+  // Defensive verification auto-reset logic
+  const existingDraft = await OnboardingDraft.findOne({ userId });
+  if (existingDraft?.formData?.contactInfo && formData?.contactInfo) {
+    const prevEmail = existingDraft.formData.contactInfo.businessEmail?.value;
+    const currentEmail = formData.contactInfo.businessEmail?.value;
+    if (prevEmail && currentEmail && prevEmail.toLowerCase().trim() !== currentEmail.toLowerCase().trim()) {
+      if (formData.contactInfo.businessEmail) {
+        formData.contactInfo.businessEmail.isVerified = false;
+      }
+    }
+
+    const prevPhone = existingDraft.formData.contactInfo.primaryPhone?.number;
+    const currentPhone = formData.contactInfo.primaryPhone?.number;
+    if (prevPhone && currentPhone && prevPhone.trim() !== currentPhone.trim()) {
+      if (formData.contactInfo.primaryPhone) {
+        formData.contactInfo.primaryPhone.isVerified = false;
+      }
+    }
+  }
+
   const updateData = {
     currentStep,
     ...(formData && { formData }),
@@ -79,7 +100,8 @@ export const submitOnboarding = async (userId, payload, ipAddress) => {
   // 1. Core validation
   if (!data.restaurantName) throw new Error("Restaurant Name is required.");
   if (!data.addressLine1 || !data.city) throw new Error("Complete location details are required.");
-  if (!data.contactInfo?.primaryPhone?.e164) throw new Error("A verified contact phone number is required.");
+  if (!data.contactInfo?.primaryPhone?.isVerified) throw new Error("A verified business phone number is required.");
+  if (!data.contactInfo?.businessEmail?.isVerified) throw new Error("A verified business email address is required.");
   const hours = data.hours || data.openingHours;
   if (!hours || Object.keys(hours).length === 0) throw new Error("Business hours must be defined.");
   if (!data.tables || data.tables.length === 0) throw new Error("At least one table must be configured.");
@@ -117,6 +139,11 @@ export const submitOnboarding = async (userId, payload, ipAddress) => {
       if (!brandId) {
         throw new Error("A valid brand selection is required to add a branch to an existing brand.");
       }
+
+      // Check SaaS branch limits
+      const currentBranches = await Restaurant.countDocuments({ brandId, isDeleted: { $ne: true } }).session(session);
+      const { checkLimit } = await import("../subscriptions/subscription.service.js");
+      await checkLimit(brandId, "maxBranches", currentBranches);
 
       brandObj = await Brand.findOne({ _id: brandId, isDeleted: { $ne: true } }).session(session);
       if (!brandObj) {
@@ -314,6 +341,16 @@ export const submitOnboarding = async (userId, payload, ipAddress) => {
     const { restaurant, brand, tables, membership } = savedResult;
     const correlationId = crypto.randomUUID();
     
+    // 0. Automatically create SaaS Free Trial Subscription & initialize usage limits
+    try {
+      const { getOrCreateSubscription, recalculateUsage } = await import("../subscriptions/subscription.service.js");
+      await getOrCreateSubscription(restaurant.brandId, userId);
+      await recalculateUsage(restaurant.brandId);
+      console.log(`💳 SaaS Subscription & Usage aggregates initialized for Brand: ${restaurant.brandId}`);
+    } catch (subErr) {
+      console.error("❌ Post-Onboarding subscription auto-creation failed:", subErr.message);
+    }
+
     // 1. Emit brand.created event ONLY if we created a new brand
     if (brand && data.onboardingMode !== "add_branch") {
       await emitBrandCreated(brand, correlationId);
@@ -365,4 +402,93 @@ export const submitOnboarding = async (userId, payload, ipAddress) => {
   await deleteDraft(userId);
 
   return savedResult.restaurant;
+};
+
+export const requestBusinessEmailVerification = async (userId, email) => {
+  if (!email) {
+    throw new Error("Email address is required.");
+  }
+
+  // 1. Generate secure token
+  const token = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  // 2. Set expiration to 30 minutes
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+  // 3. Upsert verification token
+  await BusinessEmailVerification.findOneAndUpdate(
+    { userId, email: email.toLowerCase().trim() },
+    {
+      tokenHash,
+      expiresAt,
+      verified: false,
+      usedAt: null,
+    },
+    { upsert: true, new: true }
+  );
+
+  // 4. Emit event to Kafka (using the existing emitNotificationEmailSend!)
+  const verificationUrl = `${process.env.WEB_URL || process.env.FRONTEND_URL || "http://localhost:8080"}/verify-business-email?token=${token}&email=${encodeURIComponent(email)}`;
+  
+  await emitNotificationEmailSend({
+    template: "restaurant.business.email.verification.requested",
+    recipient: email,
+    variables: {
+      email,
+      verificationUrl,
+    },
+  });
+
+  console.log(`📡 Kafka email verification event emitted for ${email}`);
+  
+  return { success: true, message: "Verification link sent successfully." };
+};
+
+export const verifyBusinessEmail = async (token, email) => {
+  if (!token || !email) {
+    throw new Error("Token and email are required for verification.");
+  }
+
+  // 1. Hash the token to compare with DB
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  // 2. Find the verification entry
+  const verification = await BusinessEmailVerification.findOne({ 
+    tokenHash, 
+    email: email.toLowerCase().trim() 
+  });
+
+  if (!verification) {
+    throw new Error("Invalid or expired verification token.");
+  }
+
+  if (verification.verified || verification.usedAt) {
+    throw new Error("This verification link has already been used.");
+  }
+
+  if (new Date() > verification.expiresAt) {
+    throw new Error("This verification link has expired.");
+  }
+
+  // 3. Mark verification entry as successful
+  verification.verified = true;
+  verification.usedAt = new Date();
+  await verification.save();
+
+  // 4. Update the onboarding draft
+  const draft = await OnboardingDraft.findOne({ userId: verification.userId });
+  if (draft) {
+    if (!draft.formData) draft.formData = {};
+    if (!draft.formData.contactInfo) draft.formData.contactInfo = {};
+    if (!draft.formData.contactInfo.businessEmail) draft.formData.contactInfo.businessEmail = {};
+    
+    draft.formData.contactInfo.businessEmail.value = email;
+    draft.formData.contactInfo.businessEmail.isVerified = true;
+    draft.markModified("formData");
+    await draft.save();
+    console.log(`✅ Onboarding draft business email updated to verified for userId: ${verification.userId}`);
+  }
+
+  return { success: true, message: "Business email verified successfully." };
 };

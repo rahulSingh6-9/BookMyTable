@@ -9,7 +9,10 @@ import {
   resendPhoneOtp,
   requestEmailChange,
   verifyEmailToken,
-  deactivateAccount
+  deactivateAccount,
+  getFavorites,
+  addFavorite,
+  removeFavorite
 } from "./user.controller.js";
 import { protect } from "../../middleware/auth.middleware.js";
 import { upload } from "../../config/multer.js";
@@ -38,5 +41,10 @@ router.post("/me/email/verify", protect, verifyEmailToken);
 
 // ❌ ACCOUNT SECURITY DEACTIVATION (POST)
 router.post("/me/deactivate", protect, deactivateAccount);
+
+// ❤️ FAVORITES (GET, POST, DELETE)
+router.get("/favorites", protect, getFavorites);
+router.post("/favorites/:restaurantId", protect, addFavorite);
+router.delete("/favorites/:restaurantId", protect, removeFavorite);
 
 export default router;

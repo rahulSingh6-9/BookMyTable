@@ -7,7 +7,7 @@ import mongoose from "mongoose";
 
 export const connectDB = async () => {
   try {
-    const conn = await mongoose.connect("mongodb://localhost:27017/", {
+    const conn = await mongoose.connect("mongodb://host.docker.internal:27017/", {
       dbName: "bookmytable-admin", // 🔥 your DB name
      
     });

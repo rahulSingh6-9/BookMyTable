@@ -1,8 +1,9 @@
 import kafka from "../config/kafka.js";
 import { KAFKA_TOPICS } from "../topics/topics.js";
 import { handleAdminUserCommand } from "../handlers/adminUser.handlers.js";
+import { handleUserRegistered } from "../handlers/auth.handlers.js";
 
-const consumer = kafka.consumer({ groupId: "user-service-admin-group" });
+const consumer = kafka.consumer({ groupId: "user-service-group" }); // Changed group ID to match standard
 
 export const startUserConsumer = async () => {
   try {
@@ -10,17 +11,21 @@ export const startUserConsumer = async () => {
     console.log("🚀 User Service Kafka Consumer Connected");
 
     await consumer.subscribe({ 
-      topic: KAFKA_TOPICS.USER_ADMIN_COMMAND, 
+      topics: [KAFKA_TOPICS.USER_ADMIN_COMMAND, KAFKA_TOPICS.AUTH_USER_REGISTERED], 
       fromBeginning: true 
     });
 
     await consumer.run({
-      eachMessage: async ({ message }) => {
+      eachMessage: async ({ topic, message }) => {
         try {
           const event = JSON.parse(message.value.toString());
 
-          if (event.eventType === "ADMIN_COMMAND" && event.service === "USER") {
-            await handleAdminUserCommand(event);
+          if (topic === KAFKA_TOPICS.AUTH_USER_REGISTERED) {
+            await handleUserRegistered(event);
+          } else if (topic === KAFKA_TOPICS.USER_ADMIN_COMMAND) {
+            if (event.eventType === "ADMIN_COMMAND" && event.service === "USER") {
+              await handleAdminUserCommand(event);
+            }
           }
         } catch (err) {
           console.error("❌ [UserService Consumer] Error processing message:", err.message);

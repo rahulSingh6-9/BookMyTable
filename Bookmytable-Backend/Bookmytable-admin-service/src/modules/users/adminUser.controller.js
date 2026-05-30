@@ -62,3 +62,59 @@ export const updateUserRole = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getUserDetailsController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    // Will be imported from service
+    const { getUserDetailsService } = await import("./adminUser.service.js");
+    const result = await getUserDetailsService(id);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUserActivityController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { getUserActivityService } = await import("./adminUser.service.js");
+    const result = await getUserActivityService(id);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUserBookingsController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { getUserBookingsService } = await import("./adminUser.service.js");
+    const result = await getUserBookingsService(id);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUserRestaurantsController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { getUserRestaurantsService } = await import("./adminUser.service.js");
+    const result = await getUserRestaurantsService(id);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forceLogoutController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { forceLogoutService } = await import("./adminUser.service.js");
+    const result = await forceLogoutService(id, req.user);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};

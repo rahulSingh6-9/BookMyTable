@@ -5,6 +5,10 @@ import UserReadModel from "./userReadModel.js";
 import AdminModel from "./admin.model.js";
 import AdminLog from "./adminLog.model.js";
 import RestaurantReadModel from "./restaurantReadModel.js"; // Legacy
+import SubscriptionPlanReadModel from "./subscriptionPlanReadModel.js";
+import BrandSubscriptionReadModel from "./brandSubscriptionReadModel.js";
+import BillingReadModel from "./billingReadModel.js";
+import SubscriptionOverrideReadModel from "./subscriptionOverrideReadModel.js";
 
 export {
   BrandReadModel,
@@ -13,5 +17,9 @@ export {
   UserReadModel,
   AdminModel,
   AdminLog,
-  RestaurantReadModel
+  RestaurantReadModel,
+  SubscriptionPlanReadModel,
+  BrandSubscriptionReadModel,
+  BillingReadModel,
+  SubscriptionOverrideReadModel,
 };

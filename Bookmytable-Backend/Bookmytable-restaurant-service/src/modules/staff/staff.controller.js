@@ -66,17 +66,35 @@ export const acceptInviteController = async (req, res) => {
   }
 };
 
+import StaffInvite from "../../models/staffInvite.model.js";
+
 export const listStaffController = async (req, res) => {
   try {
     const { restaurantId } = req.params;
+    const { status } = req.query;
 
-    const staffMembers = await listStaffService({ restaurantId });
+    if (!restaurantId || restaurantId === "undefined" || restaurantId === "null") {
+      return res.status(400).json({ success: false, message: "Invalid restaurant ID" });
+    }
+
+    if (status === "pending") {
+      const pendingInvites = await StaffInvite.find({ branch: restaurantId, status: "pending" }).lean();
+      return res.status(200).json({
+        success: true,
+        data: pendingInvites,
+      });
+    }
+
+    const staffMembers = await listStaffService({ restaurantId, status });
 
     res.status(200).json({
       success: true,
       data: staffMembers,
     });
   } catch (err) {
+    if (err.name === 'CastError') {
+      return res.status(400).json({ success: false, message: "Invalid restaurant ID format" });
+    }
     res.status(400).json({ success: false, message: err.message });
   }
 };

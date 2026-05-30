@@ -1,0 +1,344 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import {
+  Store,
+  MapPin,
+  Settings,
+  BarChart3,
+  Users,
+  CheckCircle,
+  Ban,
+  XCircle,
+  Clock,
+  Phone,
+} from "lucide-react";
+
+import {
+  getRestaurantDetails,
+  getRestaurantMetrics,
+  getRestaurantTables,
+  getRestaurantStaff,
+  approveRestaurant,
+  suspendRestaurant,
+  rejectRestaurant,
+} from "@/services/restaurant.service";
+
+const ProfileSection = ({ restaurant }) => (
+  <div className="space-y-4">
+    {restaurant?.coverImage && (
+      <div className="h-32 w-full rounded-xl overflow-hidden relative">
+        <img src={restaurant.coverImage} alt="Cover" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+      </div>
+    )}
+    <div className={`flex items-center gap-4 ${restaurant?.coverImage ? '-mt-12 relative z-10 pl-4' : ''}`}>
+      <Avatar className={`h-20 w-20 rounded-xl border-4 border-background shadow-lg`}>
+        <AvatarImage src={restaurant?.logo} />
+        <AvatarFallback className="rounded-xl bg-primary/10 text-primary text-2xl font-bold">
+          {restaurant?.name?.charAt(0) || "R"}
+        </AvatarFallback>
+      </Avatar>
+      <div className={restaurant?.coverImage ? 'text-white drop-shadow-md pt-4' : ''}>
+        <h3 className="text-xl font-bold">{restaurant?.name || "Unknown Restaurant"}</h3>
+        <p className="text-sm opacity-90">{restaurant?.brandId?.name || "Independent"}</p>
+      </div>
+    </div>
+    
+    <div className="grid grid-cols-2 gap-4 mt-6">
+      <div className="bg-muted/30 p-3 rounded-lg border border-border/50">
+        <p className="text-xs text-muted-foreground mb-1">Status</p>
+        <Badge variant={restaurant?.status === "approved" ? "success" : restaurant?.status === "suspended" ? "destructive" : "secondary"}>
+          {restaurant?.status || "Pending"}
+        </Badge>
+      </div>
+      <div className="bg-muted/30 p-3 rounded-lg border border-border/50">
+        <p className="text-xs text-muted-foreground mb-1">Cuisine</p>
+        <div className="flex gap-1 flex-wrap mt-1">
+          {restaurant?.cuisineTypes?.length > 0 ? (
+            restaurant.cuisineTypes.slice(0, 2).map((c, i) => <Badge key={i} variant="outline" className="text-[10px]">{c}</Badge>)
+          ) : "N/A"}
+        </div>
+      </div>
+      <div className="bg-muted/30 p-3 rounded-lg border border-border/50 col-span-2">
+        <p className="text-xs text-muted-foreground mb-1">Description</p>
+        <p className="text-sm">{restaurant?.description || "No description provided."}</p>
+      </div>
+    </div>
+  </div>
+);
+
+const LocationSection = ({ restaurant }) => (
+  <div className="space-y-4">
+    <h4 className="text-sm font-semibold flex items-center gap-2">
+      <MapPin className="w-4 h-4 text-primary" /> Location & Contact
+    </h4>
+    <div className="bg-muted/30 p-4 rounded-xl border border-border/50 space-y-3">
+      <div className="flex justify-between items-start">
+        <span className="text-xs text-muted-foreground w-20">Address</span>
+        <span className="text-sm text-right flex-1 font-medium">
+          {restaurant?.address?.street}, {restaurant?.address?.area}<br/>
+          {restaurant?.address?.city}, {restaurant?.address?.state} {restaurant?.address?.zipCode}
+        </span>
+      </div>
+      <Separator />
+      <div className="flex justify-between items-center">
+        <span className="text-xs text-muted-foreground">Phone</span>
+        <span className="text-sm font-medium">{restaurant?.contact?.phone || "N/A"}</span>
+      </div>
+      <div className="flex justify-between items-center">
+        <span className="text-xs text-muted-foreground">Email</span>
+        <span className="text-sm font-medium">{restaurant?.contact?.email || "N/A"}</span>
+      </div>
+    </div>
+  </div>
+);
+
+const MetricsSection = ({ id }) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-restaurant-metrics", id],
+    queryFn: () => getRestaurantMetrics(id),
+    enabled: !!id,
+  });
+
+  if (isLoading) return <Skeleton className="h-40 w-full rounded-xl" />;
+  const metrics = data?.data || data || {};
+
+  return (
+    <div className="space-y-4">
+      <h4 className="text-sm font-semibold flex items-center gap-2">
+        <BarChart3 className="w-4 h-4 text-primary" /> Business Metrics
+      </h4>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
+          <p className="text-xs text-muted-foreground uppercase font-semibold">Total Bookings</p>
+          <p className="text-2xl font-bold text-primary mt-1">{metrics.bookingsCount || 0}</p>
+        </div>
+        <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+          <p className="text-xs text-amber-600/70 uppercase font-semibold">Average Rating</p>
+          <p className="text-2xl font-bold text-amber-600 mt-1">{metrics.averageRating?.toFixed(1) || "N/A"} ⭐</p>
+        </div>
+        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+          <p className="text-xs text-emerald-600/70 uppercase font-semibold">Total Reviews</p>
+          <p className="text-2xl font-bold text-emerald-600 mt-1">{metrics.reviewsCount || 0}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const OperationsSection = ({ id, restaurant }) => {
+  const { data: tablesData, isLoading: tablesLoading } = useQuery({
+    queryKey: ["admin-restaurant-tables", id],
+    queryFn: () => getRestaurantTables(id),
+    enabled: !!id,
+  });
+
+  const { data: staffData, isLoading: staffLoading } = useQuery({
+    queryKey: ["admin-restaurant-staff", id],
+    queryFn: () => getRestaurantStaff(id),
+    enabled: !!id,
+  });
+
+  if (tablesLoading || staffLoading) return <Skeleton className="h-40 w-full rounded-xl" />;
+  
+  const tables = tablesData?.data || tablesData || [];
+  const staff = staffData?.data || staffData || [];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-muted/30 p-4 rounded-xl border border-border/50 flex flex-col items-center justify-center text-center">
+          <Users className="w-6 h-6 text-primary mb-2" />
+          <span className="text-2xl font-bold">{staff.length}</span>
+          <span className="text-xs text-muted-foreground uppercase tracking-wider">Staff Members</span>
+        </div>
+        <div className="bg-muted/30 p-4 rounded-xl border border-border/50 flex flex-col items-center justify-center text-center">
+          <Store className="w-6 h-6 text-primary mb-2" />
+          <span className="text-2xl font-bold">{tables.length}</span>
+          <span className="text-xs text-muted-foreground uppercase tracking-wider">Total Tables</span>
+        </div>
+      </div>
+      
+      <div className="space-y-4">
+        <h4 className="text-sm font-semibold flex items-center gap-2">
+          <Settings className="w-4 h-4 text-primary" /> Settings
+        </h4>
+        <div className="bg-muted/30 p-4 rounded-xl border border-border/50 space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Bookings Enabled</span>
+            <Badge variant={restaurant?.settings?.bookingsEnabled ? "success" : "secondary"}>
+              {restaurant?.settings?.bookingsEnabled ? "Yes" : "No"}
+            </Badge>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Auto Approve Bookings</span>
+            <Badge variant={restaurant?.settings?.autoApproveBookings ? "success" : "secondary"}>
+              {restaurant?.settings?.autoApproveBookings ? "Yes" : "No"}
+            </Badge>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+export function RestaurantDetailsDrawer({ restaurantId, open, onOpenChange }) {
+  const queryClient = useQueryClient();
+
+  const { data: response, isLoading } = useQuery({
+    queryKey: ["admin-restaurant-details", restaurantId],
+    queryFn: () => getRestaurantDetails(restaurantId),
+    enabled: !!restaurantId && open,
+  });
+
+  const restaurant = response?.data || response;
+
+  const approveMutation = useMutation({
+    mutationFn: () => approveRestaurant(restaurantId),
+    onSuccess: () => {
+      toast.success("Restaurant approved");
+      queryClient.invalidateQueries(["admin-restaurant-details", restaurantId]);
+      queryClient.invalidateQueries(["admin-restaurants"]);
+    },
+    onError: (err) => toast.error(`Approval failed: ${err.message}`)
+  });
+
+  const suspendMutation = useMutation({
+    mutationFn: () => suspendRestaurant(restaurantId),
+    onSuccess: () => {
+      toast.success("Restaurant suspended");
+      queryClient.invalidateQueries(["admin-restaurant-details", restaurantId]);
+      queryClient.invalidateQueries(["admin-restaurants"]);
+    },
+    onError: (err) => toast.error(`Suspension failed: ${err.message}`)
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: () => rejectRestaurant(restaurantId),
+    onSuccess: () => {
+      toast.success("Restaurant rejected");
+      queryClient.invalidateQueries(["admin-restaurant-details", restaurantId]);
+      queryClient.invalidateQueries(["admin-restaurants"]);
+    },
+    onError: (err) => toast.error(`Rejection failed: ${err.message}`)
+  });
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-xl p-0 flex flex-col h-full bg-background border-l shadow-2xl">
+        <SheetHeader className="p-6 border-b bg-card z-10 sticky top-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Store className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <SheetTitle className="text-xl font-bold">Restaurant Details</SheetTitle>
+              <SheetDescription className="text-xs mt-1">
+                Manage location, operations, and business status.
+              </SheetDescription>
+            </div>
+          </div>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-hidden relative">
+          {isLoading ? (
+            <div className="p-6 space-y-8">
+              <Skeleton className="h-32 w-full rounded-xl" />
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-16 w-16 rounded-xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              </div>
+              <Skeleton className="h-48 w-full rounded-xl" />
+            </div>
+          ) : !restaurant ? (
+            <div className="p-6 text-center text-muted-foreground mt-20">
+              Failed to load restaurant data.
+            </div>
+          ) : (
+            <ScrollArea className="h-full">
+              <div className="p-6 pb-24 space-y-8">
+                <ProfileSection restaurant={restaurant} />
+                <Separator />
+                
+                <Tabs defaultValue="location" className="w-full">
+                  <TabsList className="w-full grid grid-cols-3 bg-muted/50 p-1 rounded-xl h-auto">
+                    <TabsTrigger value="location" className="rounded-lg py-2 text-xs font-medium">Location</TabsTrigger>
+                    <TabsTrigger value="operations" className="rounded-lg py-2 text-xs font-medium">Operations</TabsTrigger>
+                    <TabsTrigger value="metrics" className="rounded-lg py-2 text-xs font-medium">Metrics</TabsTrigger>
+                  </TabsList>
+                  
+                  <div className="mt-6">
+                    <TabsContent value="location" className="animate-in fade-in-50 zoom-in-95 duration-200">
+                      <LocationSection restaurant={restaurant} />
+                    </TabsContent>
+
+                    <TabsContent value="operations" className="animate-in fade-in-50 zoom-in-95 duration-200">
+                      <OperationsSection id={restaurantId} restaurant={restaurant} />
+                    </TabsContent>
+
+                    <TabsContent value="metrics" className="animate-in fade-in-50 zoom-in-95 duration-200">
+                      <MetricsSection id={restaurantId} />
+                    </TabsContent>
+                  </div>
+                </Tabs>
+              </div>
+            </ScrollArea>
+          )}
+        </div>
+
+        {restaurant && (
+          <div className="border-t bg-card/50 backdrop-blur-md p-4 flex gap-3 z-10 sticky bottom-0 items-center justify-between">
+            {restaurant.status === "pending" ? (
+              <>
+                <Button 
+                  onClick={() => approveMutation.mutate()}
+                  disabled={approveMutation.isPending}
+                  className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" /> Approve
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={() => rejectMutation.mutate()}
+                  disabled={rejectMutation.isPending}
+                  className="flex-1 h-11 shadow-lg shadow-destructive/20"
+                >
+                  <XCircle className="w-4 h-4 mr-2" /> Reject
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant={restaurant.status === "suspended" ? "outline" : "destructive"}
+                onClick={() => restaurant.status === "suspended" ? null : suspendMutation.mutate()}
+                disabled={suspendMutation.isPending || restaurant.status === "suspended"}
+                className={`flex-1 h-11 shadow-lg ${restaurant.status === "suspended" ? 'opacity-50 cursor-not-allowed' : 'shadow-destructive/20'}`}
+              >
+                <Ban className="w-4 h-4 mr-2" />
+                {restaurant.status === "suspended" ? "Suspended" : "Suspend Restaurant"}
+              </Button>
+            )}
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}

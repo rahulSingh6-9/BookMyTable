@@ -11,8 +11,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllUsers } from "@/services/user.service";
+import { UserDetailsDrawer } from "@/components/users/UserDetailsDrawer";
 
 export default function ManageUsers() {
 
@@ -26,6 +28,9 @@ export default function ManageUsers() {
   // Temporary debug to confirm response nesting matches expectations
   console.log("API DATA.data:", data?.data);
   console.log("API DATA.data.data (array?):", data?.data?.data);
+
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // 🔥 Format backend data → table format
   // React Query `data` here can be one of:
@@ -89,7 +94,13 @@ export default function ManageUsers() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="rounded-xl border-border/50">
-            <DropdownMenuItem className="cursor-pointer">
+            <DropdownMenuItem 
+              className="cursor-pointer"
+              onClick={() => {
+                setSelectedUserId(row.id);
+                setDrawerOpen(true);
+              }}
+            >
               <Eye className="mr-2 h-4 w-4" /> View Details
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -129,6 +140,12 @@ export default function ManageUsers() {
           { label: "Admin", value: "admin" },
           { label: "Restaurant Owner", value: "owner" },
         ]}
+      />
+
+      <UserDetailsDrawer 
+        userId={selectedUserId} 
+        open={drawerOpen} 
+        onOpenChange={setDrawerOpen} 
       />
     </div>
   );

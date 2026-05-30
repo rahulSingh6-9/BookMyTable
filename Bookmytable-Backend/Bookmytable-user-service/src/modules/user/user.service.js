@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import crypto from "crypto";
 import User from "../../models/user.model.js";
+import Favorite from "../../models/favorite.model.js";
 import { 
   emitUserUpdated, 
   emitPhoneOtpRequested, 
@@ -58,6 +59,18 @@ const formatUserProfile = (user, totalBookings) => {
     },
   };
 };
+
+async function run() {
+  try {
+    const users = await User.find();
+
+    console.log(users);
+  } catch (error) {
+    console.error("Failed to fetch users:", error);
+  }
+}
+
+run();
 
 /**
  * =========================================================
@@ -468,4 +481,79 @@ export const deactivateAccountService = async (userId, confirmPassword) => {
     success: true,
     message: "Your BookMyTable account has been deactivated successfully. You may recover it in the future."
   };
+};
+
+/**
+ * =========================================================
+ * ADD FAVORITE RESTAURANT
+ * =========================================================
+ */
+export const addFavoriteService = async (userId, restaurantId) => {
+  // 1. Verify that the restaurant exists via internal fetch to Restaurant Service
+  const res = await fetch(`http://restaurant-service:5003/discovery/${restaurantId}`);
+  if (!res.ok) {
+    const error = new Error("Restaurant not found");
+    error.status = 404;
+    throw error;
+  }
+
+  // 2. Check if already favorited
+  const existingFavorite = await Favorite.findOne({ user: userId, restaurantId });
+  if (existingFavorite) {
+    const error = new Error("Restaurant is already in your favorites");
+    error.status = 400;
+    throw error;
+  }
+
+  // 3. Create the favorite
+  await Favorite.create({ user: userId, restaurantId });
+  return { success: true };
+};
+
+/**
+ * =========================================================
+ * REMOVE FAVORITE RESTAURANT
+ * =========================================================
+ */
+export const removeFavoriteService = async (userId, restaurantId) => {
+  const deleted = await Favorite.findOneAndDelete({ user: userId, restaurantId });
+  
+  if (!deleted) {
+    const error = new Error("Favorite restaurant not found");
+    error.status = 404;
+    throw error;
+  }
+  
+  return { success: true };
+};
+
+/**
+ * =========================================================
+ * GET ALL FAVORITE RESTAURANTS FOR USER
+ * =========================================================
+ */
+export const getFavoritesService = async (userId) => {
+  const favorites = await Favorite.find({ user: userId }).sort({ createdAt: -1 });
+  
+  if (!favorites.length) {
+    return [];
+  }
+
+  // Fetch all live restaurant details sequentially or in parallel
+  const restaurantPromises = favorites.map(async (fav) => {
+    try {
+      const res = await fetch(`http://restaurant-service:5003/discovery/${fav.restaurantId}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data;
+    } catch (error) {
+      console.error(`Failed to fetch restaurant ${fav.restaurantId} from restaurant-service:`, error.message);
+      return null;
+    }
+  });
+
+  const restaurants = await Promise.all(restaurantPromises);
+  
+  // Filter out any null responses (e.g., if a restaurant was deleted)
+  return restaurants.filter(Boolean);
 };

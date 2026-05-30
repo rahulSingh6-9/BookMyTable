@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Lock, User, Eye, EyeOff, Phone } from "lucide-react";
@@ -18,8 +18,10 @@ import logo from "@/assets/BookMyTable_logo.jpg";
 import { signup as signupApi } from "../services/auth.service.js";
 import { socket } from "../services/socket";
 import { toast } from "@/components/ui/sonner";
+import { useAuth } from "../context/AuthContext";
 
 export default function Signup() {
+  const { loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -28,6 +30,60 @@ export default function Signup() {
   const [countryCode, setCountryCode] = useState("+91");
   const [showPass, setShowPass] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const googleBtnRef = useRef(null);
+
+  const handleGoogleResponse = async (response) => {
+    setIsLoading(true);
+    try {
+      const result = await loginWithGoogle(response.credential);
+      if (result.success) {
+        navigate("/profile");
+      }
+    } catch (err) {
+      console.error("Google authentication failed:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const id = "google-jssdk";
+    let js = document.getElementById(id);
+    if (!js) {
+      js = document.createElement("script");
+      js.id = id;
+      js.src = "https://accounts.google.com/gsi/client";
+      js.async = true;
+      js.defer = true;
+      document.body.appendChild(js);
+    }
+
+    const initializeGoogle = () => {
+      if (window.google) {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "180295844498-mockclientid.apps.googleusercontent.com";
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleResponse,
+        });
+
+        if (googleBtnRef.current) {
+          window.google.accounts.id.renderButton(googleBtnRef.current, {
+            type: "standard",
+            theme: "outline",
+            size: "large",
+            text: "signup_with",
+            shape: "rectangular",
+            width: 382,
+          });
+        }
+      }
+    };
+
+    js.onload = initializeGoogle;
+    if (window.google) {
+      initializeGoogle();
+    }
+  }, []);
   const [errors, setErrors] = useState({});
 
   const countries = [
@@ -72,7 +128,7 @@ export default function Signup() {
     try {
       const fullPhone = `${countryCode === "+1-CAN" ? "+1" : countryCode}${phone}`;
 
-      const response = await signup({ name, email, password, phone: fullPhone });
+      const response = await signupApi({ name, email, password, phone: fullPhone });
 
       const token = response.data.data.token;
       const user = response.data.data.user;
@@ -199,9 +255,11 @@ export default function Signup() {
             <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-muted-foreground">or continue with</span></div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" type="button">Google</Button>
-            <Button variant="outline" type="button">Apple</Button>
+          <div className="space-y-3">
+            <div ref={googleBtnRef} className="w-full flex justify-center" />
+            <Button variant="outline" type="button" className="w-full h-11 text-sm font-medium border-border flex items-center justify-center gap-2">
+              Continue with Apple
+            </Button>
           </div>
         </form>
 

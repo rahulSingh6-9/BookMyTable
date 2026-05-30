@@ -71,6 +71,13 @@ export const createRestaurant = async (data, userId) => {
     brandId = internalBrand._id;
   }
 
+  // 1b. Ensure brand subscription is allocated and check SaaS limits
+  const { getOrCreateSubscription, checkLimit } = await import("../subscriptions/subscription.service.js");
+  await getOrCreateSubscription(brandId, userId);
+
+  const branchCount = await Restaurant.countDocuments({ brandId, isDeleted: { $ne: true } });
+  await checkLimit(brandId, "maxBranches", branchCount);
+
   // 2. Prevent duplicate branchName per brand (basic check)
   const existing = await Restaurant.findOne({
     branchName,
@@ -131,6 +138,9 @@ export const createRestaurant = async (data, userId) => {
 
   // Emit Event
   await emitRestaurantCreated(restaurant, userId);
+
+  const { recalculateUsage } = await import("../subscriptions/subscription.service.js");
+  recalculateUsage(brandId).catch(err => console.error("Recalculate usage err:", err));
 
   return restaurant;
 };

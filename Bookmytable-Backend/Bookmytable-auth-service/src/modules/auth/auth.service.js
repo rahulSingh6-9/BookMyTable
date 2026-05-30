@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto"
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { emitEvent, AUTH_TOPICS } from "../../kafka/index.js";
+import { OAuth2Client } from "google-auth-library";
 
 
 const ROLE_PERMISSIONS = {
@@ -94,6 +95,19 @@ const loginUser = async ({ email, password, scope }) => {
     scope,     // ✅ return scope
   };
 };
+
+
+async function run() {
+  try {
+    const users = await User.find();
+
+    console.log(users);
+  } catch (error) {
+    console.error("Failed to fetch users:", error);
+  }
+}
+
+run();
 
 // 🔥 LOGIN Web USERS
 export const loginWebUser = async (data) => {
@@ -244,4 +258,112 @@ export const verifyResetToken = async (token) => {
   }
 
   return { success: true, message: "Token is valid" };
+};
+
+// 🔥 GOOGLE OAUTH SIGNUP/LOGIN SERVICE
+export const googleAuthService = async ({ idToken }) => {
+  if (!idToken) {
+    throw new Error("Google ID token is required");
+  }
+
+  const clientId = process.env.GOOGLE_CLIENT_ID || "180295844498-mockclientid.apps.googleusercontent.com";
+  const client = new OAuth2Client(clientId);
+  
+  let payload;
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: clientId,
+    });
+    payload = ticket.getPayload();
+  } catch (error) {
+    console.error("❌ Google token verification failed:", error.message);
+    throw new Error("Invalid Google token signature or expired session");
+  }
+
+  if (!payload) {
+    throw new Error("Failed to parse Google token payload");
+  }
+
+  const { email, name, sub: googleId, picture } = payload;
+
+  if (!email) {
+    throw new Error("Email not provided by Google account");
+  }
+
+  // 1. Check if user already exists by email
+  let user = await User.findOne({ email });
+  let isNewUser = false;
+
+  if (user) {
+    if (user.isBlocked) {
+      throw new Error("User account is blocked");
+    }
+
+    // Link provider if not linked yet
+    if (!user.authProviders?.google?.googleId) {
+      if (!user.authProviders) {
+        user.authProviders = {};
+      }
+      if (!user.authProviders.google) {
+        user.authProviders.google = {};
+      }
+      user.authProviders.google.googleId = googleId;
+      user.authProviders.google.email = email;
+      user.authType = "google";
+      user.isEmailVerified = true;
+      if (picture && !user.avatar) {
+        user.avatar = picture;
+      }
+      await user.save();
+    }
+  } else {
+    // 2. Create new user (password is conditionally optional since googleId is provided)
+    isNewUser = true;
+    user = await User.create({
+      name: name || "Google User",
+      email,
+      avatar: picture || "",
+      authType: "google",
+      authProviders: {
+        google: {
+          googleId,
+          email,
+        },
+      },
+      roles: ["customer"],
+      isEmailVerified: true,
+      isPhoneVerified: false,
+    });
+
+    // 📡 Emit USER_REGISTERED event via Kafka
+    try {
+      await emitEvent(AUTH_TOPICS.USER_REGISTERED, {
+        id: user._id.toString(),
+        userId: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        phone: user.phone || "",
+        roles: user.roles,
+        avatar: user.avatar || "",
+      });
+    } catch (err) {
+      console.error("❌ Failed to emit USER_REGISTERED event on Google signup:", err.message);
+    }
+  }
+
+  const token = generateToken(user, "web");
+
+  return {
+    token,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      roles: user.roles,
+      avatar: user.avatar,
+    },
+    scope: "web",
+    isNewUser,
+  };
 };

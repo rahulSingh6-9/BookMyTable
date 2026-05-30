@@ -65,3 +65,47 @@ export const suspendRestaurant = async (req, res, next) => {
         next(error);
     }
 };
+
+export const getRestaurantDetails = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { getRestaurantDetailsService } = await import("./adminRestaurant.service.js");
+        const result = await getRestaurantDetailsService(id);
+        res.status(200).json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getRestaurantMetrics = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { getRestaurantMetricsService } = await import("./adminRestaurant.service.js");
+        const result = await getRestaurantMetricsService(id);
+        res.status(200).json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getRestaurantTables = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { getRestaurantTablesService } = await import("./adminRestaurant.service.js");
+        const result = await getRestaurantTablesService(id);
+        res.status(200).json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getRestaurantStaff = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { getRestaurantStaffService } = await import("./adminRestaurant.service.js");
+        const result = await getRestaurantStaffService(id);
+        res.status(200).json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};

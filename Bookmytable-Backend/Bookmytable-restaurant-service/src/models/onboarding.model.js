@@ -40,9 +40,8 @@ const onboardingDraftSchema = new mongoose.Schema({
 });
 
 // Update lastSavedAt on every save
-onboardingDraftSchema.pre('save', function(next) {
+onboardingDraftSchema.pre('save', function() {
   this.lastSavedAt = new Date();
-  next();
 });
 
 const OnboardingDraft = mongoose.model('OnboardingDraft', onboardingDraftSchema);

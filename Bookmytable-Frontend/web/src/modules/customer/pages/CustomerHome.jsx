@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -19,33 +19,20 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { useAuth } from "@/context/AuthContext";
 import { restaurants, cuisineFilters } from "@/lib/data";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useFavoritesStore } from "@/store/useFavoritesStore";
+import { useAuth } from "@/context/AuthContext";
 
 export default function CustomerHome() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [favorites, setFavorites] = useState(["1", "3", "5"]);
-
   const displayName = useMemo(() => user?.name || "Diner", [user?.name]);
-
-  const toggleFavorite = (id, name, e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (favorites.includes(id)) {
-      setFavorites(prev => prev.filter(fId => fId !== id));
-      toast.success(`Removed ${name} from favorites`);
-    } else {
-      setFavorites(prev => [...prev, id]);
-      toast.success(`Added ${name} to favorites!`);
-    }
-  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -238,8 +225,6 @@ export default function CustomerHome() {
             <RestaurantCard 
               key={restaurant.id} 
               restaurant={restaurant} 
-              isFavorite={favorites.includes(restaurant.id)}
-              onToggleFavorite={(e) => toggleFavorite(restaurant.id, restaurant.name, e)}
               onBook={() => navigate(`/book/${restaurant.id}`)}
             />
           ))}
@@ -272,8 +257,6 @@ export default function CustomerHome() {
             <RestaurantCard 
               key={restaurant.id} 
               restaurant={restaurant} 
-              isFavorite={favorites.includes(restaurant.id)}
-              onToggleFavorite={(e) => toggleFavorite(restaurant.id, restaurant.name, e)}
               onBook={() => navigate(`/book/${restaurant.id}`)}
             />
           ))}
@@ -306,8 +289,6 @@ export default function CustomerHome() {
             <RestaurantCard 
               key={restaurant.id} 
               restaurant={restaurant} 
-              isFavorite={favorites.includes(restaurant.id)}
-              onToggleFavorite={(e) => toggleFavorite(restaurant.id, restaurant.name, e)}
               onBook={() => navigate(`/book/${restaurant.id}`)}
             />
           ))}
@@ -319,7 +300,22 @@ export default function CustomerHome() {
 }
 
 /* REUSABLE PREMIUM RESTAURANT CARD COMPONENT */
-export function RestaurantCard({ restaurant, isFavorite, onToggleFavorite, onBook }) {
+export function RestaurantCard({ restaurant, onBook }) {
+  const { favoriteIds, toggleFavorite, initialize } = useFavoritesStore();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  const id = restaurant._id || restaurant.id;
+  const isFavorite = favoriteIds.includes(id);
+
+  const handleToggleFavorite = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavorite(id, restaurant.name);
+  };
+
   return (
     <motion.div 
       variants={{
@@ -329,7 +325,7 @@ export function RestaurantCard({ restaurant, isFavorite, onToggleFavorite, onBoo
       whileHover={{ y: -5 }}
       className="group bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full select-none"
     >
-      <Link to={`/restaurant/${restaurant.id}`} className="block relative aspect-[4/3] overflow-hidden">
+      <Link to={`/restaurant/${restaurant._id || restaurant.id}`} className="block relative aspect-[4/3] overflow-hidden">
         {/* Cover Image */}
         <img 
           src={restaurant.image} 
@@ -345,7 +341,7 @@ export function RestaurantCard({ restaurant, isFavorite, onToggleFavorite, onBoo
 
         {/* Favorite Heart Trigger */}
         <button
-          onClick={onToggleFavorite}
+          onClick={handleToggleFavorite}
           className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-primary hover:scale-110 shadow-sm transition active:scale-95 z-10"
         >
           <Heart className={cn("h-4 w-4 transition-colors", isFavorite ? "fill-primary text-primary" : "text-slate-600")} />
@@ -366,7 +362,7 @@ export function RestaurantCard({ restaurant, isFavorite, onToggleFavorite, onBoo
             <span>{restaurant.city}</span>
           </div>
 
-          <Link to={`/restaurant/${restaurant.id}`} className="block group-hover:text-primary transition">
+          <Link to={`/restaurant/${restaurant._id || restaurant.id}`} className="block group-hover:text-primary transition">
             <h3 className="font-extrabold text-slate-900 leading-snug truncate text-sm md:text-base">{restaurant.name}</h3>
           </Link>
 
