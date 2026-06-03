@@ -2,6 +2,22 @@ import mongoose from "mongoose";
 
 const logSchema = new mongoose.Schema(
   {
+    entityType: {
+      type: String,
+      enum: ["branch", "brand"],
+      default: "branch",
+      index: true,
+    },
+
+    brandId: {
+      type: mongoose.Schema.Types.ObjectId,
+      index: true,
+    },
+
+    entityId: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
+
     action: {
       type: String,
       required: true,

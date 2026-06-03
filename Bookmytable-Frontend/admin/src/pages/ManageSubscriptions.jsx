@@ -40,6 +40,10 @@ import {
   AlertCircle,
   Check,
   X,
+  MoreVertical,
+  Edit,
+  Archive,
+  RefreshCw,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -49,9 +53,18 @@ import {
   getOverridesHistory,
   getDashboardStats,
   createSubscriptionPlan,
+  updateSubscriptionPlan,
+  archiveSubscriptionPlan,
+  restoreSubscriptionPlan,
   applySubscriptionOverride,
 } from "@/services/subscription.service";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function ManageSubscriptions() {
   const queryClient = useQueryClient();
@@ -59,8 +72,10 @@ export default function ManageSubscriptions() {
 
   // Dialog States
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [isEditPlanModalOpen, setIsEditPlanModalOpen] = useState(false);
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
   const [selectedBrandSub, setSelectedBrandSub] = useState(null);
+  const [editingPlan, setEditingPlan] = useState(null);
 
   // Form states - Plan creation
   const [newPlan, setNewPlan] = useState({
@@ -152,6 +167,43 @@ export default function ManageSubscriptions() {
     },
   });
 
+  const updatePlanMutation = useMutation({
+    mutationFn: (data) => updateSubscriptionPlan(data.id, data.payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+      queryClient.invalidateQueries({ queryKey: ["subscription-stats"] });
+      toast.success("Subscription plan updated successfully!");
+      setIsEditPlanModalOpen(false);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to update plan");
+    },
+  });
+
+  const archivePlanMutation = useMutation({
+    mutationFn: archiveSubscriptionPlan,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+      queryClient.invalidateQueries({ queryKey: ["subscription-stats"] });
+      toast.success("Subscription plan archived successfully!");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to archive plan");
+    },
+  });
+
+  const restorePlanMutation = useMutation({
+    mutationFn: restoreSubscriptionPlan,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscription-plans"] });
+      queryClient.invalidateQueries({ queryKey: ["subscription-stats"] });
+      toast.success("Subscription plan restored successfully!");
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Failed to restore plan");
+    },
+  });
+
   const applyOverrideMutation = useMutation({
     mutationFn: applySubscriptionOverride,
     onSuccess: () => {
@@ -194,6 +246,59 @@ export default function ManageSubscriptions() {
       trialDays: Number(newPlan.trialDays),
     };
     createPlanMutation.mutate(payload);
+  };
+
+  const handleUpdatePlan = (e) => {
+    e.preventDefault();
+    if (!editingPlan) return;
+    const payload = {
+      name: editingPlan.name,
+      description: editingPlan.description,
+      pricing: {
+        monthly: Number(editingPlan.pricingMonthly),
+        yearly: Number(editingPlan.pricingYearly),
+      },
+      limits: {
+        maxBranches: Number(editingPlan.maxBranches),
+        maxTables: Number(editingPlan.maxTables),
+        maxStaff: Number(editingPlan.maxStaff),
+        maxReservationsPerMonth: Number(editingPlan.maxReservations),
+      },
+      features: {
+        analytics: editingPlan.analytics,
+        qrOrdering: editingPlan.qrOrdering,
+        loyaltyProgram: editingPlan.loyaltyProgram,
+        customBranding: editingPlan.customBranding,
+        multiBranchSupport: editingPlan.multiBranchSupport,
+        prioritySupport: editingPlan.prioritySupport,
+      },
+      isTrialPlan: editingPlan.isTrialPlan,
+      trialDays: Number(editingPlan.trialDays),
+    };
+    updatePlanMutation.mutate({ id: editingPlan.id, payload });
+  };
+
+  const openEditModal = (plan) => {
+    setEditingPlan({
+      id: plan._id,
+      name: plan.name,
+      description: plan.description,
+      pricingMonthly: plan.pricing?.monthly || 0,
+      pricingYearly: plan.pricing?.yearly || 0,
+      maxBranches: plan.limits?.maxBranches || 1,
+      maxTables: plan.limits?.maxTables || 15,
+      maxStaff: plan.limits?.maxStaff || 5,
+      maxReservations: plan.limits?.maxReservationsPerMonth || 100,
+      analytics: !!plan.features?.analytics,
+      qrOrdering: !!plan.features?.qrOrdering,
+      loyaltyProgram: !!plan.features?.loyaltyProgram,
+      customBranding: !!plan.features?.customBranding,
+      multiBranchSupport: !!plan.features?.multiBranchSupport,
+      prioritySupport: !!plan.features?.prioritySupport,
+      isTrialPlan: !!plan.isTrialPlan,
+      trialDays: plan.trialDays || 0,
+    });
+    setIsEditPlanModalOpen(true);
   };
 
   const handleApplyOverride = (e) => {
@@ -495,15 +600,41 @@ export default function ManageSubscriptions() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {plansData?.data?.data?.map((plan) => (
-                <Card key={plan._id} className="border-border/40 shadow-sm hover:shadow-md transition-all flex flex-col">
+                <Card key={plan._id} className={`border-border/40 shadow-sm hover:shadow-md transition-all flex flex-col ${!plan.isActive ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-xl">{plan.name}</h3>
-                      {plan.isTrialPlan && (
-                        <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100 rounded-full font-semibold border-indigo-200">
-                          Trial Plan ({plan.trialDays} Days)
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-xl">{plan.name}</h3>
+                        {!plan.isActive && <Badge variant="secondary">Archived</Badge>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {plan.isTrialPlan && (
+                          <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100 rounded-full font-semibold border-indigo-200">
+                            Trial ({plan.trialDays} Days)
+                          </Badge>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full">
+                              <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40 rounded-xl">
+                            <DropdownMenuItem onClick={() => openEditModal(plan)} className="cursor-pointer font-medium">
+                              <Edit className="w-4 h-4 mr-2 text-primary" /> Edit Plan
+                            </DropdownMenuItem>
+                            {plan.isActive ? (
+                              <DropdownMenuItem onClick={() => archivePlanMutation.mutate(plan._id)} className="cursor-pointer font-medium text-amber-600 focus:text-amber-700 focus:bg-amber-50">
+                                <Archive className="w-4 h-4 mr-2" /> Archive Plan
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => restorePlanMutation.mutate(plan._id)} className="cursor-pointer font-medium text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50">
+                                <RefreshCw className="w-4 h-4 mr-2" /> Restore Plan
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                     <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
                   </CardHeader>
@@ -1052,6 +1183,209 @@ export default function ManageSubscriptions() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* PLAN EDIT MODAL */}
+      <Dialog open={isEditPlanModalOpen} onOpenChange={setIsEditPlanModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border shadow-2xl bg-white p-6">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Edit className="w-6 h-6 text-primary" /> Edit Subscription Plan
+            </DialogTitle>
+            <DialogDescription>
+              Modify plan details. Changes will not retroactively affect existing billing cycles, but new usage limits apply immediately.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingPlan && (
+            <form onSubmit={handleUpdatePlan} className="space-y-6 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editPlanName" className="font-semibold">Plan Name</Label>
+                  <Input
+                    id="editPlanName"
+                    placeholder="e.g. Professional Premium"
+                    required
+                    value={editingPlan.name}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, name: e.target.value })}
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editPlanDesc" className="font-semibold">Description</Label>
+                  <Input
+                    id="editPlanDesc"
+                    placeholder="Plan summary for marketing / info"
+                    value={editingPlan.description}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, description: e.target.value })}
+                    className="rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editMonthlyPrice" className="font-semibold">Monthly Price (INR)</Label>
+                  <Input
+                    id="editMonthlyPrice"
+                    type="number"
+                    required
+                    value={editingPlan.pricingMonthly}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, pricingMonthly: e.target.value })}
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editYearlyPrice" className="font-semibold">Yearly Price (INR)</Label>
+                  <Input
+                    id="editYearlyPrice"
+                    type="number"
+                    required
+                    value={editingPlan.pricingYearly}
+                    onChange={(e) => setEditingPlan({ ...editingPlan, pricingYearly: e.target.value })}
+                    className="rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 border-t pt-4">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Usage Guardrails & Limits</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="editMaxBranches" className="text-xs font-semibold">Max Branches</Label>
+                    <Input
+                      id="editMaxBranches"
+                      type="number"
+                      required
+                      value={editingPlan.maxBranches}
+                      onChange={(e) => setEditingPlan({ ...editingPlan, maxBranches: e.target.value })}
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="editMaxTables" className="text-xs font-semibold">Max Tables</Label>
+                    <Input
+                      id="editMaxTables"
+                      type="number"
+                      required
+                      value={editingPlan.maxTables}
+                      onChange={(e) => setEditingPlan({ ...editingPlan, maxTables: e.target.value })}
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="editMaxStaff" className="text-xs font-semibold">Max Staff</Label>
+                    <Input
+                      id="editMaxStaff"
+                      type="number"
+                      required
+                      value={editingPlan.maxStaff}
+                      onChange={(e) => setEditingPlan({ ...editingPlan, maxStaff: e.target.value })}
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="editMaxReservations" className="text-xs font-semibold">Reservations/Mo</Label>
+                    <Input
+                      id="editMaxReservations"
+                      type="number"
+                      required
+                      value={editingPlan.maxReservations}
+                      onChange={(e) => setEditingPlan({ ...editingPlan, maxReservations: e.target.value })}
+                      className="rounded-xl"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 border-t pt-4">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Feature Toggles</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="editFeatAnalytics"
+                      checked={editingPlan.analytics}
+                      onCheckedChange={(val) => setEditingPlan({ ...editingPlan, analytics: !!val })}
+                    />
+                    <Label htmlFor="editFeatAnalytics" className="text-xs cursor-pointer font-medium">Analytics Engine</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="editFeatQr"
+                      checked={editingPlan.qrOrdering}
+                      onCheckedChange={(val) => setEditingPlan({ ...editingPlan, qrOrdering: !!val })}
+                    />
+                    <Label htmlFor="editFeatQr" className="text-xs cursor-pointer font-medium">QR Menu Ordering</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="editFeatLoyalty"
+                      checked={editingPlan.loyaltyProgram}
+                      onCheckedChange={(val) => setEditingPlan({ ...editingPlan, loyaltyProgram: !!val })}
+                    />
+                    <Label htmlFor="editFeatLoyalty" className="text-xs cursor-pointer font-medium">Loyalty Program</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="editFeatBrand"
+                      checked={editingPlan.customBranding}
+                      onCheckedChange={(val) => setEditingPlan({ ...editingPlan, customBranding: !!val })}
+                    />
+                    <Label htmlFor="editFeatBrand" className="text-xs cursor-pointer font-medium">Custom Branding</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="editFeatMulti"
+                      checked={editingPlan.multiBranchSupport}
+                      onCheckedChange={(val) => setEditingPlan({ ...editingPlan, multiBranchSupport: !!val })}
+                    />
+                    <Label htmlFor="editFeatMulti" className="text-xs cursor-pointer font-medium">Multi-branch HQ</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="editFeatPriority"
+                      checked={editingPlan.prioritySupport}
+                      onCheckedChange={(val) => setEditingPlan({ ...editingPlan, prioritySupport: !!val })}
+                    />
+                    <Label htmlFor="editFeatPriority" className="text-xs cursor-pointer font-medium">Priority 24/7 Support</Label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 border-t pt-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="editIsTrialPlan"
+                    checked={editingPlan.isTrialPlan}
+                    onCheckedChange={(val) => setEditingPlan({ ...editingPlan, isTrialPlan: !!val })}
+                  />
+                  <Label htmlFor="editIsTrialPlan" className="cursor-pointer font-semibold">Mark as Free Trial Plan</Label>
+                </div>
+                {editingPlan.isTrialPlan && (
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="editTrialDays" className="text-xs font-semibold">Trial Duration (Days)</Label>
+                    <Input
+                      id="editTrialDays"
+                      type="number"
+                      className="w-20 rounded-xl"
+                      value={editingPlan.trialDays}
+                      onChange={(e) => setEditingPlan({ ...editingPlan, trialDays: e.target.value })}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="border-t pt-4">
+                <Button type="button" variant="outline" className="rounded-xl" onClick={() => setIsEditPlanModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updatePlanMutation.isPending} className="bg-primary text-white rounded-xl">
+                  {updatePlanMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

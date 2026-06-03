@@ -126,7 +126,9 @@ export const getRestaurantDetailsData = async (idParam) => {
     $or: [
       { _id: idParam },
       { restaurantId: idParam }
-    ]
+    ],
+    isActive: true,
+    isDeleted: false
   }).lean();
 
   console.log(`[getRestaurantDetailsData] Found restaurant:`, restaurant ? restaurant.name : "null");
@@ -169,7 +171,9 @@ export const getRestaurantMenuData = async (idParam) => {
     $or: [
       { _id: idParam },
       { restaurantId: idParam }
-    ]
+    ],
+    isActive: true,
+    isDeleted: false
   }).lean();
   
   if (!restaurant) return null;
@@ -188,8 +192,48 @@ export const getRestaurantMenuData = async (idParam) => {
     .populate("category", "name order")
     .lean();
 
-     console.log("get menu category: ", categories )
-     console.log("get menu items: ", items )
-
   return { categories, items };
+};
+
+export const checkReservationLimitData = async (idParam) => {
+  const restaurant = await DiscoveryRestaurant.findOne({
+    $or: [
+      { _id: idParam },
+      { restaurantId: idParam }
+    ]
+  }).lean();
+  
+  if (!restaurant) throw new Error("Restaurant not found");
+
+  const brandId = restaurant.brandId;
+  const { checkLimit } = await import("../subscriptions/subscription.service.js");
+  const { SubscriptionUsage } = await import("../../models/subscriptionUsage.model.js");
+
+  const usage = await SubscriptionUsage.findOne({ brandId }).lean();
+  const currentReservations = usage?.reservationsThisMonth || 0;
+
+  // We can just throw PLAN_LIMIT_EXCEEDED directly using checkLimit
+  await checkLimit(brandId, "maxReservationsPerMonth", currentReservations);
+
+  return { currentReservations };
+};
+
+export const incrementReservationUsageData = async (idParam) => {
+  const restaurant = await DiscoveryRestaurant.findOne({
+    $or: [
+      { _id: idParam },
+      { restaurantId: idParam }
+    ]
+  }).lean();
+  
+  if (!restaurant) return;
+
+  const brandId = restaurant.brandId;
+  const { SubscriptionUsage } = await import("../../models/subscriptionUsage.model.js");
+
+  await SubscriptionUsage.findOneAndUpdate(
+    { brandId },
+    { $inc: { reservationsThisMonth: 1 } },
+    { upsert: true }
+  );
 };

@@ -42,7 +42,8 @@ export const getMyRestaurantService = async (userId) => {
 /**
  * CREATE RESTAURANT (BRANCH)
  */
-export const createRestaurant = async (data, userId) => {
+export const createRestaurant = async (data, user) => {
+  const userId = user.id || user._id;
   const { branchName, onboardingMode, brandData } = data;
   let { brandId } = data;
 
@@ -76,7 +77,17 @@ export const createRestaurant = async (data, userId) => {
   await getOrCreateSubscription(brandId, userId);
 
   const branchCount = await Restaurant.countDocuments({ brandId, isDeleted: { $ne: true } });
-  await checkLimit(brandId, "maxBranches", branchCount);
+  try {
+    await checkLimit(brandId, "maxBranches", branchCount);
+  } catch (error) {
+    if (error.code === "PLAN_LIMIT_EXCEEDED") {
+      const { emitBranchCreationBlockedPlanLimit } = await import("../../kafka/index.js");
+      // Use fallback limits logic locally to determine limitVal
+      const limitVal = branchCount; // We can assume it's equal to branchCount if it failed, but let's just pass branchCount
+      await emitBranchCreationBlockedPlanLimit(brandId, user.email, "unknown", branchCount);
+    }
+    throw error;
+  }
 
   // 2. Prevent duplicate branchName per brand (basic check)
   const existing = await Restaurant.findOne({

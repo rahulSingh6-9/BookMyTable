@@ -26,13 +26,15 @@ import {
   XCircle,
   Clock,
   Phone,
+  AlertTriangle,
+  ShieldCheck,
+  Check,
+  X,
 } from "lucide-react";
 
 import {
   getRestaurantDetails,
   getRestaurantMetrics,
-  getRestaurantTables,
-  getRestaurantStaff,
   approveRestaurant,
   suspendRestaurant,
   rejectRestaurant,
@@ -43,19 +45,18 @@ const ProfileSection = ({ restaurant }) => (
     {restaurant?.coverImage && (
       <div className="h-32 w-full rounded-xl overflow-hidden relative">
         <img src={restaurant.coverImage} alt="Cover" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
       </div>
     )}
-    <div className={`flex items-center gap-4 ${restaurant?.coverImage ? '-mt-12 relative z-10 pl-4' : ''}`}>
-      <Avatar className={`h-20 w-20 rounded-xl border-4 border-background shadow-lg`}>
-        <AvatarImage src={restaurant?.logo} />
+    <div className={`flex items-end gap-4 ${restaurant?.coverImage ? '-mt-12 relative z-10 px-4' : ''}`}>
+      <Avatar className="h-24 w-24 rounded-xl border-4 border-background shadow-md bg-card">
+        <AvatarImage src={restaurant?.logo} className="object-cover" />
         <AvatarFallback className="rounded-xl bg-primary/10 text-primary text-2xl font-bold">
-          {restaurant?.name?.charAt(0) || "R"}
+          {restaurant?.branchName?.charAt(0) || "R"}
         </AvatarFallback>
       </Avatar>
-      <div className={restaurant?.coverImage ? 'text-white drop-shadow-md pt-4' : ''}>
-        <h3 className="text-xl font-bold">{restaurant?.name || "Unknown Restaurant"}</h3>
-        <p className="text-sm opacity-90">{restaurant?.brandId?.name || "Independent"}</p>
+      <div className="mb-1">
+        <h3 className="text-xl font-bold">{restaurant?.branchName || "Unknown Restaurant"}</h3>
+        <p className="text-sm text-muted-foreground">{restaurant?.brandId?.name || "Independent"}</p>
       </div>
     </div>
     
@@ -90,19 +91,24 @@ const LocationSection = ({ restaurant }) => (
     <div className="bg-muted/30 p-4 rounded-xl border border-border/50 space-y-3">
       <div className="flex justify-between items-start">
         <span className="text-xs text-muted-foreground w-20">Address</span>
-        <span className="text-sm text-right flex-1 font-medium">
-          {restaurant?.address?.street}, {restaurant?.address?.area}<br/>
-          {restaurant?.address?.city}, {restaurant?.address?.state} {restaurant?.address?.zipCode}
-        </span>
+          {restaurant?.address || "No Address Provided"}<br/>
+          {restaurant?.city}
       </div>
       <Separator />
       <div className="flex justify-between items-center">
         <span className="text-xs text-muted-foreground">Phone</span>
-        <span className="text-sm font-medium">{restaurant?.contact?.phone || "N/A"}</span>
+        <span className="text-sm font-medium">{restaurant?.phoneVerified ? "Verified" : "Unverified"}</span>
       </div>
       <div className="flex justify-between items-center">
         <span className="text-xs text-muted-foreground">Email</span>
-        <span className="text-sm font-medium">{restaurant?.contact?.email || "N/A"}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">{restaurant?.email || "N/A"}</span>
+          {restaurant?.email && (
+            <Badge variant={restaurant?.emailVerified ? "success" : "secondary"} className="text-[10px] py-0 px-1.5 h-4">
+              {restaurant?.emailVerified ? "Verified" : "Unverified"}
+            </Badge>
+          )}
+        </div>
       </div>
     </div>
   </div>
@@ -116,7 +122,7 @@ const MetricsSection = ({ id }) => {
   });
 
   if (isLoading) return <Skeleton className="h-40 w-full rounded-xl" />;
-  const metrics = data?.data || data || {};
+  const metrics = data?.data?.data || data?.data || data || {};
 
   return (
     <div className="space-y-4">
@@ -141,35 +147,21 @@ const MetricsSection = ({ id }) => {
   );
 };
 
-const OperationsSection = ({ id, restaurant }) => {
-  const { data: tablesData, isLoading: tablesLoading } = useQuery({
-    queryKey: ["admin-restaurant-tables", id],
-    queryFn: () => getRestaurantTables(id),
-    enabled: !!id,
-  });
-
-  const { data: staffData, isLoading: staffLoading } = useQuery({
-    queryKey: ["admin-restaurant-staff", id],
-    queryFn: () => getRestaurantStaff(id),
-    enabled: !!id,
-  });
-
-  if (tablesLoading || staffLoading) return <Skeleton className="h-40 w-full rounded-xl" />;
-  
-  const tables = tablesData?.data || tablesData || [];
-  const staff = staffData?.data || staffData || [];
+const OperationsSection = ({ restaurant }) => {
+  const tablesTotal = restaurant?.tablesCount || 0;
+  const staffTotal = restaurant?.staffCount || 0;
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-muted/30 p-4 rounded-xl border border-border/50 flex flex-col items-center justify-center text-center">
           <Users className="w-6 h-6 text-primary mb-2" />
-          <span className="text-2xl font-bold">{staff.length}</span>
+          <span className="text-2xl font-bold">{staffTotal}</span>
           <span className="text-xs text-muted-foreground uppercase tracking-wider">Staff Members</span>
         </div>
         <div className="bg-muted/30 p-4 rounded-xl border border-border/50 flex flex-col items-center justify-center text-center">
           <Store className="w-6 h-6 text-primary mb-2" />
-          <span className="text-2xl font-bold">{tables.length}</span>
+          <span className="text-2xl font-bold">{tablesTotal}</span>
           <span className="text-xs text-muted-foreground uppercase tracking-wider">Total Tables</span>
         </div>
       </div>
@@ -181,14 +173,14 @@ const OperationsSection = ({ id, restaurant }) => {
         <div className="bg-muted/30 p-4 rounded-xl border border-border/50 space-y-3">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">Bookings Enabled</span>
-            <Badge variant={restaurant?.settings?.bookingsEnabled ? "success" : "secondary"}>
-              {restaurant?.settings?.bookingsEnabled ? "Yes" : "No"}
+            <Badge variant={restaurant?.bookingsEnabled ? "success" : "secondary"}>
+              {restaurant?.bookingsEnabled ? "Yes" : "No"}
             </Badge>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">Auto Approve Bookings</span>
-            <Badge variant={restaurant?.settings?.autoApproveBookings ? "success" : "secondary"}>
-              {restaurant?.settings?.autoApproveBookings ? "Yes" : "No"}
+            <Badge variant={restaurant?.autoApproveBookings ? "success" : "secondary"}>
+              {restaurant?.autoApproveBookings ? "Yes" : "No"}
             </Badge>
           </div>
         </div>
@@ -197,17 +189,84 @@ const OperationsSection = ({ id, restaurant }) => {
   );
 };
 
+const VerificationSection = ({ restaurant }) => (
+  <div className="space-y-4">
+    <h4 className="text-sm font-semibold flex items-center gap-2">
+      <ShieldCheck className="w-4 h-4 text-primary" /> Verification Status
+    </h4>
+    <div className="bg-muted/30 p-4 rounded-xl border border-border/50 space-y-4">
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium">Phone Verification</span>
+        {restaurant?.phoneVerified ? (
+          <Badge variant="success" className="flex items-center gap-1"><Check className="w-3 h-3"/> Verified</Badge>
+        ) : (
+          <Badge variant="secondary" className="flex items-center gap-1"><X className="w-3 h-3"/> Not Verified</Badge>
+        )}
+      </div>
+      <Separator />
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium">Email Verification</span>
+        {restaurant?.emailVerified ? (
+          <Badge variant="success" className="flex items-center gap-1"><Check className="w-3 h-3"/> Verified</Badge>
+        ) : (
+          <Badge variant="secondary" className="flex items-center gap-1"><X className="w-3 h-3"/> Not Verified</Badge>
+        )}
+      </div>
+      <Separator />
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium">Business Approval</span>
+        <Badge variant={
+          restaurant?.status === "approved" ? "success" : 
+          restaurant?.status === "suspended" || restaurant?.status === "rejected" ? "destructive" : 
+          "secondary"
+        }>
+          {restaurant?.status ? restaurant.status.charAt(0).toUpperCase() + restaurant.status.slice(1) : "Pending"}
+        </Badge>
+      </div>
+      
+      {restaurant?.approvedAt && (
+        <>
+          <Separator />
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">Approved On</span>
+            <span className="text-sm font-medium">{new Date(restaurant.approvedAt).toLocaleDateString()}</span>
+          </div>
+        </>
+      )}
+
+      {restaurant?.rejectedAt && (
+        <>
+          <Separator />
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">Rejected On</span>
+            <span className="text-sm font-medium text-destructive">{new Date(restaurant.rejectedAt).toLocaleDateString()}</span>
+          </div>
+        </>
+      )}
+
+      {restaurant?.suspendedAt && (
+        <>
+          <Separator />
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">Suspended On</span>
+            <span className="text-sm font-medium text-destructive">{new Date(restaurant.suspendedAt).toLocaleDateString()}</span>
+          </div>
+        </>
+      )}
+    </div>
+  </div>
+);
 
 export function RestaurantDetailsDrawer({ restaurantId, open, onOpenChange }) {
   const queryClient = useQueryClient();
 
-  const { data: response, isLoading } = useQuery({
+  const { data: response, isLoading, error } = useQuery({
     queryKey: ["admin-restaurant-details", restaurantId],
     queryFn: () => getRestaurantDetails(restaurantId),
     enabled: !!restaurantId && open,
   });
 
-  const restaurant = response?.data || response;
+  const restaurant = response?.data?.data || response?.data || response;
 
   const approveMutation = useMutation({
     mutationFn: () => approveRestaurant(restaurantId),
@@ -269,6 +328,16 @@ export function RestaurantDetailsDrawer({ restaurantId, open, onOpenChange }) {
               </div>
               <Skeleton className="h-48 w-full rounded-xl" />
             </div>
+          ) : error?.response?.data?.error === "RESYNC_REQUIRED" ? (
+            <div className="p-6 text-center mt-20 space-y-4">
+              <div className="mx-auto w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-amber-600">Resync Required</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                The local read model for this restaurant is missing or stale. This might be due to a Kafka synchronization delay or a missing event. Please wait or trigger a manual resync.
+              </p>
+            </div>
           ) : !restaurant ? (
             <div className="p-6 text-center text-muted-foreground mt-20">
               Failed to load restaurant data.
@@ -280,10 +349,11 @@ export function RestaurantDetailsDrawer({ restaurantId, open, onOpenChange }) {
                 <Separator />
                 
                 <Tabs defaultValue="location" className="w-full">
-                  <TabsList className="w-full grid grid-cols-3 bg-muted/50 p-1 rounded-xl h-auto">
+                  <TabsList className="w-full grid grid-cols-4 bg-muted/50 p-1 rounded-xl h-auto">
                     <TabsTrigger value="location" className="rounded-lg py-2 text-xs font-medium">Location</TabsTrigger>
                     <TabsTrigger value="operations" className="rounded-lg py-2 text-xs font-medium">Operations</TabsTrigger>
                     <TabsTrigger value="metrics" className="rounded-lg py-2 text-xs font-medium">Metrics</TabsTrigger>
+                    <TabsTrigger value="verification" className="rounded-lg py-2 text-xs font-medium">Verification</TabsTrigger>
                   </TabsList>
                   
                   <div className="mt-6">
@@ -292,11 +362,15 @@ export function RestaurantDetailsDrawer({ restaurantId, open, onOpenChange }) {
                     </TabsContent>
 
                     <TabsContent value="operations" className="animate-in fade-in-50 zoom-in-95 duration-200">
-                      <OperationsSection id={restaurantId} restaurant={restaurant} />
+                      <OperationsSection restaurant={restaurant} />
                     </TabsContent>
 
                     <TabsContent value="metrics" className="animate-in fade-in-50 zoom-in-95 duration-200">
                       <MetricsSection id={restaurantId} />
+                    </TabsContent>
+
+                    <TabsContent value="verification" className="animate-in fade-in-50 zoom-in-95 duration-200">
+                      <VerificationSection restaurant={restaurant} />
                     </TabsContent>
                   </div>
                 </Tabs>

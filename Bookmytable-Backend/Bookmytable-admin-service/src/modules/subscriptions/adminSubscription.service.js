@@ -212,6 +212,68 @@ export const updatePlanService = async (id, data, adminContext, authHeader) => {
   return updatedPlan;
 };
 
+export const archivePlanService = async (id, adminContext, authHeader) => {
+  const existingPlan = await SubscriptionPlanReadModel.findById(id);
+
+  const response = await axios.put(
+    `${process.env.RESTAURANT_SERVICE_URL}/subscriptions/plans/${id}/archive`,
+    {},
+    {
+      headers: {
+        Authorization: authHeader,
+        "x-internal-gateway": process.env.GATEWAY_SECRET,
+        "x-user-id": adminContext.id,
+        "x-user-roles": JSON.stringify(adminContext.roles || ["admin"]),
+      },
+    }
+  );
+
+  const archivedPlan = response.data.data;
+
+  await createAdminLog({
+    adminId: adminContext.id,
+    action: "ARCHIVE_SUBSCRIPTION_PLAN",
+    targetType: "SubscriptionPlan",
+    targetId: id,
+    metadata: {
+      planName: existingPlan?.name || archivedPlan.name,
+    },
+  });
+
+  return archivedPlan;
+};
+
+export const restorePlanService = async (id, adminContext, authHeader) => {
+  const existingPlan = await SubscriptionPlanReadModel.findById(id);
+
+  const response = await axios.put(
+    `${process.env.RESTAURANT_SERVICE_URL}/subscriptions/plans/${id}/restore`,
+    {},
+    {
+      headers: {
+        Authorization: authHeader,
+        "x-internal-gateway": process.env.GATEWAY_SECRET,
+        "x-user-id": adminContext.id,
+        "x-user-roles": JSON.stringify(adminContext.roles || ["admin"]),
+      },
+    }
+  );
+
+  const restoredPlan = response.data.data;
+
+  await createAdminLog({
+    adminId: adminContext.id,
+    action: "RESTORE_SUBSCRIPTION_PLAN",
+    targetType: "SubscriptionPlan",
+    targetId: id,
+    metadata: {
+      planName: existingPlan?.name || restoredPlan.name,
+    },
+  });
+
+  return restoredPlan;
+};
+
 export const applyOverrideService = async (data, adminContext, authHeader) => {
   const response = await axios.post(
     `${process.env.RESTAURANT_SERVICE_URL}/subscriptions/overrides`,

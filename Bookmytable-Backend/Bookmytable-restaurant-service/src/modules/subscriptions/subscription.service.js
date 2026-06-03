@@ -6,6 +6,7 @@ import { BillingHistory } from "../../models/billingHistory.model.js";
 import Restaurant from "../../models/restaurant.model.js";
 import Table from "../../models/table.model.js";
 import BranchMembership from "../../models/branchmemberships.model.js";
+import { createLog } from "../log/log.service.js";
 
 import {
   emitSubscriptionPlanCreated,
@@ -98,6 +99,16 @@ export const getOrCreateSubscription = async (brandId, userId) => {
       lastCalculatedAt: new Date(),
     });
 
+    // Insert Brand Log
+    await createLog({
+      entityType: "brand",
+      brandId: brandId,
+      entityId: sub._id,
+      action: "SUBSCRIPTION_CREATED",
+      performedBy: userId || new mongoose.Types.ObjectId(), // System if userId is null
+      metadata: { planName: plan.name, status: "trial" }
+    });
+
     // Seed initial free invoice
     const billing = await BillingHistory.create({
       brandId,
@@ -182,6 +193,38 @@ export const getPlans = async (query = {}) => {
 
 export const getPlanById = async (id) => {
   return SubscriptionPlan.findById(id);
+};
+
+export const archivePlan = async (id) => {
+  const plan = await SubscriptionPlan.findByIdAndUpdate(
+    id,
+    { $set: { isActive: false, updatedAt: new Date() } },
+    { new: true }
+  );
+  if (!plan) throw new Error("Subscription plan not found");
+  
+  try {
+    await emitSubscriptionPlanUpdated(plan);
+  } catch (err) {
+    console.error("❌ Kafka emitSubscriptionPlanUpdated err:", err.message);
+  }
+  return plan;
+};
+
+export const restorePlan = async (id) => {
+  const plan = await SubscriptionPlan.findByIdAndUpdate(
+    id,
+    { $set: { isActive: true, updatedAt: new Date() } },
+    { new: true }
+  );
+  if (!plan) throw new Error("Subscription plan not found");
+  
+  try {
+    await emitSubscriptionPlanUpdated(plan);
+  } catch (err) {
+    console.error("❌ Kafka emitSubscriptionPlanUpdated err:", err.message);
+  }
+  return plan;
 };
 
 /**
@@ -309,6 +352,16 @@ export const applyOverride = async (data, adminId) => {
     if (billing) {
       await emitBillingUpdated(billing);
     }
+
+    // Insert Brand Log
+    await createLog({
+      entityType: "brand",
+      brandId: brandId,
+      entityId: subscription._id,
+      action: "SUBSCRIPTION_UPDATED",
+      performedBy: adminId,
+      metadata: { overrideType, reason, status: updateFields.status }
+    });
   } catch (err) {
     console.error("❌ Kafka override sync event err:", err.message);
   }
@@ -333,9 +386,12 @@ export const checkLimit = async (brandId, limitType, currentCount) => {
   const limitVal = subscription?.subscriptionPlanId?.limits?.[limitType] ?? defaultLimits[limitType];
   
   if (currentCount >= limitVal) {
-    throw new Error(
+    const error = new Error(
       `SaaS Limit Exceeded: Your plan allows a maximum of ${limitVal} ${limitType.replace("max", "")}. Please upgrade your subscription plan.`
     );
+    error.code = "PLAN_LIMIT_EXCEEDED";
+    error.status = 403;
+    throw error;
   }
   return limitVal;
 };

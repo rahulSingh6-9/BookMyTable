@@ -17,6 +17,10 @@ export function approveBrand(id) {
     return api.patch(`/admin/brands/${id}/approve`);
 }
 
+export function rejectBrand(id) {
+    return api.patch(`/admin/brands/${id}/reject`);
+}
+
 export function suspendBrand(id) {
     return api.patch(`/admin/brands/${id}/suspend`);
 }

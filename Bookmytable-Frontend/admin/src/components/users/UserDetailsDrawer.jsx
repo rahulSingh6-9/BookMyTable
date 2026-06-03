@@ -25,13 +25,13 @@ import {
   Ban,
   CheckCircle,
   LogOut,
+  AlertTriangle,
 } from "lucide-react";
 
 import {
   getUserDetails,
   getUserActivity,
   getUserBookings,
-  getUserRestaurants,
   blockUser,
   unblockUser,
   changeUserRole,
@@ -56,7 +56,7 @@ const ProfileSection = ({ user }) => (
     <div className="grid grid-cols-2 gap-4 mt-6">
       <div className="bg-muted/30 p-3 rounded-lg border border-border/50">
         <p className="text-xs text-muted-foreground mb-1">Phone Number</p>
-        <p className="text-sm font-medium">{user?.phone?.e164 || "Not provided"}</p>
+        <p className="text-sm font-medium">{user?.phone || "Not provided"}</p>
       </div>
       <div className="bg-muted/30 p-3 rounded-lg border border-border/50">
         <p className="text-xs text-muted-foreground mb-1">Created Date</p>
@@ -103,7 +103,7 @@ const SecuritySection = ({ user }) => (
     <div className="space-y-3">
       <div className="flex justify-between items-center bg-muted/30 p-3 rounded-lg border border-border/50">
         <span className="text-sm font-medium">Email Verified</span>
-        {user?.verification?.emailVerified || user?.isEmailVerified ? (
+        {user?.emailVerified ? (
           <Badge variant="success" className="bg-emerald-50 text-emerald-600 border-emerald-200">Yes</Badge>
         ) : (
           <Badge variant="secondary">No</Badge>
@@ -111,7 +111,7 @@ const SecuritySection = ({ user }) => (
       </div>
       <div className="flex justify-between items-center bg-muted/30 p-3 rounded-lg border border-border/50">
         <span className="text-sm font-medium">Phone Verified</span>
-        {user?.verification?.phoneVerified || user?.isPhoneVerified || user?.phone?.isVerified ? (
+        {user?.phoneVerified ? (
           <Badge variant="success" className="bg-emerald-50 text-emerald-600 border-emerald-200">Yes</Badge>
         ) : (
           <Badge variant="secondary">No</Badge>
@@ -137,7 +137,7 @@ const ActivitySection = ({ id }) => {
   });
 
   if (isLoading) return <Skeleton className="h-32 w-full rounded-xl" />;
-  const activity = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+  const activity = data?.data?.data || [];
 
   return (
     <div className="space-y-4">
@@ -154,10 +154,10 @@ const ActivitySection = ({ id }) => {
             <div key={idx} className="flex justify-between items-center p-3 bg-muted/30 rounded-lg border border-border/50">
               <div>
                 <p className="text-sm font-medium">{log.action}</p>
-                <p className="text-xs text-muted-foreground">{log.ipAddress || "Unknown IP"}</p>
+                <p className="text-xs text-muted-foreground">{log.ip || "Unknown IP"}</p>
               </div>
               <span className="text-xs text-muted-foreground">
-                {new Date(log.createdAt).toLocaleString()}
+                {new Date(log.timestamp || log.createdAt).toLocaleString()}
               </span>
             </div>
           ))}
@@ -175,49 +175,35 @@ const CustomerDataSection = ({ id }) => {
   });
 
   if (isLoading) return <Skeleton className="h-32 w-full rounded-xl" />;
-  const bookings = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
-  
-  const completed = bookings.filter(b => b.status === 'completed').length;
-  const cancelled = bookings.filter(b => b.status === 'cancelled').length;
+  const total = data?.data?.total ?? data?.total ?? 0;
 
   return (
     <div className="space-y-4">
       <h4 className="text-sm font-semibold flex items-center gap-2">
         <Calendar className="w-4 h-4 text-primary" /> Customer Data
       </h4>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 text-center">
-          <p className="text-2xl font-bold text-primary">{bookings.length}</p>
+          <p className="text-2xl font-bold text-primary">{total}</p>
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mt-1">Total Bookings</p>
-        </div>
-        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-center">
-          <p className="text-2xl font-bold text-emerald-600">{completed}</p>
-          <p className="text-xs text-emerald-600/70 uppercase tracking-wider font-semibold mt-1">Completed</p>
-        </div>
-        <div className="bg-rose-50 p-4 rounded-xl border border-rose-100 text-center">
-          <p className="text-2xl font-bold text-rose-600">{cancelled}</p>
-          <p className="text-xs text-rose-600/70 uppercase tracking-wider font-semibold mt-1">Cancelled</p>
         </div>
       </div>
     </div>
   );
 };
 
-const RestaurantDataSection = ({ id }) => {
-  const { data, isLoading } = useQuery({
-    queryKey: ["admin-user-restaurants", id],
-    queryFn: () => getUserRestaurants(id),
-    enabled: !!id,
-  });
-
-  if (isLoading) return <Skeleton className="h-32 w-full rounded-xl" />;
-  
-  const payload = data?.data || data || { owned: [], staff: [] };
-  const owned = payload.owned || [];
-  const staff = payload.staff || [];
+const RestaurantDataSection = ({ user }) => {
+  const owned = user?.ownedRestaurants || [];
+  const staff = user?.staffAffiliations || [];
 
   return (
     <div className="space-y-6">
+      {/* Total Memberships Header */}
+      <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 flex justify-between items-center">
+        <span className="text-sm font-semibold text-primary uppercase tracking-wider">Total Memberships</span>
+        <span className="text-2xl font-bold text-primary">{user?.totalMemberships || 0}</span>
+      </div>
+
       <div className="space-y-4">
         <h4 className="text-sm font-semibold flex items-center gap-2">
           <Store className="w-4 h-4 text-primary" /> Owned Restaurants
@@ -266,13 +252,13 @@ const RestaurantDataSection = ({ id }) => {
 export function UserDetailsDrawer({ userId, open, onOpenChange }) {
   const queryClient = useQueryClient();
 
-  const { data: userDetailsResponse, isLoading } = useQuery({
+  const { data: userDetailsResponse, isLoading, error } = useQuery({
     queryKey: ["admin-user-details", userId],
     queryFn: () => getUserDetails(userId),
     enabled: !!userId && open,
   });
 
-  const user = userDetailsResponse?.data || userDetailsResponse;
+  const user = userDetailsResponse?.data?.data || userDetailsResponse?.data || userDetailsResponse;
 
   const blockMutation = useMutation({
     mutationFn: () => user?.isBlocked ? unblockUser(userId) : blockUser(userId),
@@ -322,6 +308,16 @@ export function UserDetailsDrawer({ userId, open, onOpenChange }) {
               <Skeleton className="h-24 w-full rounded-xl" />
               <Skeleton className="h-48 w-full rounded-xl" />
             </div>
+          ) : error?.response?.data?.error === "RESYNC_REQUIRED" ? (
+            <div className="p-6 text-center mt-20 space-y-4">
+              <div className="mx-auto w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-amber-600">Resync Required</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                The local read model for this user is missing or stale. This might be due to a Kafka synchronization delay or a missing event. Please wait or trigger a manual resync.
+              </p>
+            </div>
           ) : !user ? (
             <div className="p-6 text-center text-muted-foreground mt-20">
               Failed to load user data.
@@ -352,7 +348,7 @@ export function UserDetailsDrawer({ userId, open, onOpenChange }) {
                     </TabsContent>
 
                     <TabsContent value="business" className="animate-in fade-in-50 zoom-in-95 duration-200">
-                      <RestaurantDataSection id={userId} />
+                      <RestaurantDataSection user={user} />
                     </TabsContent>
 
                     <TabsContent value="activity" className="animate-in fade-in-50 zoom-in-95 duration-200">

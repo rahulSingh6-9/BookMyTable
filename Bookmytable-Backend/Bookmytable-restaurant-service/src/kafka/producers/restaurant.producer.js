@@ -84,6 +84,57 @@ export const emitBrandUpdated = async (brand, correlationId) => {
   });
 };
 
+export const emitBrandDeactivated = async (brand, correlationId, extraData = {}) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.BRAND_DEACTIVATED,
+    eventType: "brand.deactivated",
+    data: {
+      id: brand._id?.toString() || brand.id,
+      name: brand.name,
+      slug: brand.slug,
+      ownerId: brand.ownerId?.toString(),
+      isActive: false,
+      updatedAt: brand.updatedAt || new Date(),
+      ...extraData
+    },
+    correlationId,
+  });
+};
+
+export const emitBrandArchived = async (brand, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.BRAND_ARCHIVED,
+    eventType: "brand.archived",
+    data: {
+      id: brand._id?.toString() || brand.id,
+      name: brand.name,
+      slug: brand.slug,
+      ownerId: brand.ownerId?.toString(),
+      isDeleted: true,
+      deletedAt: brand.deletedAt || new Date(),
+      updatedAt: brand.updatedAt || new Date(),
+    },
+    correlationId,
+  });
+};
+
+export const emitBrandRestored = async (brand, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.BRAND_RESTORED,
+    eventType: "brand.restored",
+    data: {
+      id: brand._id?.toString() || brand.id,
+      name: brand.name,
+      slug: brand.slug,
+      ownerId: brand.ownerId?.toString(),
+      isActive: true,
+      isDeleted: false,
+      updatedAt: brand.updatedAt || new Date(),
+    },
+    correlationId,
+  });
+};
+
 export const emitRestaurantCreated = async (restaurant, ownerId, correlationId) => {
   return publishEvent({
     topic: RESTAURANT_TOPICS.RESTAURANT_CREATED,
@@ -102,6 +153,13 @@ export const emitRestaurantCreated = async (restaurant, ownerId, correlationId) 
       city: restaurant.address?.city,
       address: restaurant.address?.addressLine1,
       isActive: restaurant.isActive,
+      phoneVerified: restaurant.contact?.primaryPhone?.isVerified || false,
+      email: restaurant.contact?.email || "",
+      emailVerified: restaurant.contact?.isEmailVerified || false,
+      emailVerifiedAt: restaurant.contact?.emailVerifiedAt,
+      approvedAt: restaurant.approvedAt,
+      rejectedAt: restaurant.rejectedAt,
+      suspendedAt: restaurant.suspendedAt,
       createdAt: restaurant.createdAt || new Date(),
       updatedAt: restaurant.updatedAt || new Date(),
     },
@@ -124,6 +182,23 @@ export const emitMembershipCreated = async (membership, correlationId) => {
       employeeId: membership.employeeId,
       designation: membership.designation,
       updatedAt: membership.updatedAt || new Date(),
+    },
+    correlationId,
+  });
+};
+
+export const emitMembershipDeleted = async (membership, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.MEMBERSHIP_DELETED,
+    eventType: "membership.deleted",
+    data: {
+      id: membership._id?.toString() || membership.id,
+      userId: membership.user?.toString() || membership.userId,
+      branchId: membership.branch?.toString() || membership.branchId,
+      brandId: membership.brand?.toString() || membership.brandId,
+      role: membership.role,
+      status: membership.status,
+      action: "MEMBERSHIP_DELETED"
     },
     correlationId,
   });
@@ -179,6 +254,36 @@ export const emitNotificationEmailSend = async ({ template, recipient, variables
   });
 };
 
+// Partial Updates support to preserve Read-Model state for CQRS
+export const emitRestaurantPartialUpdate = async (branchId, brandId, delta, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.RESTAURANT_UPDATED,
+    eventType: "restaurant.updated.partial",
+    data: {
+      id: branchId?.toString() || branchId,
+      branchId: branchId?.toString() || branchId,
+      brandId: brandId?.toString() || brandId,
+      ...delta,
+      timestamp: Date.now(),
+    },
+    correlationId,
+  });
+};
+
+export const emitBrandPartialUpdate = async (brandId, delta, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.BRAND_UPDATED,
+    eventType: "brand.updated.partial",
+    data: {
+      id: brandId?.toString() || brandId,
+      brandId: brandId?.toString() || brandId,
+      ...delta,
+      timestamp: Date.now(),
+    },
+    correlationId,
+  });
+};
+
 // Legacy compatibility and status changes
 export const emitRestaurantStatusChanged = async (restaurant, action = "STATUS_CHANGED", metadata = {}) => {
   const ownerObj = restaurant.ownerId || {};
@@ -186,6 +291,8 @@ export const emitRestaurantStatusChanged = async (restaurant, action = "STATUS_C
     "APPROVE_RESTAURANT": RESTAURANT_TOPICS.RESTAURANT_APPROVED,
     "REJECT_RESTAURANT": RESTAURANT_TOPICS.RESTAURANT_REJECTED,
     "SUSPEND_RESTAURANT": RESTAURANT_TOPICS.RESTAURANT_SUSPENDED,
+    "REMOVE_RESTAURANT": RESTAURANT_TOPICS.RESTAURANT_REMOVED,
+    "PERMANENT_DELETE": RESTAURANT_TOPICS.RESTAURANT_REMOVED,
   };
 
   const topic = statusTopicMap[action] || RESTAURANT_TOPICS.RESTAURANT_UPDATED;
@@ -210,14 +317,39 @@ export const emitRestaurantStatusChanged = async (restaurant, action = "STATUS_C
         email: ownerObj.email || restaurant.contact?.email
       },
       ownerEmail: ownerObj.email || restaurant.contact?.email,
+      email: restaurant.contact?.email || "",
+      emailVerified: restaurant.contact?.isEmailVerified || false,
+      emailVerifiedAt: restaurant.contact?.emailVerifiedAt,
       city: restaurant.address?.city,
       address: restaurant.address?.addressLine1,
       isActive: restaurant.isActive,
+      isDeleted: restaurant.isDeleted || false,
+      deletedAt: restaurant.deletedAt || null,
+      phoneVerified: restaurant.contact?.primaryPhone?.isVerified || false,
+      approvedAt: restaurant.approvedAt,
+      rejectedAt: restaurant.rejectedAt,
+      suspendedAt: restaurant.suspendedAt,
       updatedAt: restaurant.updatedAt || new Date(),
       action,
       ...metadata,
     },
     correlationId: restaurant.correlationId || metadata.correlationId,
+  });
+};
+
+export const emitBranchCreationBlockedPlanLimit = async (brandId, ownerEmail, limitVal, currentCount, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.BRANCH_CREATION_BLOCKED,
+    eventType: "branch.creation.blocked.plan_limit",
+    data: {
+      brandId: brandId?.toString() || brandId,
+      ownerEmail,
+      limitType: "maxBranches",
+      limitVal,
+      currentCount,
+      blockedAt: new Date(),
+    },
+    correlationId,
   });
 };
 

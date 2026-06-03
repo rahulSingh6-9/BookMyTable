@@ -21,8 +21,8 @@ const adminSchema = new mongoose.Schema(
     // =========================================================
 
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type: String,
+      ref: "UserReadModel",
       required: true,
     },
 
@@ -62,8 +62,8 @@ const adminSchema = new mongoose.Schema(
      */
     roles: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "AdminRole",
+        type: String,
+        trim: true,
       },
     ],
 
@@ -279,12 +279,10 @@ const adminSchema = new mongoose.Schema(
  * =========================================================
  */
 
-adminSchema.pre(/^find/, function (next) {
+adminSchema.pre(/^find/, function () {
   this.where({
     isDeleted: false,
   });
-
-  next();
 });
 
 /**

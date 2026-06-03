@@ -68,85 +68,28 @@ export const rejectRestaurantService = async (id, admin) => {
     return { success: true, message: "Reject command sent via Kafka" };
 };
 
-// ============================================================
-// AGGREGATION SERVICES (BFF Pattern)
-// ============================================================
-import axios from 'axios';
-
-const RESTAURANT_SERVICE_URL = process.env.RESTAURANT_SERVICE_URL || 'http://localhost:5003';
-const BOOKING_SERVICE_URL = process.env.BOOKING_SERVICE_URL || 'http://localhost:5005';
-
 export const getRestaurantDetailsService = async (id) => {
-    try {
-        const branch = await BranchReadModel.findById(id).populate("brandId").lean();
-        if (!branch) throw new Error("Restaurant not found");
-
-        let fullDetails = {};
-        try {
-            const response = await axios.get(`${RESTAURANT_SERVICE_URL}/api/restaurants/${id}`, {
-                headers: { 'x-internal-service': 'admin-service' }
-            });
-            fullDetails = response.data.data || response.data;
-        } catch (e) {
-            console.warn("Failed to fetch full restaurant details from Restaurant Service", e.message);
-        }
-
-        return {
-            ...branch,
-            ...fullDetails
-        };
-    } catch (error) {
-        throw new Error(`Error fetching restaurant details: ${error.message}`);
-    }
+    const branch = await BranchReadModel.findById(id).populate("brandId").lean();
+    if (!branch) throw new Error("RESYNC_REQUIRED");
+    return branch;
 };
 
 export const getRestaurantMetricsService = async (id) => {
-    try {
-        let metrics = { bookingsCount: 0, reviewsCount: 0, averageRating: 0 };
-        try {
-            const response = await axios.get(`${RESTAURANT_SERVICE_URL}/api/restaurants/${id}/metrics`, {
-                headers: { 'x-internal-service': 'admin-service' }
-            });
-            metrics = response.data.data || response.data || metrics;
-        } catch (e) {
-            console.warn("Failed to fetch restaurant metrics", e.message);
-        }
-        return metrics;
-    } catch (error) {
-        throw new Error(`Error fetching restaurant metrics: ${error.message}`);
-    }
+    const branch = await BranchReadModel.findById(id).lean();
+    return { 
+        bookingsCount: branch?.bookingsCount || 0, 
+        reviewsCount: branch?.totalReviews || 0, 
+        averageRating: branch?.averageRating || 0 
+    };
 };
 
 export const getRestaurantTablesService = async (id) => {
-    try {
-        let tables = [];
-        try {
-            const response = await axios.get(`${RESTAURANT_SERVICE_URL}/api/restaurants/${id}/tables`, {
-                headers: { 'x-internal-service': 'admin-service' }
-            });
-            tables = response.data.data || response.data || [];
-        } catch (e) {
-            console.warn("Failed to fetch restaurant tables", e.message);
-        }
-        return tables;
-    } catch (error) {
-        throw new Error(`Error fetching restaurant tables: ${error.message}`);
-    }
+    const branch = await BranchReadModel.findById(id).lean();
+    // Return summary since we don't store the full tables array in CQRS
+    return { total: branch?.tablesCount || 0 };
 };
 
 export const getRestaurantStaffService = async (id) => {
-    try {
-        let staff = [];
-        try {
-            const response = await axios.get(`${RESTAURANT_SERVICE_URL}/api/restaurants/${id}/staff`, {
-                headers: { 'x-internal-service': 'admin-service' }
-            });
-            staff = response.data.data || response.data || [];
-        } catch (e) {
-            console.warn("Failed to fetch restaurant staff", e.message);
-        }
-        return staff;
-    } catch (error) {
-        throw new Error(`Error fetching restaurant staff: ${error.message}`);
-    }
+    const branch = await BranchReadModel.findById(id).lean();
+    return { total: branch?.staffCount || 0 };
 };

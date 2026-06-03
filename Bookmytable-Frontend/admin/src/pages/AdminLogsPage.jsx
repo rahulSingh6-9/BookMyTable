@@ -8,8 +8,9 @@ import {
   Calendar, 
   Activity,
   FileJson,
-  Store,
-  User,
+  Server,
+  AlertTriangle,
+  Info,
   ChevronLeft,
   ChevronRight,
   Filter
@@ -33,15 +34,14 @@ import {
   DialogDescription 
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { getGlobalLogs } from "@/services/logs.service";
+import { getSystemLogs } from "@/services/logs.service";
 import { format } from "date-fns";
 
 export default function AdminLogsPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
-    restaurantId: "",
-    performedBy: "",
-    action: "all",
+    service: "all",
+    level: "all",
     startDate: "",
     endDate: "",
   });
@@ -51,13 +51,14 @@ export default function AdminLogsPage() {
 
   const queryFilters = useMemo(() => {
     const params = { ...filters, page, limit: 15 };
-    if (params.action === "all") delete params.action;
+    if (params.service === "all") delete params.service;
+    if (params.level === "all") delete params.level;
     return params;
   }, [filters, page]);
 
   const { data: logsData, isLoading } = useQuery({
-    queryKey: ["logs", "global", queryFilters],
-    queryFn: () => getGlobalLogs(queryFilters),
+    queryKey: ["logs", "system", queryFilters],
+    queryFn: () => getSystemLogs(queryFilters),
   });
 
   const logs = Array.isArray(logsData?.data) ? logsData.data : (Array.isArray(logsData) ? logsData : []);
@@ -77,59 +78,57 @@ export default function AdminLogsPage() {
     }
   };
 
+  const getLevelBadge = (level) => {
+    switch (level) {
+      case "error":
+        return <Badge variant="destructive" className="font-mono text-[10px] uppercase"><ShieldAlert className="w-3 h-3 mr-1" /> Error</Badge>;
+      case "warn":
+        return <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-mono text-[10px] uppercase"><AlertTriangle className="w-3 h-3 mr-1" /> Warn</Badge>;
+      case "info":
+        return <Badge className="bg-blue-500 hover:bg-blue-600 text-white font-mono text-[10px] uppercase"><Info className="w-3 h-3 mr-1" /> Info</Badge>;
+      default:
+        return <Badge variant="outline" className="font-mono text-[10px] uppercase">{level}</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader 
-        title="Global System Logs" 
-        description="Monitor all restaurant and staff activities across the platform."
+        title="System Logs" 
+        description="Monitor backend services, Kafka consumer failures, and technical events."
       />
 
       {/* Advanced Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-card p-5 rounded-2xl border border-border shadow-sm">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-card p-5 rounded-2xl border border-border shadow-sm">
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Restaurant ID</label>
+          <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Service</label>
           <div className="relative">
-            <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Filter by Store..." 
-              className="pl-10 rounded-xl"
-              value={filters.restaurantId}
-              onChange={(e) => setFilters(f => ({ ...f, restaurantId: e.target.value }))}
-            />
+            <Select value={filters.service} onValueChange={(v) => setFilters(f => ({ ...f, service: v }))}>
+              <SelectTrigger className="rounded-xl pl-9">
+                <Server className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <SelectValue placeholder="All Services" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all">All Services</SelectItem>
+                <SelectItem value="admin-service">admin-service</SelectItem>
+                <SelectItem value="restaurant-service">restaurant-service</SelectItem>
+                <SelectItem value="booking-service">booking-service</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">User / Staff</label>
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="ID or Email..." 
-              className="pl-10 rounded-xl"
-              value={filters.performedBy}
-              onChange={(e) => setFilters(f => ({ ...f, performedBy: e.target.value }))}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Action</label>
-          <Select value={filters.action} onValueChange={(v) => setFilters(f => ({ ...f, action: v }))}>
+          <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Level</label>
+          <Select value={filters.level} onValueChange={(v) => setFilters(f => ({ ...f, level: v }))}>
             <SelectTrigger className="rounded-xl">
-              <SelectValue placeholder="All" />
+              <SelectValue placeholder="All Levels" />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
-              <SelectItem value="all">All Actions</SelectItem>
-              <SelectItem value="STAFF_INVITED">Staff Invited</SelectItem>
-              <SelectItem value="APPROVE_RESTAURANT">Store Approved</SelectItem>
-              <SelectItem value="BOOKING_CANCELLED">Booking Cancelled</SelectItem>
-              <SelectItem value="CREATE_SUBSCRIPTION_PLAN">Create Subscription Plan</SelectItem>
-              <SelectItem value="UPDATE_SUBSCRIPTION_PRICING">Update Plan Pricing</SelectItem>
-              <SelectItem value="UPDATE_SUBSCRIPTION_FEATURES">Update Plan Features</SelectItem>
-              <SelectItem value="UPDATE_SUBSCRIPTION_LIMITS">Update Plan Limits</SelectItem>
-              <SelectItem value="EXTEND_SUBSCRIPTION_TRIAL">Extend Subscription Trial</SelectItem>
-              <SelectItem value="SUSPEND_SUBSCRIPTION">Suspend Subscription</SelectItem>
-              <SelectItem value="REACTIVATE_SUBSCRIPTION">Reactivate Subscription</SelectItem>
+              <SelectItem value="all">All Levels</SelectItem>
+              <SelectItem value="error">Error</SelectItem>
+              <SelectItem value="warn">Warn</SelectItem>
+              <SelectItem value="info">Info</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -160,10 +159,10 @@ export default function AdminLogsPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Action</TableHead>
-              <TableHead>Performed By</TableHead>
-              <TableHead>Restaurant</TableHead>
-              <TableHead>Role</TableHead>
+              <TableHead>Level</TableHead>
+              <TableHead>Service</TableHead>
+              <TableHead>Message</TableHead>
+              <TableHead>Source</TableHead>
               <TableHead>Timestamp</TableHead>
               <TableHead className="text-right">Metadata</TableHead>
             </TableRow>
@@ -171,34 +170,33 @@ export default function AdminLogsPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">Loading logs...</TableCell>
+                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">Loading system logs...</TableCell>
               </TableRow>
             ) : logs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No logs found.</TableCell>
+                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No system logs found.</TableCell>
               </TableRow>
             ) : (
               logs.map((log) => (
                 <TableRow key={log._id} className="hover:bg-muted/50 transition-colors">
                   <TableCell>
-                    <Badge variant="outline" className="font-mono text-[10px] uppercase">{log.action}</Badge>
-                  </TableCell>
-                  <TableCell className="text-xs font-medium">{log.performedBy}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-semibold">{log.restaurantInfo?.name || "N/A"}</span>
-                      <span className="text-[10px] text-muted-foreground font-mono">{log.restaurant}</span>
-                    </div>
+                    {getLevelBadge(log.level)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="capitalize text-[10px]">{log.role}</Badge>
+                    <Badge variant="outline" className="text-xs font-medium font-mono">{log.service}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs font-semibold">{log.message || "N/A"}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs text-muted-foreground font-mono">{log.source || "N/A"}</span>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {safeFormatDate(log.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" onClick={() => handleViewMetadata(log)} className="h-8 w-8 p-0">
-                      <Eye className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                      <FileJson className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -237,22 +235,22 @@ export default function AdminLogsPage() {
 
       {/* Metadata Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-2xl overflow-hidden border-border/40">
+        <DialogContent className="sm:max-w-[800px] rounded-2xl overflow-hidden border-border/40">
           <DialogHeader className="pb-4 border-b border-border/40">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                 <FileJson className="w-5 h-5" />
               </div>
               <div>
-                <DialogTitle className="text-lg font-bold">Event Metadata</DialogTitle>
-                <DialogDescription>Full technical details for system monitoring</DialogDescription>
+                <DialogTitle className="text-lg font-bold">Log Metadata</DialogTitle>
+                <DialogDescription>Full technical details, stack traces, and payloads.</DialogDescription>
               </div>
             </div>
           </DialogHeader>
           
           <div className="py-6">
-            <div className="bg-slate-950 rounded-2xl p-6 overflow-auto max-h-[400px] shadow-inner border border-slate-800">
-              <pre className="text-primary/70 font-mono text-xs leading-relaxed">
+            <div className="bg-slate-950 rounded-2xl p-6 overflow-auto max-h-[500px] shadow-inner border border-slate-800">
+              <pre className="text-primary/70 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all">
                 {JSON.stringify(selectedLog?.metadata || {}, null, 2)}
               </pre>
             </div>

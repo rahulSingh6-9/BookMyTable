@@ -52,7 +52,9 @@ export const createTableService = async (branchId, userId, data) => {
     capacity: data.capacity,
     type: data.type,
     floor: data.floor,
+    floorLabel: data.floorLabel,
     section: data.section,
+    sectionLabel: data.sectionLabel,
     position: data.position,
     isActive: true,
   });
@@ -64,7 +66,7 @@ export const createTableService = async (branchId, userId, data) => {
 };
 
 export const bulkGenerateTablesService = async (branchId, userId, data) => {
-  const { prefix, capacity, type, floor, section, quantity } = data;
+  const { prefix, capacity, type, floor, floorLabel, section, sectionLabel, quantity } = data;
   const qty = parseInt(quantity);
   const cap = parseInt(capacity);
   
@@ -99,7 +101,9 @@ export const bulkGenerateTablesService = async (branchId, userId, data) => {
         capacity: cap,
         type: type || "indoor",
         floor: floor,
+        floorLabel: floorLabel,
         section: section,
+        sectionLabel: sectionLabel,
         isActive: true,
       });
       addedCount++;

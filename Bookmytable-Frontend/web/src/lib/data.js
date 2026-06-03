@@ -432,7 +432,7 @@ const cuisineFilters = [
 const navLinks = [
   { label: "Discover", href: "/discover" },
   { label: "How it Works", href: "/#how-it-works" },
-  { label: "For Restaurants", href: "/owner" },
+  { label: "For Restaurants", href: "/brand" },
 ];
 
 export {

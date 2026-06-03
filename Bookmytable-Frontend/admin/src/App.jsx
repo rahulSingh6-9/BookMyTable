@@ -18,6 +18,15 @@ import Notifications from "./pages/Notifications";
 import PlatformAnalytics from "./pages/PlatformAnalytics";
 import AdminLogsPage from "./pages/AdminLogsPage";
 import Settings from "./pages/Settings";
+import AdminInvitations from "./pages/AdminInvitations";
+import AdminAcceptInvite from "./pages/AdminAcceptInvite";
+
+import ApprovalQueue from "./pages/ApprovalQueue";
+import VerificationCenter from "./pages/VerificationCenter";
+import ReportsAbuse from "./pages/ReportsAbuse";
+import DiscoveryManagement from "./pages/DiscoveryManagement";
+import SupportIssues from "./pages/SupportIssues";
+import AuditLogs from "./pages/AuditLogs";
 
 import { PermissionProtectedRoute } from "./routes/PermissionProtectedRoute"
 import { AdminAuthProvider } from "./context/AuthContext";
@@ -41,6 +50,7 @@ export default function App() {
             <Routes>
               {/* 🔓 Public route */}
               <Route path="/login" element={<Login />} />          
+              <Route path="/admin/join" element={<AdminAcceptInvite />} />
 
               {/* 🔁 Redirect root to admin */}
               <Route path="/" element={<Navigate to="/admin" replace />} />          
@@ -123,9 +133,46 @@ export default function App() {
                 } />
 
                 {/* NEW Admin Management */}
-                <Route path="management" element={
+                <Route path="invitations" element={
                   <PermissionProtectedRoute permission="admins.manage">
-                    <div className="p-8">Admin Management Page (Implementing...)</div>
+                    <AdminInvitations />
+                  </PermissionProtectedRoute>
+                } />
+
+                {/* NEW Moderation & Operations Pages */}
+                <Route path="approvals" element={
+                  <PermissionProtectedRoute permission="restaurants.manage">
+                    <ApprovalQueue />
+                  </PermissionProtectedRoute>
+                } />
+
+                <Route path="verifications" element={
+                  <PermissionProtectedRoute permission="users.manage">
+                    <VerificationCenter />
+                  </PermissionProtectedRoute>
+                } />
+
+                <Route path="reports" element={
+                  <PermissionProtectedRoute permission="content.moderate">
+                    <ReportsAbuse />
+                  </PermissionProtectedRoute>
+                } />
+
+                <Route path="discovery" element={
+                  <PermissionProtectedRoute permission="brands.manage">
+                    <DiscoveryManagement />
+                  </PermissionProtectedRoute>
+                } />
+
+                <Route path="support" element={
+                  <PermissionProtectedRoute permission="settings.manage">
+                    <SupportIssues />
+                  </PermissionProtectedRoute>
+                } />
+
+                <Route path="audit" element={
+                  <PermissionProtectedRoute permission="audit_logs.view">
+                    <AuditLogs />
                   </PermissionProtectedRoute>
                 } />
 

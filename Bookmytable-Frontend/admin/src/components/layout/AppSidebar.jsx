@@ -12,7 +12,12 @@ import {
   SidebarFooter,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Users, Store, CalendarCheck, MessageSquare, CreditCard, Bell, BarChart3, Settings, LogOut, ShieldAlert, Briefcase, PanelLeft } from "lucide-react";
+import { 
+  LayoutDashboard, Users, Store, CalendarCheck, MessageSquare, 
+  CreditCard, Bell, BarChart3, Settings, LogOut, ShieldAlert, 
+  Briefcase, PanelLeft, CheckCircle, ShieldCheck, AlertTriangle, 
+  Compass, LifeBuoy, Server 
+} from "lucide-react";
 
 import { useAdminAuth } from "../../context/AuthContext";
 
@@ -27,7 +32,7 @@ export function AppSidebar() {
 
   const navGroups = [
     {
-      label: "Overview",
+      label: "Dashboard",
       items: [{ title: "Dashboard", url: "/admin", icon: LayoutDashboard }],
     },
     {
@@ -41,19 +46,35 @@ export function AppSidebar() {
       ],
     },
     {
-      label: "Insights",
+      label: "Moderation",
+      items: [
+        { title: "Approval Queue", url: "/admin/approvals", icon: CheckCircle, permission: "restaurants.manage" },
+        { title: "Verification Center", url: "/admin/verifications", icon: ShieldCheck, permission: "users.manage" },
+        { title: "Reports & Abuse", url: "/admin/reports", icon: AlertTriangle, permission: "content.moderate" },
+      ],
+    },
+    {
+      label: "Business",
       items: [
         { title: "Payments", url: "/admin/payments", icon: CreditCard, permission: "payments.view" },
         { title: "Subscriptions", url: "/admin/subscriptions", icon: CreditCard, permission: "payments.view" },
+        { title: "Discovery Management", url: "/admin/discovery", icon: Compass, permission: "brands.manage" },
+      ],
+    },
+    {
+      label: "Operations",
+      items: [
         { title: "Notifications", url: "/admin/notifications", icon: Bell, permission: "settings.manage" },
         { title: "Analytics", url: "/admin/analytics", icon: BarChart3, permission: "analytics.view" },
-        { title: "System Logs", url: "/admin/logs", icon: ShieldAlert, permission: "audit_logs.view" },
+        { title: "Support / Issues", url: "/admin/support", icon: LifeBuoy, permission: "settings.manage" },
       ],
     },
     {
       label: "Administration",
       items: [
-        { title: "Admins", url: "/admin/management", icon: Users, permission: "admins.manage" },
+        { title: "System Logs", url: "/admin/logs", icon: Server, permission: "audit_logs.view" },
+        { title: "Audit Logs", url: "/admin/audit", icon: ShieldAlert, permission: "audit_logs.view" },
+        { title: "Admins", url: "/admin/invitations", icon: Users, permission: "admins.manage" },
         { title: "Platform Settings", url: "/admin/settings", icon: Settings, permission: "settings.manage" },
       ],
     },

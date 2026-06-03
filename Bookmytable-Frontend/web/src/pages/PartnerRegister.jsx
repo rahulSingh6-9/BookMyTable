@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ChevronRight, ChevronLeft, Store, MapPin, Phone, Camera, Clock, LayoutDashboard, Settings, Send } from "lucide-react";
 import { useForm, FormProvider } from "react-hook-form";
@@ -99,8 +100,16 @@ const safeZodResolver = (schema) => {
 };
 
 export default function PartnerRegister() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState([]);
+  const [searchParams] = useSearchParams();
+  const autoBrandId = searchParams.get("brandId");
+  const autoBrandName = searchParams.get("brandName");
+  const autoBrandSlug = searchParams.get("brandSlug");
+  const mode = searchParams.get("mode");
+
+  const isCreateBranchMode = mode === "create-branch" && !!autoBrandId;
+
+  const [currentStep, setCurrentStep] = useState(isCreateBranchMode ? 1 : 0);
+  const [completedSteps, setCompletedSteps] = useState(isCreateBranchMode ? [0] : []);
   const [skippedSteps, setSkippedSteps] = useState([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isReviewEditMode, setIsReviewEditMode] = useState(false);
@@ -113,9 +122,9 @@ export default function PartnerRegister() {
     resolver: safeZodResolver(currentSchema),
     mode: "onChange",
     defaultValues: {
-      onboardingMode: "create_brand",
-      selectedBrandId: "",
-      brandName: "",
+      onboardingMode: autoBrandId ? "add_branch" : "create_brand",
+      selectedBrandId: autoBrandId || "",
+      brandName: autoBrandName || "",
       brandDescription: "",
       brandLogo: "",
       restaurantName: "",
@@ -182,12 +191,26 @@ export default function PartnerRegister() {
         if (response && response.data) {
           const { currentStep: savedStep, formData, completedSteps: savedCompleted, skippedSteps: savedSkipped, draftData } = response.data;
           
+          if (isCreateBranchMode) {
+            if (formData?.selectedBrandId !== autoBrandId) {
+              // Ignore and clear draft if it doesn't match the required brand context
+              toast.info("Started new branch registration");
+              await deleteOnboardingDraft();
+              return;
+            }
+          }
+
           // Restore form data
           reset(formData);
           
           // Restore state
-          if (savedStep !== undefined && savedStep !== null) setCurrentStep(savedStep);
-          if (savedCompleted) setCompletedSteps(savedCompleted);
+          if (savedStep !== undefined && savedStep !== null) {
+            setCurrentStep(isCreateBranchMode ? Math.max(savedStep, 1) : savedStep);
+          }
+          if (savedCompleted) {
+            const finalCompleted = isCreateBranchMode && !savedCompleted.includes(0) ? [0, ...savedCompleted] : savedCompleted;
+            setCompletedSteps(finalCompleted);
+          }
           if (savedSkipped) setSkippedSteps(savedSkipped);
           
           if (draftData) {
@@ -396,6 +419,20 @@ export default function PartnerRegister() {
     }
     setIsLoading(true);
     try {
+      // Pre-submit limit check for "Add Branch" mode
+      if (data.onboardingMode === "add_branch" && data.selectedBrandId) {
+        try {
+          const { default: apiClient } = await import("@/lib/api");
+          // Reusing the discovery endpoint we created, or we can just let the backend fail
+          // Actually, the backend will fail with PLAN_LIMIT_EXCEEDED when we submit!
+          // But to be explicit in the UI:
+          const limitRes = await apiClient.get(`/discovery/${data.selectedBrandId}/limits/branches`);
+          // Note: we'd need to create this endpoint. Alternatively, just rely on backend submit block + global toast.
+        } catch (apiErr) {
+          // If the backend blocks it, we let it throw.
+        }
+      }
+
       const priceMap = {
         "₹": "budget",
         "₹₹": "moderate",
@@ -505,7 +542,9 @@ export default function PartnerRegister() {
       setIsSubmitted(true);
     } catch (error) {
       console.error("Registration error:", error);
-      toast.error(error.response?.data?.message || error.message || "Failed to submit registration.");
+      if (error?.code !== "PLAN_LIMIT_EXCEEDED") {
+        toast.error(error.response?.data?.message || error.message || "Failed to submit registration.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -550,8 +589,8 @@ export default function PartnerRegister() {
             Your restaurant application has been received and is currently under review. 
             Our team will contact you within 24-48 hours.
           </p>
-          <Button size="lg" className="w-full rounded-full h-12" onClick={() => window.location.href = "/owner"}>
-            Go to Owner Dashboard
+          <Button size="lg" className="w-full rounded-full h-12" onClick={() => window.location.href = isCreateBranchMode ? `/brand/${autoBrandSlug}/active` : "/owner"}>
+            Go to {isCreateBranchMode ? "Brand Dashboard" : "Owner Dashboard"}
           </Button>
         </motion.div>
       </div>

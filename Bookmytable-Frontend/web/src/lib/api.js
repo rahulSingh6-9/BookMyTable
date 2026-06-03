@@ -1,4 +1,5 @@
 import axios from "axios";
+import { toast } from "sonner";
 
 // ──────────────────────────────────────────────
 // Base Axios Instance
@@ -58,6 +59,13 @@ apiClient.interceptors.response.use(
 
     if (import.meta?.env?.DEV) {
       console.error(`❌ [API] ${status ?? "Network Error"}:`, message);
+    }
+
+    if (error.response?.data?.code === "PLAN_LIMIT_EXCEEDED") {
+      toast.error("Subscription Limit Reached", {
+        description: message || "Your current plan doesn't support this action. Please upgrade your plan.",
+        duration: 8000,
+      });
     }
 
     // Normalize the error so consumers always get the same shape

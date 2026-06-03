@@ -8,12 +8,26 @@ export const handleDiscoveryRestaurantUpdate = async (event) => {
   const brandId = data.brandId;
 
   try {
-    // If it's a brand update, we need to update all restaurants belonging to that brand
-    if (event.topic === 'brand.updated' || event.eventType === 'brand.updated' || event.type === 'brand.updated') {
+    const brandEvents = [
+      'brand.updated',
+      'brand.updated.partial',
+      'brand.deactivated',
+      'brand.archived',
+      'brand.restored'
+    ];
+
+    if (brandEvents.includes(event.topic) || brandEvents.includes(event.eventType) || brandEvents.includes(event.type)) {
       const restaurants = await RestaurantBranch.find({ brandId: data.id || data._id });
       for (const restaurant of restaurants) {
         await syncRestaurantToDiscovery(restaurant._id);
       }
+      return;
+    }
+
+    // Handle Permanent Delete
+    if (data.action === "PERMANENT_DELETE") {
+      await DiscoveryRestaurant.findOneAndDelete({ restaurantId });
+      console.log(`🗑️ [DiscoveryConsumer] Permanently deleted Discovery Read-Model for: ${restaurantId}`);
       return;
     }
 
@@ -58,8 +72,12 @@ const syncRestaurantToDiscovery = async (restaurantId) => {
     costForTwo: restaurant.costForTwo,
     
     status: restaurant.status,
-    isActive: restaurant.isActive,
+    isActive: restaurant.isActive && !restaurant.isHiddenFromDiscovery && restaurant.status !== 'suspended' && restaurant.status !== 'blocked',
     isDeleted: restaurant.isDeleted,
+    
+    isFeatured: restaurant.isFeatured || false,
+    discoveryRanking: restaurant.discoveryRanking || 0,
+    isHiddenFromDiscovery: restaurant.isHiddenFromDiscovery || false,
   };
 
   await DiscoveryRestaurant.findOneAndUpdate(

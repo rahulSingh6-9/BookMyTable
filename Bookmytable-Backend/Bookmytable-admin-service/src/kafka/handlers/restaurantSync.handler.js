@@ -20,6 +20,12 @@ export const syncRestaurant = async (data) => {
   // Clean data for read model
   const { __v, ...safeData } = data;
 
+  if (data.action === "PERMANENT_DELETE") {
+    await RestaurantReadModel.findByIdAndDelete(restaurantId);
+    console.log(`🗑️ Permanently deleted Restaurant Read-Model: ${restaurantId}`);
+    return;
+  }
+
   await RestaurantReadModel.findByIdAndUpdate(
     restaurantId,
     {

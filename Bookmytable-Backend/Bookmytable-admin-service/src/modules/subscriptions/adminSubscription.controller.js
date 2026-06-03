@@ -68,6 +68,30 @@ export const updatePlan = async (req, res) => {
   }
 };
 
+export const archivePlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminContext = { id: req.user.id, roles: req.user.roles };
+    const authHeader = req.headers.authorization;
+    const plan = await service.archivePlanService(id, adminContext, authHeader);
+    res.status(200).json({ success: true, data: plan });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.response?.data?.message || err.message });
+  }
+};
+
+export const restorePlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminContext = { id: req.user.id, roles: req.user.roles };
+    const authHeader = req.headers.authorization;
+    const plan = await service.restorePlanService(id, adminContext, authHeader);
+    res.status(200).json({ success: true, data: plan });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.response?.data?.message || err.message });
+  }
+};
+
 export const applyOverride = async (req, res) => {
   try {
     const adminContext = { id: req.user.id, roles: req.user.roles };

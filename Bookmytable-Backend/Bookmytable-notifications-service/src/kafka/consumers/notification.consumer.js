@@ -10,6 +10,8 @@ import {
   handlePasswordResetNotification
 } from "../handlers/verificationNotification.handlers.js";
 import { handleNotificationEmailSend } from "../handlers/notificationEmail.handlers.js";
+import { handleAdminInvited } from "../handlers/adminNotification.handlers.js";
+import { handleBrandNotification } from "../handlers/brandNotification.handlers.js";
 
 const consumer = kafka.consumer({ groupId: "notification-service-group" });
 
@@ -22,6 +24,7 @@ export const startNotificationConsumer = async () => {
     await consumer.subscribe({ 
       topics: [
         KAFKA_TOPICS.STAFF_INVITED, 
+        KAFKA_TOPICS.ADMIN_INVITED,
         KAFKA_TOPICS.RESTAURANT_UPDATED,
         KAFKA_TOPICS.USER_UPDATED,
         KAFKA_TOPICS.BOOKING_CREATED,
@@ -30,6 +33,10 @@ export const startNotificationConsumer = async () => {
         KAFKA_TOPICS.RESTAURANT_APPROVED,
         KAFKA_TOPICS.RESTAURANT_REJECTED,
         KAFKA_TOPICS.RESTAURANT_SUSPENDED,
+        KAFKA_TOPICS.BRANCH_CREATION_BLOCKED,
+        KAFKA_TOPICS.BRAND_DEACTIVATED,
+        KAFKA_TOPICS.BRAND_ARCHIVED,
+        KAFKA_TOPICS.BRAND_RESTORED,
         
         KAFKA_TOPICS.PHONE_OTP_REQUESTED,
         KAFKA_TOPICS.VERIFICATION_EMAIL_REQUESTED,
@@ -47,15 +54,24 @@ export const startNotificationConsumer = async () => {
           
           if (topic === KAFKA_TOPICS.STAFF_INVITED) {
             await handleStaffInviteNotification(event);
+          } else if (topic === KAFKA_TOPICS.ADMIN_INVITED) {
+            await handleAdminInvited(event.payload);
           } else if (
             topic === KAFKA_TOPICS.RESTAURANT_UPDATED ||
             topic === KAFKA_TOPICS.RESTAURANT_APPROVED ||
             topic === KAFKA_TOPICS.RESTAURANT_REJECTED ||
-            topic === KAFKA_TOPICS.RESTAURANT_SUSPENDED
+            topic === KAFKA_TOPICS.RESTAURANT_SUSPENDED ||
+            topic === KAFKA_TOPICS.BRANCH_CREATION_BLOCKED
           ) {
             await handleRestaurantUpdateNotification(event);
           } else if (topic === KAFKA_TOPICS.USER_UPDATED) {
             await handleUserUpdateNotification(event);
+          } else if (
+            topic === KAFKA_TOPICS.BRAND_DEACTIVATED ||
+            topic === KAFKA_TOPICS.BRAND_ARCHIVED ||
+            topic === KAFKA_TOPICS.BRAND_RESTORED
+          ) {
+            await handleBrandNotification(event);
           } else if (topic === KAFKA_TOPICS.BOOKING_CREATED) {
             await handleBookingNotification(event);
           } else if (topic === KAFKA_TOPICS.SEND_EMAIL_NOTIFICATION) {

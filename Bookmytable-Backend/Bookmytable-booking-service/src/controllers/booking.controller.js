@@ -210,6 +210,20 @@ export const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: "Selected slot is no longer available for this table" });
     }
 
+    // NEW: Check subscription limits BEFORE creating the booking
+    try {
+      await axios.get(`http://api-gateway:5000/api/discovery/${restaurantId}/limits/reservations`);
+    } catch (apiErr) {
+      if (apiErr.response && apiErr.response.data && apiErr.response.data.code === "PLAN_LIMIT_EXCEEDED") {
+         return res.status(403).json({
+            success: false,
+            message: apiErr.response.data.message,
+            code: "PLAN_LIMIT_EXCEEDED"
+         });
+      }
+      console.warn("Could not verify reservation limits, continuing:", apiErr.message);
+    }
+
     // Create booking
     const booking = await Booking.create({
       userId,
@@ -225,6 +239,10 @@ export const createBooking = async (req, res) => {
 
     // Emit event for notification service
     await emitBookingCreated(booking);
+
+    // NEW: Increment subscription limit usage for reservations
+    axios.post(`http://api-gateway:5000/api/discovery/${restaurantId}/limits/reservations/increment`)
+      .catch(err => console.warn("Failed to increment reservation limit", err.message));
 
     res.status(201).json({
       success: true,

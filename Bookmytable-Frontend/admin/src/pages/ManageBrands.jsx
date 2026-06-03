@@ -4,7 +4,7 @@ import { DataTable } from "@/components/shared/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  MoreHorizontal, Check, X, Eye, Edit, Briefcase,
+  MoreHorizontal, Check, X, Eye, Edit, Briefcase, Mail, Phone, Clock, Store, Users
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,6 +25,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllBrands, approveBrand, suspendBrand } from "@/services/brand.service";
 import { toast } from "sonner";
 import { BrandDetailsDrawer } from "@/components/brands/BrandDetailsDrawer";
+import { StatCard } from "@/components/shared/StatCard";
+import { motion } from "framer-motion";
 
 const capitalize = (str) =>
   str ? str.charAt(0).toUpperCase() + str.slice(1) : "Unknown";
@@ -72,12 +74,19 @@ export default function ManageBrands() {
     data?.data?.data?.map((b) => ({
       id: b.id || b._id,
       name: b.name,
-      owner: b.ownerId || "N/A",
+      owner: b.ownerId,
       status: b.status || "pending",
       statusLabel: capitalize(b.status || "pending"),
       isVerified: b.isVerified,
+      totalBranches: b.totalBranches || 0,
+      staffCount: b.staffCount || 0,
       createdAt: b.createdAt
         ? new Date(b.createdAt).toLocaleDateString("en-IN", {
+            day: "2-digit", month: "short", year: "numeric",
+          })
+        : "—",
+      updatedAt: b.updatedAt
+        ? new Date(b.updatedAt).toLocaleDateString("en-IN", {
             day: "2-digit", month: "short", year: "numeric",
           })
         : "—",
@@ -95,7 +104,26 @@ export default function ManageBrands() {
         </div>
       ),
     },
-    { header: "Owner ID",      accessorKey: "owner" },
+    {
+      header: "Owner",
+      accessorKey: "owner",
+      cell: (row) => (
+        <div className="flex flex-col">
+          <span className="text-sm font-medium">{row.owner?.name || "Unknown"}</span>
+          <span className="text-xs text-muted-foreground">{row.owner?.email || row.owner || "No email"}</span>
+        </div>
+      ),
+    },
+    { 
+      header: "Branches", 
+      accessorKey: "totalBranches",
+      cell: (row) => <div className="text-center">{row.totalBranches}</div>
+    },
+    { 
+      header: "Staff", 
+      accessorKey: "staffCount",
+      cell: (row) => <div className="text-center">{row.staffCount}</div>
+    },
     { header: "Created At", accessorKey: "createdAt" },
     {
       header: "Status",
@@ -161,6 +189,21 @@ export default function ManageBrands() {
           title="Brand Management"
           description="Moderate and manage restaurant brands and ownership."
         />
+        
+      </div>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        <StatCard title="Total Brands" value={data?.data?.data?.length || 0} trend="up" trendValue={2} icon={Briefcase} />
+        <StatCard title="Pending Review" value={data?.data?.data?.filter(b => b.status === 'pending').length || 0} icon={Clock} />
+        <StatCard title="Active Branches" value={data?.data?.data?.reduce((acc, curr) => acc + (curr.activeBranches || curr.totalBranches || 0), 0) || 0} icon={Store} />
+        <StatCard title="Suspended" value={data?.data?.data?.filter(b => b.status === 'suspended').length || 0} icon={X} />
+      </motion.div>
+
+      <div className="flex items-center justify-end">
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44">

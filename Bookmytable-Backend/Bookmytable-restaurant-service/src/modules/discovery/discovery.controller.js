@@ -97,3 +97,29 @@ export const getRestaurantMenu = async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to fetch restaurant menu" });
   }
 };
+
+// @route   GET /api/v1/discovery/:id/limits/reservations
+// @desc    Check if a restaurant brand can accept more reservations
+export const getRestaurantReservationLimits = async (req, res) => {
+  try {
+    const data = await DiscoveryService.checkReservationLimitData(req.params.id);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    res.status(error.status || (error.code === "PLAN_LIMIT_EXCEEDED" ? 403 : 500)).json({ 
+      success: false, 
+      message: error.message, 
+      code: error.code 
+    });
+  }
+};
+
+// @route   POST /api/v1/discovery/:id/limits/reservations/increment
+// @desc    Increment the reservation usage count
+export const incrementRestaurantReservationCount = async (req, res) => {
+  try {
+    await DiscoveryService.incrementReservationUsageData(req.params.id);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to increment usage" });
+  }
+};

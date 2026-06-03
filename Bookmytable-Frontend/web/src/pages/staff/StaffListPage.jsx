@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Plus, Users, Search, Filter, ShieldCheck, Mail, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,26 @@ export default function StaffListPage() {
   // RBAC checks for Frontend safety
   const canManageStaff = hasPermission("MANAGE_STAFF");
   const canEditPermissions = hasPermission("MANAGE_BRANCH"); // Owners/Admins usually have this
+
+  // Subscription Usage
+  const [usageData, setUsageData] = useState(null);
+  
+  useEffect(() => {
+    const fetchUsage = async () => {
+      try {
+        const { default: apiClient } = await import("@/lib/api");
+        const res = await apiClient.get("/subscriptions/my-usage");
+        if (res.data?.success) {
+          setUsageData(res.data.data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch usage data", e);
+      }
+    };
+    fetchUsage();
+  }, []);
+
+  const isLimitReached = usageData ? (usageData.usage?.staffUsed >= usageData.limits?.maxStaff) : false;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [openInviteModal, setOpenInviteModal] = useState(false);
@@ -104,6 +124,7 @@ export default function StaffListPage() {
                   onClick={() => setOpenInviteModal(true)}
                   className="gap-2 rounded-2xl shadow-lg shadow-primary/20 px-6 h-11 font-bold whitespace-nowrap"
                   id="invite-staff-button"
+                  disabled={isLimitReached}
                 >
                   <Plus className="h-4 w-4" /> 
                   Invite Staff
@@ -151,6 +172,7 @@ export default function StaffListPage() {
                   <Button 
                     onClick={() => setOpenInviteModal(true)}
                     className="gap-2 rounded-2xl font-bold px-8 h-11"
+                    disabled={isLimitReached}
                   >
                     <Plus className="h-4 w-4" />
                     Invite First Staff Member

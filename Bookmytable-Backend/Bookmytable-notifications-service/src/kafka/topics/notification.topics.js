@@ -15,8 +15,14 @@ export const NOTIFICATION_TOPICS = {
   STAFF_JOINED: "staff.joined",
   INVITATION_FAILED: "invitation.failed",
   INVITATION_REVOKED: "invitation.revoked",
+
+  ADMIN_INVITED: "admin.invited",
+  ADMIN_JOINED: "admin.joined",
+  ADMIN_INVITATION_REVOKED: "admin.invitation.revoked",
+  
   RESTAURANT_UPDATED: "restaurant.updated",
   USER_UPDATED: "user.updated",
   BOOKING_CREATED: "booking.created",
   PAYMENT_SUCCESS: "payment.success",
+  BRANCH_CREATION_BLOCKED: "branch.creation.blocked.plan_limit",
 };

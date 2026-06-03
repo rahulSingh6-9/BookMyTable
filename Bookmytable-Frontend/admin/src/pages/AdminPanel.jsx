@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Users, Store, CalendarCheck, DollarSign, Briefcase } from "lucide-react";
+import { Users, Store, CalendarCheck, DollarSign, Briefcase, Clock, CreditCard, Ban } from "lucide-react";
 import { StatCard } from "@/components/shared/StatCard";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +46,7 @@ export default function AdminPanel() {
       <motion.div 
         initial={{ opacity: 0, y: 10 }} 
         animate={{ opacity: 1, y: 0 }} 
-        className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-5"
+        className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4"
       >
         <PermissionGuard permission="users.view">
           <StatCard title="Total Users" value="15,234" trend="up" trendValue={12} icon={Users} />
@@ -55,13 +55,22 @@ export default function AdminPanel() {
           <StatCard title="Total Brands" value="128" trend="up" trendValue={5} icon={Briefcase} />
         </PermissionGuard>
         <PermissionGuard permission="restaurants.view">
-          <StatCard title="Total Branches" value="342" trend="up" trendValue={8} icon={Store} />
+          <StatCard title="Total Restaurants" value="342" trend="up" trendValue={8} icon={Store} />
         </PermissionGuard>
         <PermissionGuard permission="bookings.view">
           <StatCard title="Total Bookings" value="14,247" trend="up" trendValue={18} icon={CalendarCheck} />
         </PermissionGuard>
+        <PermissionGuard permission="restaurants.manage">
+          <StatCard title="Pending Approvals" value="24" trend="down" trendValue={2} icon={Clock} />
+        </PermissionGuard>
+        <PermissionGuard permission="payments.view">
+          <StatCard title="Active Subscriptions" value="89" trend="up" trendValue={4} icon={CreditCard} />
+        </PermissionGuard>
         <PermissionGuard permission="revenue.view">
-          <StatCard title="Revenue" value="$248,200" trend="up" trendValue={15} icon={DollarSign} />
+          <StatCard title="Revenue (MTD)" value="$248,200" trend="up" trendValue={15} icon={DollarSign} />
+        </PermissionGuard>
+        <PermissionGuard permission="restaurants.manage">
+          <StatCard title="Suspended Entities" value="7" trend="up" trendValue={1} icon={Ban} />
         </PermissionGuard>
       </motion.div>
 

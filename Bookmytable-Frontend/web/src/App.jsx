@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, Outlet } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -31,17 +31,13 @@ import OwnerAvailabilitySchedule from "./pages/operations/OwnerAvailabilitySched
 import OwnerSubscription from "./pages/OwnerSubscription";
 import RestaurantBranding from "./pages/RestaurantBranding";
 import BusinessVerification from "./pages/BusinessVerification";
-import { StaffLayout } from "@/components/layout/StaffLayout";
-import StaffDashboard from "@/pages/staff/StaffDashboard";
-import StaffBookings from "@/pages/staff/StaffBookings";
-import StaffLiveTables from "@/pages/staff/LiveTables";
-import StaffWalkinBooking from "@/pages/staff/WalkinBooking";
-import StaffLogs from "@/pages/staff/StaffLogs";
+import { BrandLayout } from "@/components/layout/BrandLayout";
+import { BrandSync } from "@/components/layout/BrandSync";
+import { BranchLayout } from "@/components/layout/BranchLayout";
+import { brandRoutes } from "@/routes/brand.routes";
 import AcceptInvite from "@/pages/staff/AcceptInvite";
-
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
-import { OwnerLayout } from "@/components/layout/OwnerLayout";
 import PartnerWithUs from "./pages/PartnerWithUs";
 import { InfoLayout } from "@/components/layout/InfoLayout";
 import { PublicLayout } from "@/components/layout/PublicLayout";
@@ -200,178 +196,23 @@ const App = () => (
           <Route path="/blog" element={<Blog />} />
         </Route>
 
-        {/* 🏢 OWNER PANEL (PERMISSION DRIVEN) */}
-        <Route
-          path="/owner"
-          element={
-            <PermissionProtectedRoute permission="MANAGE_BRANCH">
-              <OwnerLayout />
-            </PermissionProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<OwnerDashboard />} />
-          
-          <Route path="tables" 
-            element={
-              <PermissionProtectedRoute permission="MANAGE_TABLES">
-                <ManageTables />
-              </PermissionProtectedRoute>
-            } 
-          />
-          
-          <Route path="layout" 
-            element={
-              <PermissionProtectedRoute permission="MANAGE_TABLES">
-                <OwnerLayoutEditor />
-              </PermissionProtectedRoute>
-            } 
-          />
-          
-          <Route path="reservations" 
-            element={
-              <PermissionProtectedRoute permission="MANAGE_BOOKINGS">
-                <ManageReservations />
-              </PermissionProtectedRoute>
-            } 
-          />
-          
-          <Route path="availability" element={<Navigate to="../operations/availability-schedule" replace />} />
-          
-          <Route path="operations">
-            <Route path="availability-schedule" 
-              element={
-                <PermissionProtectedRoute permission="MANAGE_SETTINGS">
-                  <OwnerAvailabilitySchedule />
-                </PermissionProtectedRoute>
-              } 
-            />
-          </Route>
-          
-          <Route path="menu" 
-            element={
-              <PermissionProtectedRoute permission="MANAGE_MENU">
-                <ManageMenu />
-              </PermissionProtectedRoute>
-            } 
-          />
-          
-          <Route path="analytics" 
-            element={
-              <PermissionProtectedRoute permission="VIEW_ANALYTICS">
-                <OwnerAnalytics />
-              </PermissionProtectedRoute>
-            } 
-          />
-          
-          <Route path="settings">
-            <Route index element={<Navigate to="booking-policies" replace />} />
-            
-            <Route path="booking-policies" 
-              element={
-                <PermissionProtectedRoute permission="MANAGE_SETTINGS">
-                  <OwnerBookingPolicies />
-                </PermissionProtectedRoute>
-              } 
-            />
-            <Route path="account" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerAccountSettings /></PermissionProtectedRoute>} />
-            <Route path="billing" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerBillingSettings /></PermissionProtectedRoute>} />
-            <Route path="notifications" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerNotificationsSettings /></PermissionProtectedRoute>} />
-            <Route path="integrations" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerIntegrationsSettings /></PermissionProtectedRoute>} />
-            <Route path="security" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerSecuritySettings /></PermissionProtectedRoute>} />
-            <Route path="roles" element={<PermissionProtectedRoute permission="MANAGE_SETTINGS"><OwnerRolesAccessSettings /></PermissionProtectedRoute>} />
-          </Route>
-          
-          <Route path="subscription" element={<OwnerSubscription />} />
-          
-          {/* 🏢 BUSINESS WORKSPACE UPGRADE */}
-          <Route path="business-workspace">
-            <Route path="branding" 
-              element={
-                <PermissionProtectedRoute permission="MANAGE_BRANCH">
-                  <RestaurantBranding />
-                </PermissionProtectedRoute>
-              } 
-            />
-            <Route path="verification" 
-              element={
-                <PermissionProtectedRoute permission="MANAGE_BRANCH">
-                  <BusinessVerification />
-                </PermissionProtectedRoute>
-              } 
-            />
-          </Route>
-          
-          <Route path="staff" 
-            element={
-              <PermissionProtectedRoute permission="MANAGE_STAFF">
-                <StaffListPage />
-              </PermissionProtectedRoute>
-            } 
-          />
-          
-          <Route path="logs" 
-            element={
-              <PermissionProtectedRoute permission="VIEW_REPORTS">
-                <OwnerLogsPage />
-              </PermissionProtectedRoute>
-            } 
-          />
-
+        {/* 🏢 BRAND PANEL */}
+        <Route path="/brand" element={
+          <ProtectedRoute>
+            <Outlet />
+          </ProtectedRoute>
+        }>
+          <Route index element={<BrandSync />} />
+          {brandRoutes}
         </Route>
 
-
-        {/* 👨‍🍳 STAFF PANEL (PERMISSION DRIVEN) */}
-        <Route
-          path="/staff"
-          element={
-            <PermissionProtectedRoute allPermissions={["MANAGE_BOOKINGS", "MANAGE_TABLES"]}>
-              <StaffLayout />
-            </PermissionProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route 
-            path="dashboard" 
-            element={
-              <PermissionProtectedRoute allPermissions={["MANAGE_BOOKINGS", "MANAGE_TABLES"]}>
-                <StaffDashboard />
-              </PermissionProtectedRoute>
-            } 
-          />
-          <Route 
-            path="bookings" 
-            element={
-              <PermissionProtectedRoute permission="MANAGE_BOOKINGS">
-                <StaffBookings />
-              </PermissionProtectedRoute>
-            } 
-          />
-          <Route 
-            path="live-tables" 
-            element={
-              <PermissionProtectedRoute permission="MANAGE_TABLES">
-                <StaffLiveTables />
-              </PermissionProtectedRoute>
-            } 
-          />
-          <Route 
-            path="walkin-booking" 
-            element={
-              <PermissionProtectedRoute permission="MANAGE_BOOKINGS">
-                <StaffWalkinBooking />
-              </PermissionProtectedRoute>
-            } 
-          />
-          <Route 
-            path="logs" 
-            element={
-              <PermissionProtectedRoute permission="VIEW_REPORTS">
-                <StaffLogs />
-              </PermissionProtectedRoute>
-            } 
-          />
-        </Route>
+        {/* Legacy ID-based Redirects */}
+        <Route path="/workspace/:contextId/:branchId/*" element={
+          <Navigate to="/discover" replace />
+        } />
+        <Route path="/branch/:branchId/*" element={
+          <Navigate to="/discover" replace />
+        } />
 
 
 

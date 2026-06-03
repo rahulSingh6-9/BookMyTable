@@ -2,6 +2,7 @@ import {
     getAllBrandsService,
     approveBrandService,
     suspendBrandService,
+    rejectBrandService,
     getBrandDetailsService
 } from "./adminBrand.service.js";
 
@@ -26,6 +27,9 @@ export const getBrandDetails = async (req, res, next) => {
         const result = await getBrandDetailsService(id);
         res.status(200).json({ success: true, data: result });
     } catch (error) {
+        if (error.message === "RESYNC_REQUIRED") {
+            return res.status(404).json({ error: "RESYNC_REQUIRED", message: "Read model is missing or stale." });
+        }
         next(error);
     }
 };
@@ -45,6 +49,16 @@ export const suspendBrand = async (req, res, next) => {
         const { id } = req.params;
         const result = await suspendBrandService(id, req.user.id);
         res.status(200).json({ success: true, message: "Brand suspended", data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const rejectBrand = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const result = await rejectBrandService(id, req.user.id);
+        res.status(200).json({ success: true, message: "Brand rejected", data: result });
     } catch (error) {
         next(error);
     }

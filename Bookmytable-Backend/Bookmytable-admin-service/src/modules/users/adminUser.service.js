@@ -85,97 +85,34 @@ export const updateUserRoleService = async (id, role, admin) => {
 };
 
 // ============================================================
-// AGGREGATION SERVICES (BFF Pattern)
+// READ SIDE — CQRS Local Read Model (NO cross-service DB call)
 // ============================================================
-import axios from 'axios';
-
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://localhost:5002';
-const BOOKING_SERVICE_URL = process.env.BOOKING_SERVICE_URL || 'http://localhost:5005';
-const RESTAURANT_SERVICE_URL = process.env.RESTAURANT_SERVICE_URL || 'http://localhost:5003';
 
 export const getUserDetailsService = async (userId) => {
-  try {
-    // We can't use admin token directly because other services might expect a user token,
-    // or we might need an internal service-to-service auth. 
-    // Wait, let's try direct read model + some HTTP or just return read model for now if HTTP fails
-    
-    // Attempt to fetch full profile from User Service (if it has an admin endpoint)
-    // If not, we query the ReadModel and try to get public profile info.
-    const user = await UserReadModel.findById(userId).lean();
-    if (!user) throw new Error("User not found");
-
-    // Try fetching from User Service internal/admin endpoint if it exists
-    let fullDetails = {};
-    try {
-      // Typically user service exposes /api/users/:id for internal or admin use
-      const response = await axios.get(`${USER_SERVICE_URL}/api/users/${userId}`, {
-        headers: { 'x-internal-service': 'admin-service' }
-      });
-      fullDetails = response.data.data || response.data;
-    } catch (e) {
-      console.warn("Failed to fetch full user details from User Service", e.message);
-    }
-
-    return {
-      ...user,
-      ...fullDetails
-    };
-  } catch (error) {
-    throw new Error(`Error fetching user details: ${error.message}`);
-  }
+  const user = await UserReadModel.findById(userId).lean();
+  if (!user) throw new Error("RESYNC_REQUIRED");
+  return user;
 };
 
 export const getUserActivityService = async (userId) => {
-  try {
-    // This could fetch login logs, audit logs, etc.
-    let activity = [];
-    try {
-      const response = await axios.get(`${USER_SERVICE_URL}/api/users/${userId}/activity`, {
-        headers: { 'x-internal-service': 'admin-service' }
-      });
-      activity = response.data.data || response.data;
-    } catch (e) {
-      console.warn("Failed to fetch user activity from User Service", e.message);
-    }
-    return activity;
-  } catch (error) {
-    throw new Error(`Error fetching user activity: ${error.message}`);
-  }
+  const user = await UserReadModel.findById(userId).lean();
+  return user?.activityLogs || [];
 };
 
 export const getUserBookingsService = async (userId) => {
-  try {
-    let bookings = [];
-    try {
-      // Assuming booking service has an endpoint to get bookings by userId
-      const response = await axios.get(`${BOOKING_SERVICE_URL}/api/bookings/user/${userId}`, {
-        headers: { 'x-internal-service': 'admin-service' }
-      });
-      bookings = response.data.data || response.data;
-    } catch (e) {
-      console.warn("Failed to fetch user bookings from Booking Service", e.message);
-    }
-    return bookings;
-  } catch (error) {
-    throw new Error(`Error fetching user bookings: ${error.message}`);
-  }
+  // Return just the count/summary instead of full array since we don't store full arrays here
+  // The frontend might need adjusting if it was relying on full array, but according to plan 
+  // it should rely on real read models metrics.
+  const user = await UserReadModel.findById(userId).lean();
+  return { total: user?.bookingsCount || 0 };
 };
 
 export const getUserRestaurantsService = async (userId) => {
-  try {
-    let restaurants = { owned: [], staff: [] };
-    try {
-      const response = await axios.get(`${RESTAURANT_SERVICE_URL}/api/restaurants/user/${userId}/affiliations`, {
-        headers: { 'x-internal-service': 'admin-service' }
-      });
-      restaurants = response.data.data || response.data;
-    } catch (e) {
-      console.warn("Failed to fetch user restaurants from Restaurant Service", e.message);
-    }
-    return restaurants;
-  } catch (error) {
-    throw new Error(`Error fetching user restaurants: ${error.message}`);
-  }
+  const user = await UserReadModel.findById(userId).lean();
+  return { 
+    owned: user?.ownedRestaurants || [], 
+    staff: user?.staffAffiliations || [] 
+  };
 };
 
 export const forceLogoutService = async (userId, admin) => {

@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Restaurant from "../../models/restaurant.model.js";
 import Brand from "../../models/brand.model.js";
-import { emitRestaurantStatusChanged, emitBrandUpdated } from "../../kafka/index.js";
+import { emitRestaurantStatusChanged, emitBrandUpdated, emitRestaurantPartialUpdate, emitBrandPartialUpdate } from "../../kafka/index.js";
 
 /**
  * Ensures that a Brand document exists for the given branch context, auto-healing legacy/seeded data.
@@ -247,8 +247,45 @@ export const updateBrandingDetails = async (branchId, updateData, userId) => {
   // Enforce CQRS and real-time Read-Model synchronization across Admin / Discovery services
   try {
     console.log(`📡 [BusinessWorkspaceService] Emitting brand and branch updates for brand ID: ${brand._id}, branch ID: ${branch._id}`);
-    await emitRestaurantStatusChanged(branch, "UPDATE_BRANDING");
-    await emitBrandUpdated(brand);
+    
+    // Build Delta for Branch
+    const branchDelta = {};
+    if (updateData.branchName !== undefined) branchDelta.branchName = updateData.branchName;
+    if (updateData.slug !== undefined) branchDelta.slug = updateData.slug;
+    if (updateData.description !== undefined) branchDelta.description = updateData.description;
+    if (updateData.cuisines !== undefined) branchDelta.cuisines = updateData.cuisines;
+    if (updateData.logo !== undefined) branchDelta.logo = updateData.logo;
+    if (updateData.coverImage !== undefined) branchDelta.coverImage = updateData.coverImage;
+    if (updateData.images !== undefined) branchDelta.images = updateData.images;
+    if (updateData.supportEmail !== undefined || updateData.contactNumber !== undefined) {
+      branchDelta.contact = branch.contact;
+    }
+    if (updateData.instagram !== undefined || updateData.facebook !== undefined) {
+      branchDelta.tags = branch.tags;
+    }
+
+    // Build Delta for Brand
+    const brandDelta = {};
+    if (updateData.brandName !== undefined) {
+      brandDelta.name = updateData.brandName;
+      brandDelta.normalizedName = brand.normalizedName;
+    }
+    if (updateData.brandDescription !== undefined) brandDelta.description = updateData.brandDescription;
+    if (updateData.website !== undefined) brandDelta.website = updateData.website;
+    if (updateData.logo !== undefined) brandDelta.logo = updateData.logo;
+    if (updateData.coverImage !== undefined) brandDelta.coverImage = updateData.coverImage;
+    if (updateData.gstNumber !== undefined) brandDelta.gstNumber = updateData.gstNumber;
+    if (updateData.panNumber !== undefined) brandDelta.panNumber = updateData.panNumber;
+    if (updateData.fssaiLicenseNumber !== undefined) brandDelta.fssaiLicenseNumber = updateData.fssaiLicenseNumber;
+
+    if (Object.keys(branchDelta).length > 0) {
+      await emitRestaurantPartialUpdate(branch._id, branch.brandId, branchDelta);
+    }
+    
+    if (Object.keys(brandDelta).length > 0) {
+      await emitBrandPartialUpdate(brand._id, brandDelta);
+    }
+
   } catch (kafkaError) {
     console.error("⚠️ [BusinessWorkspaceService] Kafka event emission failed for branding update:", kafkaError.message);
   }

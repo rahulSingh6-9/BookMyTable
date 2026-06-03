@@ -5,13 +5,13 @@ import Restaurant from "../../models/restaurant.model.js";
 import Brand from "../../models/brand.model.js";
 import BranchMembership from "../../models/branchmemberships.model.js";
 import cloudinary from "../../config/cloudinary.js";
-import { emitRestaurantStatusChanged, emitBrandUpdated } from "../../kafka/index.js";
+import { emitRestaurantStatusChanged, emitBrandUpdated, emitMembershipDeleted, emitRestaurantPartialUpdate } from "../../kafka/index.js";
 import mongoose from "mongoose";
 
 export const create = async (req, res) => {
   try {
     const userId = req.user.id;
-    const restaurant = await createRestaurant(req.body, userId);
+    const restaurant = await createRestaurant(req.body, req.user);
 
     // 📝 Log Action
     createLog({
@@ -29,7 +29,11 @@ export const create = async (req, res) => {
       data: restaurant,
     });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(err.status || 400).json({ 
+      success: false, 
+      message: err.message,
+      code: err.code || "BAD_REQUEST" 
+    });
   }
 };
 
@@ -221,7 +225,7 @@ export const updateRestaurantCoverImage = async (req, res, next) => {
 
     // Emit CQRS update
     try {
-      await emitRestaurantStatusChanged(branch, "UPDATE_BRANDING");
+      await emitRestaurantPartialUpdate(branch._id, branch.brandId, { coverImage: coverUrl });
     } catch (kafkaError) {
       console.error("⚠️ Kafka status change emit failure:", kafkaError.message);
     }
@@ -304,7 +308,7 @@ export const addRestaurantGalleryImage = async (req, res, next) => {
 
     // Emit CQRS update
     try {
-      await emitRestaurantStatusChanged(branch, "UPDATE_BRANDING");
+      await emitRestaurantPartialUpdate(branch._id, branch.brandId, { images: branch.images });
     } catch (kafkaError) {
       console.error("⚠️ Kafka status change emit failure:", kafkaError.message);
     }
@@ -382,7 +386,7 @@ export const deleteRestaurantGalleryImage = async (req, res, next) => {
 
     // Emit CQRS update
     try {
-      await emitRestaurantStatusChanged(branch, "UPDATE_BRANDING");
+      await emitRestaurantPartialUpdate(branch._id, branch.brandId, { images: branch.images });
     } catch (kafkaError) {
       console.error("⚠️ Kafka status change emit failure:", kafkaError.message);
     }
@@ -398,3 +402,220 @@ export const deleteRestaurantGalleryImage = async (req, res, next) => {
   }
 };
 
+// ──────────────────────────────────────────────
+// Branch Lifecycle Management
+// ──────────────────────────────────────────────
+
+export const deactivateBranch = async (req, res, next) => {
+  try {
+    const { brandId, branchId } = req.params;
+    const { reason } = req.body;
+    const userId = req.user?.id;
+
+    const branch = await Restaurant.findById(branchId);
+    if (!branch) {
+      return res.status(404).json({ success: false, message: "Branch not found" });
+    }
+    healBranchDocument(branch, userId);
+    
+    if (branch.brandId?.toString() !== brandId) {
+      return res.status(404).json({ success: false, message: "Branch not found" });
+    }
+
+    branch.isActive = false;
+    branch.status = 'suspended';
+    branch.deactivateReason = reason || "Deactivated by owner";
+    branch.updatedBy = userId;
+    
+    await branch.save();
+    
+    try {
+      await emitRestaurantStatusChanged(branch, "SUSPEND_RESTAURANT");
+      
+      // Log for the Branch
+      createLog({
+        action: "BRANCH_DEACTIVATED",
+        performedBy: userId,
+        restaurant: branchId,
+        metadata: { branchName: branch.branchName, reason },
+        ipAddress: req.ip,
+      });
+
+      // Log for the Brand
+      createLog({
+        action: "BRANCH_DEACTIVATED",
+        performedBy: userId,
+        entityType: "brand",
+        brandId: brandId,
+        metadata: { branchId: branchId, branchName: branch.branchName, reason },
+        ipAddress: req.ip,
+      });
+    } catch (e) {
+      console.error("Failed to emit suspend event", e.message);
+    }
+
+    res.status(200).json({ success: true, message: "Branch deactivated successfully", data: branch });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const softDeleteBranch = async (req, res, next) => {
+  try {
+    const { brandId, branchId } = req.params;
+    const userId = req.user?.id;
+
+    const branch = await Restaurant.findById(branchId);
+    if (!branch) {
+      return res.status(404).json({ success: false, message: "Branch not found" });
+    }
+    healBranchDocument(branch, userId);
+    
+    if (branch.brandId?.toString() !== brandId) {
+      return res.status(404).json({ success: false, message: "Branch not found" });
+    }
+
+    branch.isDeleted = true;
+    branch.deletedAt = new Date();
+    branch.isActive = false;
+    branch.status = 'suspended';
+    branch.updatedBy = userId;
+    
+    await branch.save();
+    
+    try {
+      await emitRestaurantStatusChanged(branch, "REMOVE_RESTAURANT");
+      
+      // Log for the Branch
+      createLog({
+        action: "BRANCH_SOFT_DELETED",
+        performedBy: userId,
+        restaurant: branchId,
+        metadata: { branchName: branch.branchName },
+        ipAddress: req.ip,
+      });
+
+      // Log for the Brand
+      createLog({
+        action: "BRANCH_SOFT_DELETED",
+        performedBy: userId,
+        entityType: "brand",
+        brandId: brandId,
+        metadata: { branchId: branchId, branchName: branch.branchName },
+        ipAddress: req.ip,
+      });
+    } catch (e) {
+      console.error("Failed to emit remove event", e.message);
+    }
+
+    res.status(200).json({ success: true, message: "Branch deleted successfully", data: branch });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const restoreBranch = async (req, res, next) => {
+  try {
+    const { brandId, branchId } = req.params;
+    const userId = req.user?.id;
+
+    const branch = await Restaurant.findById(branchId);
+    if (!branch) {
+      return res.status(404).json({ success: false, message: "Branch not found" });
+    }
+    healBranchDocument(branch, userId);
+    
+    if (branch.brandId?.toString() !== brandId) {
+      return res.status(404).json({ success: false, message: "Branch not found" });
+    }
+
+    branch.isDeleted = false;
+    branch.deletedAt = null;
+    branch.isActive = true;
+    branch.status = 'approved';
+    branch.deactivateReason = null;
+    branch.updatedBy = userId;
+    
+    await branch.save();
+    
+    try {
+      await emitRestaurantStatusChanged(branch, "UPDATE_RESTAURANT");
+      
+      // Log for the Branch
+      createLog({
+        action: "BRANCH_RESTORED",
+        performedBy: userId,
+        restaurant: branchId,
+        metadata: { branchName: branch.branchName },
+        ipAddress: req.ip,
+      });
+
+      // Log for the Brand
+      createLog({
+        action: "BRANCH_RESTORED",
+        performedBy: userId,
+        entityType: "brand",
+        brandId: brandId,
+        metadata: { branchId: branchId, branchName: branch.branchName },
+        ipAddress: req.ip,
+      });
+    } catch (e) {
+      console.error("Failed to emit restore event", e.message);
+    }
+
+    res.status(200).json({ success: true, message: "Branch restored successfully", data: branch });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const permanentDeleteBranch = async (req, res, next) => {
+  try {
+    const { brandId, branchId } = req.params;
+    
+    const branch = await Restaurant.findById(branchId);
+    if (!branch) {
+      return res.status(404).json({ success: false, message: "Branch not found" });
+    }
+    healBranchDocument(branch, req.user?.id);
+    
+    if (branch.brandId?.toString() !== brandId) {
+      return res.status(404).json({ success: false, message: "Branch not found" });
+    }
+
+    // Fetch memberships to emit deletion events
+    const membershipsToDelete = await BranchMembership.find({ branch: branchId });
+
+    await Restaurant.findByIdAndDelete(branchId);
+    await BranchMembership.deleteMany({ branch: branchId });
+    
+    // Emit Membership Deleted events
+    for (const membership of membershipsToDelete) {
+      try {
+        await emitMembershipDeleted(membership);
+      } catch (e) {
+        console.error("Failed to emit membership deleted event", e.message);
+      }
+    }
+    
+    try {
+      await emitRestaurantStatusChanged(branch, "PERMANENT_DELETE");
+      
+      // Log for the Brand (since branch is deleted)
+      createLog({
+        action: "BRANCH_PERMANENTLY_DELETED",
+        performedBy: req.user?.id,
+        entityType: "brand",
+        brandId: brandId,
+        metadata: { branchId: branchId, branchName: branch.branchName },
+        ipAddress: req.ip,
+      });
+    } catch (e) {
+      console.error("Failed to emit permanent delete event", e.message);
+    }
+
+    res.status(200).json({ success: true, message: "Branch permanently deleted" });
+  } catch (error) {
+    next(error);
+  }
+};

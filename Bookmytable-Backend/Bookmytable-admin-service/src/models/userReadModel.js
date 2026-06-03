@@ -8,6 +8,36 @@ const userReadSchema = new mongoose.Schema(
     roles: [{ type: String }],
     status: { type: String },
     isBlocked: { type: Boolean, default: false },
+    avatar: { type: String },
+    phone: { type: String },
+    emailVerified: { type: Boolean, default: false },
+    phoneVerified: { type: Boolean, default: false },
+    lastLogin: { type: Date },
+    bookingsCount: { type: Number, default: 0 },
+    totalMemberships: { type: Number, default: 0 },
+    ownedRestaurants: [
+      {
+        id: { type: String },
+        name: { type: String },
+        status: { type: String },
+      }
+    ],
+    staffAffiliations: [
+      {
+        branchId: { type: String },
+        branchName: { type: String },
+        role: { type: String },
+        status: { type: String },
+      }
+    ],
+    activityLogs: [
+      {
+        action: { type: String },
+        ip: { type: String },
+        timestamp: { type: Date, default: Date.now }
+      }
+    ],
+    createdAt: { type: Date },
     updatedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

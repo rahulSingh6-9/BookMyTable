@@ -53,6 +53,10 @@ router.post("/onboarding/email/verify", createProxy(RESTAURANT_SERVICE_URL, { "^
 // 🔐 Protected Staff Routes
 router.use("/staff", verifyToken, createProxy(RESTAURANT_SERVICE_URL, { "^": "/staff" }) )
 
+// 👤 Admin Accept Invite (Public & Semi-Protected)
+router.use("/admin/invitations/token", createProxy(ADMIN_SERVICE_URL, { "^": "/admin/invitations/token" }));
+router.use("/admin/invitations/accept", verifyToken, createProxy(ADMIN_SERVICE_URL, { "^": "/admin/invitations/accept" }));
+
 // 🔴 Admin routes
 router.use("/admin", verifyToken, verifyAdmin, createProxy(ADMIN_SERVICE_URL, { "^": "/admin" }));
 

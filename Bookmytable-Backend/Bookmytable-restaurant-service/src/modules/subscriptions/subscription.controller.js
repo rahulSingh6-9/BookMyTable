@@ -26,6 +26,32 @@ export const updatePlan = async (req, res, next) => {
   }
 };
 
+export const archivePlan = async (req, res, next) => {
+  try {
+    const plan = await subscriptionService.archivePlan(req.params.id);
+    res.status(200).json({
+      success: true,
+      message: "Subscription plan archived successfully",
+      data: plan,
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+export const restorePlan = async (req, res, next) => {
+  try {
+    const plan = await subscriptionService.restorePlan(req.params.id);
+    res.status(200).json({
+      success: true,
+      message: "Subscription plan restored successfully",
+      data: plan,
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
 export const getPlans = async (req, res, next) => {
   try {
     const plans = await subscriptionService.getPlans(req.query);

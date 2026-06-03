@@ -1,0 +1,31 @@
+export const FLOOR_OPTIONS = [
+  { value: "ground", label: "Ground Floor" },
+  { value: "floor_1", label: "Floor 1" },
+  { value: "floor_2", label: "Floor 2" },
+  { value: "floor_3", label: "Floor 3" },
+  { value: "floor_4", label: "Floor 4" },
+  { value: "floor_5", label: "Floor 5" },
+  { value: "basement", label: "Basement" },
+  { value: "mezzanine", label: "Mezzanine" },
+  { value: "rooftop", label: "Rooftop" },
+  { value: "custom", label: "Custom Floor" },
+];
+
+export const SECTION_OPTIONS = [
+  { value: "main_hall", label: "Main Hall" },
+  { value: "family_zone", label: "Family Zone" },
+  { value: "couple_zone", label: "Couple Zone" },
+  { value: "indoor_seating", label: "Indoor Seating" },
+  { value: "outdoor_seating", label: "Outdoor Seating" },
+  { value: "private_dining", label: "Private Dining" },
+  { value: "vip_area", label: "VIP Area" },
+  { value: "window_side", label: "Window Side" },
+  { value: "terrace", label: "Terrace" },
+  { value: "bar_area", label: "Bar Area" },
+  { value: "lounge_area", label: "Lounge Area" },
+  { value: "kids_zone", label: "Kids Zone" },
+  { value: "event_area", label: "Event Area" },
+  { value: "smoking_zone", label: "Smoking Zone" },
+  { value: "non_smoking_zone", label: "Non-Smoking Zone" },
+  { value: "custom", label: "Custom Section" },
+];

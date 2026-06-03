@@ -8,9 +8,14 @@ export const RESTAURANT_TOPICS = {
 
   BRAND_CREATED: "brand.created",
   BRAND_UPDATED: "brand.updated",
+  BRAND_DEACTIVATED: "brand.deactivated",
+  BRAND_ARCHIVED: "brand.archived",
+  BRAND_RESTORED: "brand.restored",
+  BRANCH_CREATION_BLOCKED: "branch.creation.blocked.plan_limit",
 
   MEMBERSHIP_CREATED: "membership.created",
   MEMBERSHIP_UPDATED: "membership.updated",
+  MEMBERSHIP_DELETED: "membership.deleted",
 
   TABLE_CREATED: "table.created",
   TABLE_UPDATED: "table.updated",

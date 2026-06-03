@@ -9,6 +9,10 @@ import { syncBrandSubscription } from "../handlers/brandSubscriptionSync.handler
 import { syncBilling } from "../handlers/billingSync.handler.js";
 import { syncSubscriptionOverride } from "../handlers/subscriptionOverrideSync.handler.js";
 import { handleInvitationSync } from "../handlers/invitationSync.handler.js";
+import { syncBooking } from "../handlers/bookingSync.handler.js";
+import { syncTable } from "../handlers/tableSync.handler.js";
+import { handleAdminLogSync } from "../handlers/adminLogSync.handler.js";
+import Logger from "../../utils/logger.js";
 
 const consumer = kafka.consumer({ groupId: "admin-service-group" });
 
@@ -29,8 +33,12 @@ export const startAdminConsumer = async () => {
         KAFKA_TOPICS.RESTAURANT_REMOVED,
         KAFKA_TOPICS.BRAND_CREATED,
         KAFKA_TOPICS.BRAND_UPDATED,
+        KAFKA_TOPICS.BRAND_DEACTIVATED,
+        KAFKA_TOPICS.BRAND_ARCHIVED,
+        KAFKA_TOPICS.BRAND_RESTORED,
         KAFKA_TOPICS.MEMBERSHIP_CREATED,
         KAFKA_TOPICS.MEMBERSHIP_UPDATED,
+        KAFKA_TOPICS.MEMBERSHIP_DELETED,
         KAFKA_TOPICS.SUBSCRIPTION_PLAN_CREATED,
         KAFKA_TOPICS.SUBSCRIPTION_PLAN_UPDATED,
         KAFKA_TOPICS.SUBSCRIPTION_ACTIVATED,
@@ -40,9 +48,21 @@ export const startAdminConsumer = async () => {
         KAFKA_TOPICS.STAFF_INVITED,
         KAFKA_TOPICS.STAFF_JOINED,
         KAFKA_TOPICS.INVITATION_FAILED,
-        KAFKA_TOPICS.INVITATION_REVOKED
+        KAFKA_TOPICS.INVITATION_REVOKED,
+        KAFKA_TOPICS.BOOKING_CREATED,
+        KAFKA_TOPICS.BOOKING_CANCELLED,
+        KAFKA_TOPICS.BOOKING_COMPLETED,
+        KAFKA_TOPICS.TABLE_CREATED,
+        KAFKA_TOPICS.TABLE_DELETED,
+        KAFKA_TOPICS.ADMIN_INVITED,
+        KAFKA_TOPICS.ADMIN_JOINED,
+        KAFKA_TOPICS.ADMIN_INVITATION_REVOKED,
+        KAFKA_TOPICS.ADMIN_INVITATION_VIEWED,
+        KAFKA_TOPICS.ADMIN_INVITATION_FAILED,
+        KAFKA_TOPICS.ADMIN_INVITATION_SENT,
+        KAFKA_TOPICS.ADMIN_INVITATION_EXPIRED
       ], 
-      fromBeginning 
+      fromBeginning
     });
 
     await consumer.run({
@@ -67,9 +87,15 @@ export const startAdminConsumer = async () => {
             topic === KAFKA_TOPICS.BRANCH_UPDATED
           ) {
             await syncBranch(data);
-          } else if (topic === KAFKA_TOPICS.BRAND_CREATED || topic === KAFKA_TOPICS.BRAND_UPDATED) {
-            await syncBrand(data);
-          } else if (topic === KAFKA_TOPICS.MEMBERSHIP_CREATED || topic === KAFKA_TOPICS.MEMBERSHIP_UPDATED) {
+          } else if (
+            topic === KAFKA_TOPICS.BRAND_CREATED || 
+            topic === KAFKA_TOPICS.BRAND_UPDATED ||
+            topic === KAFKA_TOPICS.BRAND_DEACTIVATED ||
+            topic === KAFKA_TOPICS.BRAND_ARCHIVED ||
+            topic === KAFKA_TOPICS.BRAND_RESTORED
+          ) {
+            await syncBrand(data, topic);
+          } else if (topic === KAFKA_TOPICS.MEMBERSHIP_CREATED || topic === KAFKA_TOPICS.MEMBERSHIP_UPDATED || topic === KAFKA_TOPICS.MEMBERSHIP_DELETED) {
             await syncMembership(data);
           } else if (topic === KAFKA_TOPICS.SUBSCRIPTION_PLAN_CREATED || topic === KAFKA_TOPICS.SUBSCRIPTION_PLAN_UPDATED) {
             await syncSubscriptionPlan(data);
@@ -86,13 +112,34 @@ export const startAdminConsumer = async () => {
             topic === KAFKA_TOPICS.INVITATION_REVOKED
           ) {
             await handleInvitationSync(event.eventType, data);
+          } else if (
+            topic === KAFKA_TOPICS.BOOKING_CREATED ||
+            topic === KAFKA_TOPICS.BOOKING_CANCELLED ||
+            topic === KAFKA_TOPICS.BOOKING_COMPLETED
+          ) {
+            await syncBooking(topic, data);
+          } else if (
+            topic === KAFKA_TOPICS.TABLE_CREATED ||
+            topic === KAFKA_TOPICS.TABLE_DELETED
+          ) {
+            await syncTable(topic, data);
+          } else if (
+            topic === KAFKA_TOPICS.ADMIN_INVITED ||
+            topic === KAFKA_TOPICS.ADMIN_JOINED ||
+            topic === KAFKA_TOPICS.ADMIN_INVITATION_REVOKED ||
+            topic === KAFKA_TOPICS.ADMIN_INVITATION_VIEWED ||
+            topic === KAFKA_TOPICS.ADMIN_INVITATION_FAILED ||
+            topic === KAFKA_TOPICS.ADMIN_INVITATION_SENT ||
+            topic === KAFKA_TOPICS.ADMIN_INVITATION_EXPIRED
+          ) {
+            await handleAdminLogSync(topic, data);
           }
         } catch (err) {
-          console.error(`❌ Error parsing/handling message on topic [${topic}]:`, err.message);
+          await Logger.logError("admin-service", "kafka-consumer", `Error parsing/handling message on topic [${topic}]: ${err.message}`, { topic, error: err.stack });
         }
       },
     });
   } catch (error) {
-    console.error("❌ Admin Consumer Error:", error.message);
+    await Logger.logError("admin-service", "kafka-consumer", `Admin Consumer Error: ${error.message}`, { error: error.stack });
   }
 };

@@ -1,14 +1,9 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useBrand } from "@/context/BrandContext";
 import { useBranch } from "@/context/BranchContext";
-
 /**
  * Enterprise Permission-based Protected Route
- * 
- * Checks for:
- * 1. Authentication (via AuthContext)
- * 2. Active Branch Membership (via BranchContext)
- * 3. Specific Permissions (via BranchContext)
  */
 export default function PermissionProtectedRoute({ 
   children, 
@@ -17,9 +12,15 @@ export default function PermissionProtectedRoute({
   requireAll = false 
 }) {
   const { user, isLoading: authLoading } = useAuth();
-  const { hasPermission, activeMembership, isLoading: branchLoading } = useBranch();
+  const { activeBrand, activeBrandSlug, isLoading: brandLoading } = useBrand();
+  const { hasPermission, activeMembership, activeBranchSlug, isLoading: branchLoading } = useBranch();
+  const { brandSlug, branchSlug } = useParams();
 
-  if (authLoading || branchLoading) {
+  // Wait if we are syncing slugs
+  const isSyncingBrand = brandSlug && brandSlug !== activeBrandSlug;
+  const isSyncingBranch = branchSlug && branchSlug !== activeBranchSlug;
+
+  if (authLoading || brandLoading || branchLoading || isSyncingBrand || isSyncingBranch) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -39,9 +40,10 @@ export default function PermissionProtectedRoute({
   const isGlobalAdmin = user.roles?.includes("admin") || user.roles?.includes("super_admin");
   if (isGlobalAdmin) return children;
 
-  // 3. Check for Active Branch Membership
-  if (!activeMembership) {
-    // If user has memberships but none active, redirect to selection or dashboard
+  // 3. Check for Active Brand or Branch Membership
+  if (branchSlug && !activeMembership) {
+    return <Navigate to="/discover" replace />;
+  } else if (brandSlug && !activeBrand) {
     return <Navigate to="/discover" replace />;
   }
 

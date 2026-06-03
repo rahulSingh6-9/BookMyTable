@@ -4,7 +4,7 @@ import { DataTable } from "@/components/shared/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  MoreHorizontal, Check, X, Eye, Edit, Store as StoreIcon,
+  MoreHorizontal, Check, X, Eye, Edit, Store as StoreIcon, ShieldCheck, Users, CalendarCheck, Clock
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,6 +25,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAllRestaurants, approveRestaurant, suspendRestaurant } from "@/services/restaurant.service";
 import { toast } from "sonner";
 import { RestaurantDetailsDrawer } from "@/components/restaurants/RestaurantDetailsDrawer";
+import { StatCard } from "@/components/shared/StatCard";
+import { motion } from "framer-motion";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 const capitalize = (str) =>
@@ -83,6 +85,9 @@ export default function ManageRestaurants() {
       city: r.city || r.address?.city || "—",
       status: r.status || "pending",
       statusLabel: capitalize(r.status || "pending"),
+      isVerified: r.emailVerified || r.phoneVerified || false,
+      staffCount: r.staffCount || 0,
+      bookingsEnabled: r.bookingsEnabled,
       createdAt: r.createdAt
         ? new Date(r.createdAt).toLocaleDateString("en-IN", {
             day: "2-digit", month: "short", year: "numeric",
@@ -104,6 +109,20 @@ export default function ManageRestaurants() {
     },
     { header: "Brand",      accessorKey: "brand" },
     { header: "City",       accessorKey: "city" },
+    { 
+      header: "Staff", 
+      accessorKey: "staffCount",
+      cell: (row) => <div className="text-center">{row.staffCount}</div>
+    },
+    { 
+      header: "Bookings", 
+      accessorKey: "bookingsEnabled",
+      cell: (row) => (
+        row.bookingsEnabled ? 
+          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-600 border-emerald-200">Enabled</Badge> : 
+          <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-500 border-slate-200">Disabled</Badge>
+      )
+    },
     { header: "Created At", accessorKey: "createdAt" },
     {
       header: "Status",
@@ -177,8 +196,20 @@ export default function ManageRestaurants() {
           title="Branch Management"
           description="Review, approve, and manage individual restaurant branches."
         />
+      </div>
 
-        {/* Server-side status filter dropdown */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        <StatCard title="Total Branches" value={data?.data?.data?.length || 0} trend="up" trendValue={3} icon={StoreIcon} />
+        <StatCard title="Pending Review" value={data?.data?.data?.filter(b => b.status === 'pending').length || 0} icon={Clock} />
+        <StatCard title="Verified" value={data?.data?.data?.filter(b => b.emailVerified || b.phoneVerified).length || 0} icon={ShieldCheck} />
+        <StatCard title="Suspended" value={data?.data?.data?.filter(b => b.status === 'suspended').length || 0} icon={X} />
+      </motion.div>
+
+      <div className="flex items-center justify-end">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder="Filter by status" />

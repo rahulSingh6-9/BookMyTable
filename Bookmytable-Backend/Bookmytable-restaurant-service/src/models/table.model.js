@@ -96,8 +96,16 @@ const tableSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    floorLabel: {
+      type: String,
+      trim: true,
+    },
 
     section: {
+      type: String,
+      trim: true,
+    },
+    sectionLabel: {
       type: String,
       trim: true,
     },

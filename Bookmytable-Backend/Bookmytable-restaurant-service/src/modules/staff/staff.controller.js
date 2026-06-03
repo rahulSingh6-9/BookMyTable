@@ -36,7 +36,11 @@ export const inviteStaffController = async (req, res) => {
       inviteId: invite._id,
     });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(err.status || 400).json({ 
+      success: false, 
+      message: err.message,
+      code: err.code || "BAD_REQUEST" 
+    });
   }
 };
 

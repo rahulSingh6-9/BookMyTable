@@ -45,7 +45,11 @@ export const createTable = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    next(error)
+    res.status(error.status || 400).json({
+      success: false,
+      message: error.message,
+      code: error.code || "BAD_REQUEST"
+    });
   }
 };
 
@@ -73,7 +77,11 @@ export const bulkGenerateTables = async (req, res, next) => {
       data: createdTables,
     });
   } catch (error) {
-    next(error);
+    res.status(error.status || 400).json({
+      success: false,
+      message: error.message,
+      code: error.code || "BAD_REQUEST"
+    });
   }
 };
 

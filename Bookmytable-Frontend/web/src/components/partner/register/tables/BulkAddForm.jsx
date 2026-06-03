@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { FLOOR_OPTIONS, SECTION_OPTIONS } from "@/lib/tableConstants";
 
-export function BulkAddForm({ onAdd, onGenerate, existingCodes }) {
-  const [form, setForm] = useState({ prefix: "T", capacity: "2", quantity: "1", type: "indoor", floor: "", section: "" });
+export function BulkAddForm({ onAdd, onGenerate, existingCodes, disabled }) {
+  const [form, setForm] = useState({ prefix: "T", capacity: "2", quantity: "1", type: "indoor", floor: "", floorLabel: "", section: "", sectionLabel: "" });
 
   const handleAdd = () => {
     const qty = parseInt(form.quantity);
@@ -22,7 +23,7 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes }) {
     // If onGenerate is provided, pass the raw form straight to the parent (Backend Flow)
     if (onGenerate) {
       onGenerate(form);
-      setForm({ prefix: "T", capacity: "2", quantity: "1", type: "indoor", floor: "", section: "" });
+      setForm({ prefix: "T", capacity: "2", quantity: "1", type: "indoor", floor: "", floorLabel: "", section: "", sectionLabel: "" });
       return;
     }
 
@@ -41,7 +42,9 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes }) {
           capacity: cap,
           type: form.type,
           floor: form.floor,
-          section: form.section
+          floorLabel: form.floorLabel,
+          section: form.section,
+          sectionLabel: form.sectionLabel
         });
         addedCount++;
       }
@@ -50,7 +53,7 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes }) {
 
     onAdd(newTables);
     toast.success(`Generated ${qty} table(s) successfully`);
-    setForm({ prefix: "T", capacity: "2", quantity: "1", type: "indoor", floor: "", section: "" });
+    setForm({ prefix: "T", capacity: "2", quantity: "1", type: "indoor", floor: "", floorLabel: "", section: "", sectionLabel: "" });
   };
 
   return (
@@ -94,21 +97,41 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes }) {
         </div>
         <div className="space-y-2">
           <Label className="text-xs">Floor</Label>
-          <Input 
-            placeholder="e.g. Ground Floor" 
-            value={form.floor} 
-            onChange={(e) => setForm({...form, floor: e.target.value})}
-            className="h-10 bg-white"
-          />
+          <Select value={form.floor} onValueChange={(val) => setForm({...form, floor: val, floorLabel: val !== 'custom' ? FLOOR_OPTIONS.find(o => o.value === val)?.label : ""})}>
+            <SelectTrigger className="h-10 bg-white"><SelectValue placeholder="Floor" /></SelectTrigger>
+            <SelectContent>
+              {FLOOR_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {form.floor === 'custom' && (
+            <Input 
+              placeholder="Custom Floor" 
+              value={form.floorLabel} 
+              onChange={(e) => setForm({...form, floorLabel: e.target.value})}
+              className="h-10 bg-white"
+            />
+          )}
         </div>
         <div className="space-y-2">
           <Label className="text-xs">Section</Label>
-          <Input 
-            placeholder="e.g. Family Zone" 
-            value={form.section} 
-            onChange={(e) => setForm({...form, section: e.target.value})}
-            className="h-10 bg-white"
-          />
+          <Select value={form.section} onValueChange={(val) => setForm({...form, section: val, sectionLabel: val !== 'custom' ? SECTION_OPTIONS.find(o => o.value === val)?.label : ""})}>
+            <SelectTrigger className="h-10 bg-white"><SelectValue placeholder="Section" /></SelectTrigger>
+            <SelectContent>
+              {SECTION_OPTIONS.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {form.section === 'custom' && (
+            <Input 
+              placeholder="Custom Section" 
+              value={form.sectionLabel} 
+              onChange={(e) => setForm({...form, sectionLabel: e.target.value})}
+              className="h-10 bg-white"
+            />
+          )}
         </div>
         <div className="space-y-2">
           <Label className="text-xs">Quantity</Label>
@@ -121,7 +144,7 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes }) {
             className="h-10 bg-white"
           />
         </div>
-        <Button onClick={handleAdd} className="rounded-xl h-10 w-full sm:col-span-1 col-span-2">
+        <Button onClick={handleAdd} className="rounded-xl h-10 w-full sm:col-span-1 col-span-2" disabled={disabled}>
           <Plus className="h-4 w-4 mr-2" /> Generate
         </Button>
       </div>

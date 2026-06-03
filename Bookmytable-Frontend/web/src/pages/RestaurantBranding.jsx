@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBranch } from "@/context/BranchContext";
+import { useBrand } from "@/context/BrandContext";
 import { 
   getBrandingDetails, 
   updateBrandingDetails,
@@ -23,7 +24,8 @@ import {
 import { toast } from "sonner";
 
 export default function RestaurantBranding() {
-  const { activeBranch, activeMembership, activeBranchId, refreshMemberships, isLoading: isBranchLoading } = useBranch();
+  const { activeBranch, activeMembership, activeBranchId, isLoading: isBranchLoading } = useBranch();
+  const { refreshMemberships } = useBrand();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [data, setData] = useState(null);
@@ -50,6 +52,9 @@ export default function RestaurantBranding() {
   const [contactNumber, setContactNumber] = useState("");
   const [instagram, setInstagram] = useState("");
   const [facebook, setFacebook] = useState("");
+  
+  // Track initial state for delta updates
+  const [initialBusinessIdentity, setInitialBusinessIdentity] = useState({});
 
   const logoInputRef = useRef(null);
   const coverInputRef = useRef(null);
@@ -64,11 +69,23 @@ export default function RestaurantBranding() {
     const brand = activeMembership?.brand || {};
     
     setData({ branch, brand });
-    setBranchName(branch.branchName || branch.name || branch.restaurantName || "");
+    const initBranchName = branch.branchName || branch.name || branch.restaurantName || "";
+    const initSlug = branch.slug || "";
+    const initDesc = branch.description || "";
+    const initCuisines = branch.cuisines || [];
+
+    setInitialBusinessIdentity({
+      branchName: initBranchName,
+      slug: initSlug,
+      description: initDesc,
+      cuisines: initCuisines
+    });
+
+    setBranchName(initBranchName);
     setBrandName(brand.name || "");
-    setSlug(branch.slug || "");
-    setDescription(branch.description || "");
-    setCuisines(branch.cuisines || []);
+    setSlug(initSlug);
+    setDescription(initDesc);
+    setCuisines(initCuisines);
     setLogo(branch.logo || brand.logo || "");
     setCoverImage(branch.coverImage || brand.coverImage || "");
     setGallery(branch.images || []);
@@ -91,43 +108,34 @@ export default function RestaurantBranding() {
   }, [activeBranch, activeMembership]);
 
   // Handle updates
-  const handleSave = async (e) => {
+  const handleSaveBusinessIdentity = async (e) => {
     e.preventDefault();
     if (!branchName.trim()) {
       toast.error("Branch Name is required");
       return;
     }
-    if (!brandName.trim()) {
-      toast.error("Brand Name is required");
-      return;
-    }
 
     setIsSaving(true);
     try {
-      const payload = {
-        branchName,
-        brandName,
-        slug,
-        description,
-        cuisines,
-        logo,
-        coverImage,
-        images: gallery,
-        website,
-        supportEmail,
-        contactNumber,
-        instagram,
-        facebook
-      };
+      const payload = {};
+      if (branchName !== initialBusinessIdentity.branchName) payload.branchName = branchName;
+      if (slug !== initialBusinessIdentity.slug) payload.slug = slug;
+      if (description !== initialBusinessIdentity.description) payload.description = description;
+      if (JSON.stringify(cuisines) !== JSON.stringify(initialBusinessIdentity.cuisines)) payload.cuisines = cuisines;
+
+      if (Object.keys(payload).length === 0) {
+        toast.info("No changes to save");
+        return;
+      }
 
       const response = await updateBrandingDetails(payload);
       if (response.success) {
-        toast.success("Business Workspace branding saved successfully!");
+        toast.success("Business Identity saved successfully!");
         await refreshMemberships();
       }
     } catch (error) {
-      console.error("Failed to save branding details:", error);
-      toast.error(error.message || "Failed to update branding details");
+      console.error("Failed to save business identity:", error);
+      toast.error(error.message || "Failed to update business identity");
     } finally {
       setIsSaving(false);
     }
@@ -267,10 +275,6 @@ export default function RestaurantBranding() {
               Centralized business identity, asset libraries, and branding configurations for BookMyTable.
             </p>
           </div>
-          <Button onClick={handleSave} disabled={isSaving} className="rounded-full shadow-lg h-11 px-8 font-bold">
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-            Save Branding Workspace
-          </Button>
         </div>
 
         {/* 1. BRANDING HERO CONTAINER */}
@@ -392,11 +396,17 @@ export default function RestaurantBranding() {
 
         {/* 2. BUSINESS IDENTITY SECTION */}
         <Card className="p-8 rounded-[2rem] border border-border shadow-md space-y-6 bg-card">
-          <div>
-            <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-              <Store className="h-5 w-5 text-primary" /> Business Identity
-            </h3>
-            <p className="text-sm text-muted-foreground">Configure the visible, consumer-facing information for this branch.</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <Store className="h-5 w-5 text-primary" /> Business Identity
+              </h3>
+              <p className="text-sm text-muted-foreground">Configure the visible, consumer-facing information for this branch.</p>
+            </div>
+            <Button onClick={handleSaveBusinessIdentity} disabled={isSaving} className="rounded-full shadow-md h-10 px-6 font-bold bg-primary text-primary-foreground hover:bg-primary/90">
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+              Save
+            </Button>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
@@ -407,7 +417,7 @@ export default function RestaurantBranding() {
 
             <div className="space-y-2">
               <Label className="font-bold">Brand Name</Label>
-              <Input value={brandName} onChange={(e) => setBrandName(e.target.value)} placeholder="e.g. Burger Palace" className="h-11 rounded-lg" />
+              <Input value={brandName} disabled className="h-11 rounded-lg bg-muted/50 cursor-not-allowed font-medium text-muted-foreground" />
             </div>
 
             <div className="space-y-2">
@@ -633,13 +643,7 @@ export default function RestaurantBranding() {
           </div>
         </Card>
 
-        {/* Floating actions wrapper */}
-        <div className="flex items-center justify-end gap-3 pt-4">
-          <Button onClick={handleSave} disabled={isSaving} className="rounded-full shadow-lg h-12 px-10 font-bold text-sm">
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-            Save Branding Workspace
-          </Button>
-        </div>
+        {/* Floating actions wrapper removed */}
 
       </div>
     </div>

@@ -76,3 +76,23 @@ export function uploadRestaurantImage(restaurantId, formData) {
     headers: { "Content-Type": "multipart/form-data" },
   });
 }
+
+// ──────────────────────────────────────────────
+// Branch Lifecycle Management
+// ──────────────────────────────────────────────
+
+export function deactivateBranch(brandId, branchId, data = {}) {
+  return apiClient.patch(`/brands/${brandId}/branches/${branchId}/deactivate`, data);
+}
+
+export function deleteBranch(brandId, branchId) {
+  return apiClient.delete(`/brands/${brandId}/branches/${branchId}`);
+}
+
+export function restoreBranch(brandId, branchId) {
+  return apiClient.patch(`/brands/${brandId}/branches/${branchId}/restore`);
+}
+
+export function permanentlyDeleteBranch(brandId, branchId) {
+  return apiClient.delete(`/brands/${brandId}/branches/${branchId}/permanent`);
+}

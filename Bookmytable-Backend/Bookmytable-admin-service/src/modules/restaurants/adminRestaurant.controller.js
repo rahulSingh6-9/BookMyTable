@@ -73,6 +73,9 @@ export const getRestaurantDetails = async (req, res, next) => {
         const result = await getRestaurantDetailsService(id);
         res.status(200).json({ success: true, data: result });
     } catch (error) {
+        if (error.message === "RESYNC_REQUIRED") {
+            return res.status(404).json({ error: "RESYNC_REQUIRED", message: "Read model is missing or stale." });
+        }
         next(error);
     }
 };

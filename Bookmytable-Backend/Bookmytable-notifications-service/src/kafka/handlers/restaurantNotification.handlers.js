@@ -27,8 +27,8 @@ export const handleRestaurantUpdateNotification = async (event) => {
 
     // Identify recipient safely
     const recipientEmail = 
-      finalPayload.owner?.email || 
       finalPayload.ownerEmail || 
+      finalPayload.owner?.email || 
       finalPayload.contact?.email; 
 
     if (!recipientEmail) {
@@ -47,13 +47,21 @@ export const handleRestaurantUpdateNotification = async (event) => {
     // Map internal actions to notification events
     const actionMap = {
       "APPROVE_RESTAURANT": "approved",
-      "SUSPEND_RESTAURANT": "suspended",
+      "SUSPEND_RESTAURANT": "deactivated",
       "REJECT_RESTAURANT": "rejected",
+      "REMOVE_RESTAURANT": "soft_deleted",
+      "PERMANENT_DELETE": "permanently_deleted",
+      "UPDATE_RESTAURANT": "restored",
       "STATUS_CHANGED": status,
       "CREATED": "created"
     };
 
-    const notificationEvent = actionMap[action] || status;
+    let notificationEvent = actionMap[action] || status;
+    
+    if (event.eventType === "branch.creation.blocked.plan_limit") {
+      notificationEvent = "plan_limit_reached";
+    }
+
     const context = event.context || {};
 
     await notificationService.processNotification({
@@ -61,9 +69,9 @@ export const handleRestaurantUpdateNotification = async (event) => {
       event: `restaurant.${notificationEvent}`,
       recipient: recipientEmail,
       payload: event,
-      metadata: { restaurantName, status: notificationEvent },
+      metadata: { restaurantName, status: notificationEvent, ...finalPayload },
       brandId: context.brandId || finalPayload.brandId,
-      branchId: context.branchId || finalPayload.id
+      branchId: context.branchId || finalPayload.id || null
     });
 
   } catch (error) {

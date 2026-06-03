@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable } from "@/components/shared/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, ShieldOff, Eye } from "lucide-react";
+import { MoreHorizontal, ShieldOff, Eye, Users, ShieldCheck, Briefcase, UserX } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +15,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllUsers } from "@/services/user.service";
 import { UserDetailsDrawer } from "@/components/users/UserDetailsDrawer";
+import { StatCard } from "@/components/shared/StatCard";
+import { motion } from "framer-motion";
 
 export default function ManageUsers() {
 
@@ -59,20 +61,47 @@ export default function ManageUsers() {
 
   const users = usersArray.map((user) => ({
     id: user._id,
-    // Backend may not always provide `name/roles/createdAt` for this endpoint,
-    // so we keep sensible fallbacks to avoid empty cells.
     name: user.name ?? user.email,
     email: user.email,
-    role: user.roles?.join(", ") ?? user.role ?? "",
+    role: user.roles?.join(", ") ?? user.role ?? "user",
     status: user.isBlocked ? "Blocked" : "Active",
+    isVerified: user.emailVerified || user.phoneVerified || false,
+    ownedCount: user.ownedRestaurants?.length || 0,
+    staffCount: user.staffAffiliations?.length || 0,
+    totalMemberships: user.totalMemberships || 0,
     createdAt: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "",
   }));
 
   // 🔥 Columns
   const columns = [
-    { header: "Name", accessorKey: "name" },
-    { header: "Email", accessorKey: "email" },
-    { header: "Role", accessorKey: "role" },
+    {
+      header: "User",
+      accessorKey: "name",
+      cell: (row) => (
+        <div className="flex flex-col">
+          <span className="text-sm font-medium flex items-center gap-2">
+            {row.name}
+            {row.isVerified && <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-600 border-emerald-200">Verified</Badge>}
+          </span>
+          <span className="text-xs text-muted-foreground">{row.email}</span>
+        </div>
+      ),
+    },
+    { 
+      header: "Role", 
+      accessorKey: "role",
+      cell: (row) => <Badge variant="outline" className="capitalize text-[10px]">{row.role || 'User'}</Badge>
+    },
+    { 
+      header: "Owned", 
+      accessorKey: "ownedCount",
+      cell: (row) => <div className="text-center">{row.ownedCount}</div>
+    },
+    { 
+      header: "Staff In", 
+      accessorKey: "staffCount",
+      cell: (row) => <div className="text-center">{row.staffCount}</div>
+    },
     { header: "Created At", accessorKey: "createdAt" },
     {
       header: "Status",
@@ -130,6 +159,17 @@ export default function ManageUsers() {
         title="Users Management"
         description="View and manage platform users, their roles, and status."
       />
+
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        <StatCard title="Total Users" value={users.length} trend="up" trendValue={12} icon={Users} />
+        <StatCard title="Verified Users" value={users.filter(u => u.isVerified).length} icon={ShieldCheck} />
+        <StatCard title="Business Owners" value={users.filter(u => u.ownedCount > 0).length} icon={Briefcase} />
+        <StatCard title="Blocked Users" value={users.filter(u => u.status === 'Blocked').length} icon={UserX} />
+      </motion.div>
 
       <DataTable
         columns={columns}

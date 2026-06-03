@@ -19,6 +19,12 @@ export const emitUserUpdated = async (user, action = "UPDATED") => {
       email: userData.email,
       roles: userData.roles,
       isBlocked: userData.isBlocked,
+      avatar: userData.avatar,
+      phone: userData.phone,
+      emailVerified: userData.emailVerified,
+      phoneVerified: userData.phoneVerified,
+      lastLogin: userData.lastLogin,
+      createdAt: userData.createdAt,
       updatedAt: userData.updatedAt || new Date(),
       action,
     };

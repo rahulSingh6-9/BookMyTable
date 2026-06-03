@@ -3,6 +3,7 @@ import {
     getAllBrands, 
     approveBrand, 
     suspendBrand,
+    rejectBrand,
     getBrandDetails,
     getBrandRestaurants,
     getBrandMetrics
@@ -23,5 +24,6 @@ router.get("/:id/metrics", requirePermission(PERMISSIONS.BRANDS_VIEW), getBrandM
 
 router.patch("/:id/approve", requirePermission(PERMISSIONS.RESTAURANTS_APPROVE), approveBrand);
 router.patch("/:id/suspend", requirePermission(PERMISSIONS.RESTAURANTS_SUSPEND), suspendBrand);
+router.patch("/:id/reject", requirePermission(PERMISSIONS.RESTAURANTS_APPROVE), rejectBrand);
 
 export default router;

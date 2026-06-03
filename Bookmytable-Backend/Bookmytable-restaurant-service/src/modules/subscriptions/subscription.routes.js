@@ -32,6 +32,8 @@ router.post("/brands/:brandId/ensure", protect, controller.getOrCreateSub);
 // Admin-only actions
 router.post("/plans", protect, verifyAdmin, controller.createPlan);
 router.put("/plans/:id", protect, verifyAdmin, controller.updatePlan);
+router.put("/plans/:id/archive", protect, verifyAdmin, controller.archivePlan);
+router.put("/plans/:id/restore", protect, verifyAdmin, controller.restorePlan);
 router.post("/overrides", protect, verifyAdmin, controller.applyOverride);
 
 export default router;

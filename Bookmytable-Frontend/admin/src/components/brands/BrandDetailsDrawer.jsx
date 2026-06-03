@@ -24,6 +24,7 @@ import {
   CheckCircle,
   Ban,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 
 import {
@@ -77,7 +78,7 @@ const MetricsSection = ({ id }) => {
   });
 
   if (isLoading) return <Skeleton className="h-40 w-full rounded-xl" />;
-  const metrics = data?.data || data || {};
+  const metrics = data?.data?.data || data?.data || data || {};
 
   return (
     <div className="space-y-4">
@@ -87,29 +88,29 @@ const MetricsSection = ({ id }) => {
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
           <p className="text-xs text-muted-foreground uppercase font-semibold">Total Restaurants</p>
-          <p className="text-2xl font-bold text-primary mt-1">{metrics.totalRestaurants || 0}</p>
+          <p className="text-2xl font-bold text-primary mt-1">{metrics.totalBranches || 0}</p>
         </div>
         <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-          <p className="text-xs text-emerald-600/70 uppercase font-semibold">Approved</p>
-          <p className="text-2xl font-bold text-emerald-600 mt-1">{metrics.approvedRestaurants || 0}</p>
+          <p className="text-xs text-emerald-600/70 uppercase font-semibold">Approved / Active</p>
+          <p className="text-2xl font-bold text-emerald-600 mt-1">{metrics.activeBranches || 0}</p>
         </div>
         <div className="bg-rose-50 p-4 rounded-xl border border-rose-100">
           <p className="text-xs text-rose-600/70 uppercase font-semibold">Suspended</p>
-          <p className="text-2xl font-bold text-rose-600 mt-1">{metrics.suspendedRestaurants || 0}</p>
+          <p className="text-2xl font-bold text-rose-600 mt-1">{metrics.suspendedBranches || 0}</p>
         </div>
         <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
           <p className="text-xs text-amber-600/70 uppercase font-semibold">Pending</p>
-          <p className="text-2xl font-bold text-amber-600 mt-1">{metrics.pendingRestaurants || 0}</p>
+          <p className="text-2xl font-bold text-amber-600 mt-1">{metrics.pendingBranches || 0}</p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 mt-3">
         <div className="bg-muted/30 p-4 rounded-xl border border-border/50 flex justify-between items-center">
           <span className="text-sm font-medium">Total Staff</span>
-          <span className="font-bold">{metrics.totalStaff || 0}</span>
+          <span className="font-bold">{metrics.staffCount || 0}</span>
         </div>
         <div className="bg-muted/30 p-4 rounded-xl border border-border/50 flex justify-between items-center">
           <span className="text-sm font-medium">Total Bookings</span>
-          <span className="font-bold">{metrics.totalBookings || 0}</span>
+          <span className="font-bold">{metrics.bookingsCount || 0}</span>
         </div>
       </div>
     </div>
@@ -145,7 +146,7 @@ const RestaurantsSection = ({ id }) => {
   });
 
   if (isLoading) return <Skeleton className="h-40 w-full rounded-xl" />;
-  const restaurants = data?.data || data || [];
+  const restaurants = data?.data?.data || data?.data || data || [];
 
   return (
     <div className="space-y-4">
@@ -161,8 +162,8 @@ const RestaurantsSection = ({ id }) => {
           {restaurants.map((r, idx) => (
             <div key={idx} className="p-3 bg-muted/30 rounded-lg border border-border/50 flex justify-between items-center">
               <div>
-                <p className="text-sm font-medium">{r.name}</p>
-                <p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.address?.street || "No address"}</p>
+                <p className="text-sm font-medium">{r.branchName || "Unknown Branch"}</p>
+                <p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.address || "No address"}</p>
               </div>
               <Badge variant={r.status === 'approved' ? 'success' : 'secondary'}>{r.status}</Badge>
             </div>
@@ -176,13 +177,13 @@ const RestaurantsSection = ({ id }) => {
 export function BrandDetailsDrawer({ brandId, open, onOpenChange }) {
   const queryClient = useQueryClient();
 
-  const { data: response, isLoading } = useQuery({
+  const { data: response, isLoading, error } = useQuery({
     queryKey: ["admin-brand-details", brandId],
     queryFn: () => getBrandDetails(brandId),
     enabled: !!brandId && open,
   });
 
-  const brand = response?.data || response;
+  const brand = response?.data?.data || response?.data || response;
 
   const approveMutation = useMutation({
     mutationFn: () => approveBrand(brandId),
@@ -233,6 +234,16 @@ export function BrandDetailsDrawer({ brandId, open, onOpenChange }) {
               </div>
               <Skeleton className="h-24 w-full rounded-xl" />
               <Skeleton className="h-48 w-full rounded-xl" />
+            </div>
+          ) : error?.response?.data?.error === "RESYNC_REQUIRED" ? (
+            <div className="p-6 text-center mt-20 space-y-4">
+              <div className="mx-auto w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-amber-600">Resync Required</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                The local read model for this brand is missing or stale. This might be due to a Kafka synchronization delay or a missing event. Please wait or trigger a manual resync.
+              </p>
             </div>
           ) : !brand ? (
             <div className="p-6 text-center text-muted-foreground mt-20">

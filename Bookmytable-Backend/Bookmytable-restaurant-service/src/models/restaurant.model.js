@@ -200,6 +200,15 @@ const restaurantSchema = new mongoose.Schema(
         lowercase: true,
       },
 
+      isEmailVerified: {
+        type: Boolean,
+        default: false,
+      },
+
+      emailVerifiedAt: {
+        type: Date,
+      },
+
       supportEmail: {
         type: String,
         trim: true,
@@ -409,6 +418,24 @@ const restaurantSchema = new mongoose.Schema(
 
     /**
      * =====================================================
+     * DISCOVERY / VISIBILITY
+     * =====================================================
+     */
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    discoveryRanking: {
+      type: Number,
+      default: 0,
+    },
+    isHiddenFromDiscovery: {
+      type: Boolean,
+      default: false,
+    },
+
+    /**
+     * =====================================================
      * ADMIN MODERATION
      * =====================================================
      */
@@ -554,6 +581,16 @@ const restaurantSchema = new mongoose.Schema(
 
     deletedAt: {
       type: Date,
+    },
+
+    archivedViaBrand: {
+      type: Boolean,
+      default: false,
+    },
+
+    deactivatedViaBrand: {
+      type: Boolean,
+      default: false,
     },
 
     /**

@@ -28,10 +28,8 @@ export default function AdminProtectedRoute({ children }) {
     );
   }
 
-  // ❌ Not admin
-  if (!admin.roles?.includes("admin")) {
-    return <Navigate to="/unauthorized" replace />;
-  }
+  // AuthContext already guarantees the user has a valid admin role
+  // because it logs out anyone without an admin role upon fetching their profile.
 
   // ❌ Wrong scope (very important)
   if (scope !== "admin") {

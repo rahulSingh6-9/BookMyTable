@@ -7,6 +7,9 @@ import adminLogRoutes from "./src/modules/logs/adminLog.routes.js";
 import adminUserRoutes from "./src/modules/users/adminUser.routes.js";
 import managementRoutes from "./src/modules/management/management.routes.js";
 import adminSubscriptionRoutes from "./src/modules/subscriptions/adminSubscription.routes.js";
+import adminInvitationRoutes from "./src/modules/invitation/adminInvitation.routes.js";
+import adminModerationRoutes from "./src/modules/moderation/adminModeration.routes.js";
+import adminDiscoveryRoutes from "./src/modules/discovery/adminDiscovery.routes.js";
 
 const app = express();
 
@@ -22,6 +25,9 @@ app.use("/admin/logs", adminLogRoutes);
 app.use("/admin/users", adminUserRoutes);
 app.use("/admin/management", managementRoutes);
 app.use("/admin/subscriptions", adminSubscriptionRoutes);
+app.use("/admin/invitations", adminInvitationRoutes);
+app.use("/admin/moderation", adminModerationRoutes);
+app.use("/admin/discovery", adminDiscoveryRoutes);
 
 
 // Global error handler

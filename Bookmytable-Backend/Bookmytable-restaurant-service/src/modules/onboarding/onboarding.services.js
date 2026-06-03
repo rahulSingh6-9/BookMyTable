@@ -219,6 +219,8 @@ export const submitOnboarding = async (userId, payload, ipAddress) => {
           isVerified: data.contactInfo?.primaryPhone?.isVerified || false,
         },
         email: data.contactInfo?.businessEmail?.value || "",
+        isEmailVerified: data.contactInfo?.businessEmail?.isVerified || false,
+        emailVerifiedAt: data.contactInfo?.businessEmail?.isVerified ? new Date() : undefined,
         supportEmail: data.contactInfo?.businessEmail?.value || "",
       },
       address: {
@@ -305,6 +307,31 @@ export const submitOnboarding = async (userId, payload, ipAddress) => {
       metadata: { branchName: data.restaurantName, branchCode },
       ipAddress
     }], opt);
+
+    // 8. Brand Log
+    if (data.onboardingMode === "create_brand" || (!data.onboardingMode && !data.brandId)) {
+      await Log.create([{
+        entityType: "brand",
+        brandId: brandObj._id,
+        entityId: brandObj._id,
+        action: "BRAND_CREATED",
+        performedBy: userId,
+        role: ROLES.OWNER,
+        metadata: { brandName: brandObj.name, slug: brandObj.slug },
+        ipAddress
+      }], opt);
+    } else if (data.onboardingMode === "add_branch" || data.brandId) {
+      await Log.create([{
+        entityType: "brand",
+        brandId: brandObj._id,
+        entityId: restaurantId,
+        action: "BRANCH_ADDED",
+        performedBy: userId,
+        role: ROLES.OWNER,
+        metadata: { branchName: data.restaurantName, branchId: restaurantId },
+        ipAddress
+      }], opt);
+    }
 
     return { restaurant, brand: brandObj, tables: createdTables, membership: membershipObj };
   };

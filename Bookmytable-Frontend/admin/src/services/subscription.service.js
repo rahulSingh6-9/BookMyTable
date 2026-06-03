@@ -14,6 +14,14 @@ export const updateSubscriptionPlan = (id, data) => {
   return api.put(`/admin/subscriptions/plans/${id}`, data);
 };
 
+export const archiveSubscriptionPlan = (id) => {
+  return api.put(`/admin/subscriptions/plans/${id}/archive`);
+};
+
+export const restoreSubscriptionPlan = (id) => {
+  return api.put(`/admin/subscriptions/plans/${id}/restore`);
+};
+
 export function getActiveSubscriptions() {
   return api.get("/admin/subscriptions/active");
 }

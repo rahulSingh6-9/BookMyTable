@@ -26,6 +26,26 @@ export const getRestaurantLogs = async (restaurantId, params = {}) => {
 };
 
 /**
+ * Get audit logs for a brand (Owner/Manager)
+ * @param {string} brandId 
+ * @param {object} params - { action, performedBy, startDate, endDate, limit }
+ */
+export const getBrandLogs = async (brandId, params = {}) => {
+  if (!brandId || brandId === "undefined" || brandId === "null") {
+    console.warn("[LogsService] Skipping fetch: brandId is missing or invalid");
+    return { success: false, data: [] };
+  }
+  
+  try {
+    const response = await apiClient.get(`/logs/brand/${brandId}`, { params });
+    return response.data;
+  } catch (error) {
+    console.error(`[LogsService] Error fetching logs for brand ${brandId}:`, error);
+    throw error;
+  }
+};
+
+/**
  * Get global system logs (Admin only)
  * @param {object} params - { restaurantId, action, performedBy, startDate, endDate, limit, page }
  */

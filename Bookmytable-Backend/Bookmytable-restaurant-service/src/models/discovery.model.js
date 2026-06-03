@@ -98,6 +98,21 @@ const discoveryRestaurantSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    
+    isFeatured: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    discoveryRanking: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+    isHiddenFromDiscovery: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

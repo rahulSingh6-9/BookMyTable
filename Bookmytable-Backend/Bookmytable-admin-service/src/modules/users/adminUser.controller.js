@@ -71,6 +71,9 @@ export const getUserDetailsController = async (req, res, next) => {
     const result = await getUserDetailsService(id);
     res.json({ success: true, data: result });
   } catch (error) {
+    if (error.message === "RESYNC_REQUIRED") {
+      return res.status(404).json({ error: "RESYNC_REQUIRED", message: "Read model is missing or stale." });
+    }
     next(error);
   }
 };
