@@ -1,6 +1,22 @@
 import app from "./src/app.js";
 import dotenv from "dotenv";
+
+import dns from "node:dns";
 dotenv.config();
+
+// Fix for Node.js 18+ IPv6 DNS resolution issues in Docker (fixes ENETUNREACH/ETIMEDOUT for Cloudinary)
+const originalLookup = dns.lookup;
+dns.lookup = function (hostname, options, callback) {
+  if (typeof options === "function") {
+    callback = options;
+    options = { family: 4 };
+  } else if (typeof options === "object") {
+    options.family = 4;
+  } else {
+    options = { family: 4 };
+  }
+  return originalLookup(hostname, options, callback);
+};
 
 import { connectDB } from "./src/config/db.js";
 import { initKafka } from "./src/kafka/index.js";

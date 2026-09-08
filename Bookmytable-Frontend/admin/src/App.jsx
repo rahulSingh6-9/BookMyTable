@@ -66,115 +66,115 @@ export default function App() {
               >
                 <Route index element={<AdminPanel />} />
                 
-                <Route path="users" element={
-                  <PermissionProtectedRoute permission="users.view">
-                    <ManageUsers />
-                  </PermissionProtectedRoute>
-                } />
-                
-                <Route path="brands" element={
-                  <PermissionProtectedRoute permission="brands.view">
-                    <ManageBrands />
-                  </PermissionProtectedRoute>
-                } />
-                
-                <Route path="restaurants" element={
-                  <PermissionProtectedRoute permission="restaurants.view">
-                    <ManageRestaurants />
-                  </PermissionProtectedRoute>
-                } />
-                
-                <Route path="bookings" element={
-                  <PermissionProtectedRoute permission="bookings.view">
-                    <ManageBookings />
-                  </PermissionProtectedRoute>
-                } />
-                
-                <Route path="reviews" element={
-                  <PermissionProtectedRoute permission="content.moderate">
-                    <ManageReviews />
-                  </PermissionProtectedRoute>
-                } />
-                
-                <Route path="payments" element={
-                  <PermissionProtectedRoute permission="payments.view">
-                    <Payments />
-                  </PermissionProtectedRoute>
-                } />
-                
-                <Route path="subscriptions" element={
-                  <PermissionProtectedRoute permission="payments.view">
-                    <ManageSubscriptions />
-                  </PermissionProtectedRoute>
-                } />
-                
-                <Route path="notifications" element={
-                  <PermissionProtectedRoute permission="settings.manage">
-                    <Notifications />
-                  </PermissionProtectedRoute>
-                } />
-                
-                <Route path="analytics" element={
-                  <PermissionProtectedRoute permission="analytics.view">
-                    <PlatformAnalytics />
-                  </PermissionProtectedRoute>
-                } />
-                
-                <Route path="logs" element={
-                  <PermissionProtectedRoute permission="audit_logs.view">
-                    <AdminLogsPage />
-                  </PermissionProtectedRoute>
-                } />
-                
-                <Route path="settings" element={
-                  <PermissionProtectedRoute permission="settings.manage">
-                    <Settings />
-                  </PermissionProtectedRoute>
-                } />
+                {/* MANAGEMENT */}
+                <Route path="management">
+                  <Route path="users" element={
+                    <PermissionProtectedRoute permission="users.view">
+                      <ManageUsers />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="brands" element={
+                    <PermissionProtectedRoute permission="brands.view">
+                      <ManageBrands />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="restaurants" element={
+                    <PermissionProtectedRoute permission="restaurants.view">
+                      <ManageRestaurants />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="bookings" element={
+                    <PermissionProtectedRoute permission="bookings.view">
+                      <ManageBookings />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="reviews" element={
+                    <PermissionProtectedRoute permission="content.moderate">
+                      <ManageReviews />
+                    </PermissionProtectedRoute>
+                  } />
+                </Route>
 
-                {/* NEW Admin Management */}
-                <Route path="invitations" element={
-                  <PermissionProtectedRoute permission="admins.manage">
-                    <AdminInvitations />
-                  </PermissionProtectedRoute>
-                } />
+                {/* MODERATION */}
+                <Route path="moderation">
+                  <Route path="approvals" element={
+                    <PermissionProtectedRoute permission="restaurants.manage">
+                      <ApprovalQueue />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="verifications" element={
+                    <PermissionProtectedRoute permission="users.manage">
+                      <VerificationCenter />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="reports" element={
+                    <PermissionProtectedRoute permission="content.moderate">
+                      <ReportsAbuse />
+                    </PermissionProtectedRoute>
+                  } />
+                </Route>
 
-                {/* NEW Moderation & Operations Pages */}
-                <Route path="approvals" element={
-                  <PermissionProtectedRoute permission="restaurants.manage">
-                    <ApprovalQueue />
-                  </PermissionProtectedRoute>
-                } />
+                {/* BUSINESS */}
+                <Route path="business">
+                  <Route path="payments" element={
+                    <PermissionProtectedRoute permission="payments.view">
+                      <Payments />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="subscriptions" element={
+                    <PermissionProtectedRoute permission="payments.view">
+                      <ManageSubscriptions />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="discovery" element={
+                    <PermissionProtectedRoute permission="brands.manage">
+                      <DiscoveryManagement />
+                    </PermissionProtectedRoute>
+                  } />
+                </Route>
 
-                <Route path="verifications" element={
-                  <PermissionProtectedRoute permission="users.manage">
-                    <VerificationCenter />
-                  </PermissionProtectedRoute>
-                } />
+                {/* OPERATIONS */}
+                <Route path="operations">
+                  <Route path="notifications" element={
+                    <PermissionProtectedRoute permission="settings.manage">
+                      <Notifications />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="analytics" element={
+                    <PermissionProtectedRoute permission="analytics.view">
+                      <PlatformAnalytics />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="support" element={
+                    <PermissionProtectedRoute permission="settings.manage">
+                      <SupportIssues />
+                    </PermissionProtectedRoute>
+                  } />
+                </Route>
 
-                <Route path="reports" element={
-                  <PermissionProtectedRoute permission="content.moderate">
-                    <ReportsAbuse />
-                  </PermissionProtectedRoute>
-                } />
-
-                <Route path="discovery" element={
-                  <PermissionProtectedRoute permission="brands.manage">
-                    <DiscoveryManagement />
-                  </PermissionProtectedRoute>
-                } />
-
-                <Route path="support" element={
-                  <PermissionProtectedRoute permission="settings.manage">
-                    <SupportIssues />
-                  </PermissionProtectedRoute>
-                } />
-
-                <Route path="audit" element={
-                  <PermissionProtectedRoute permission="audit_logs.view">
-                    <AuditLogs />
-                  </PermissionProtectedRoute>
-                } />
+                {/* SYSTEM */}
+                <Route path="system">
+                  <Route path="logs" element={
+                    <PermissionProtectedRoute permission="audit_logs.view">
+                      <AdminLogsPage />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="audit" element={
+                    <PermissionProtectedRoute permission="audit_logs.view">
+                      <AuditLogs />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="invitations" element={
+                    <PermissionProtectedRoute permission="admins.manage">
+                      <AdminInvitations />
+                    </PermissionProtectedRoute>
+                  } />
+                  <Route path="settings" element={
+                    <PermissionProtectedRoute permission="settings.manage">
+                      <Settings />
+                    </PermissionProtectedRoute>
+                  } />
+                </Route>
 
               </Route>
 

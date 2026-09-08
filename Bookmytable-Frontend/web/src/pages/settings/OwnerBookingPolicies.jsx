@@ -16,6 +16,8 @@ export default function OwnerBookingPolicies() {
   const {
     data: availabilitySettings,
     isLoading: isAvailabilityLoading,
+    updateBookingPolicies,
+    isUpdatingBookingPolicies
   } = useAvailability(restaurantId);
 
   const [policies, setPolicies] = useState({
@@ -39,8 +41,7 @@ export default function OwnerBookingPolicies() {
   };
 
   const handleSavePolicies = () => {
-    // Call API here when backend is ready for policies
-    toast.success("Booking policies saved successfully! (Local state updated)");
+    updateBookingPolicies(policies);
   };
 
   if (isLoadingRestaurant || isAvailabilityLoading) {
@@ -76,8 +77,8 @@ export default function OwnerBookingPolicies() {
                 <Settings className="h-5 w-5 text-primary" />
                 <h3 className="text-lg font-semibold">Reservation Rules</h3>
               </div>
-              <Button onClick={handleSavePolicies} className="gap-2 rounded-lg">
-                <Save className="h-4 w-4" /> Save Policies
+              <Button onClick={handleSavePolicies} disabled={isUpdatingBookingPolicies} className="gap-2 rounded-lg">
+                {isUpdatingBookingPolicies ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Policies
               </Button>
             </div>
 

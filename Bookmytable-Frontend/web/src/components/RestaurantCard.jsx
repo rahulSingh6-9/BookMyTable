@@ -6,8 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { useFavoritesStore } from "@/store/useFavoritesStore";
 import { useEffect } from "react";
 
+import { useUserLocation, calculateDistance } from "@/hooks/useUserLocation";
+
 function RestaurantCard({ restaurant, index = 0 }) {
   const { favoriteIds, toggleFavorite, initialize } = useFavoritesStore();
+  const { location: userLocation } = useUserLocation();
 
   useEffect(() => {
     initialize();
@@ -29,6 +32,22 @@ function RestaurantCard({ restaurant, index = 0 }) {
     return "₹₹₹₹";
   };
 
+  // Calculate dynamic distance if backend hasn't provided one
+  let distanceInMeters = restaurant.distance || null;
+  if (!distanceInMeters && userLocation && restaurant.location?.coordinates) {
+    const [lng, lat] = restaurant.location.coordinates;
+    distanceInMeters = calculateDistance(userLocation.lat, userLocation.lng, lat, lng);
+  }
+
+  let formattedDistance = null;
+  if (distanceInMeters) {
+    if (distanceInMeters < 1000) {
+      formattedDistance = `${Math.round(distanceInMeters)} m`;
+    } else {
+      formattedDistance = `${(distanceInMeters / 1000).toFixed(1)} km`;
+    }
+  }
+
   return <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -36,7 +55,7 @@ function RestaurantCard({ restaurant, index = 0 }) {
     whileHover={{ y: -4 }}
     className="group"
   >
-      <Link to={`/restaurant/${restaurant.restaurantId || restaurant.id}`}>
+      <Link to={`/restaurant/${restaurant.slug || restaurant.restaurantId || restaurant.id}`}>
         <div className="overflow-hidden rounded-lg bg-card shadow-card transition-shadow duration-300 group-hover:shadow-elevated">
           {/* Image */}
           <div className="relative h-48 overflow-hidden bg-muted">
@@ -82,15 +101,19 @@ function RestaurantCard({ restaurant, index = 0 }) {
               {Array.isArray(restaurant.cuisines) ? restaurant.cuisines.join(", ") : (restaurant.cuisine || "Multi-Cuisine")}
             </p>
 
-            <div className="mb-3 flex items-center gap-1 text-xs text-muted-foreground">
-              <MapPin className="h-3 w-3 shrink-0" />
-              {restaurant.distance && (
-                <>
-                  <span>{(restaurant.distance / 1000).toFixed(1)} km</span>
-                  <span className="mx-1">·</span>
-                </>
+            <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center gap-1 truncate pr-2">
+                <MapPin className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  {restaurant.area || restaurant.city || restaurant.address?.area || restaurant.address?.city || restaurant.address}
+                  {(restaurant.area || restaurant.address?.area) && (restaurant.city || restaurant.address?.city) ? `, ${restaurant.city || restaurant.address.city}` : ""}
+                </span>
+              </div>
+              {formattedDistance && (
+                <span className="shrink-0 font-medium">
+                  {formattedDistance}
+                </span>
               )}
-              <span className="truncate">{restaurant.area || restaurant.city || restaurant.address}</span>
             </div>
 
             {/* Available time slots */}

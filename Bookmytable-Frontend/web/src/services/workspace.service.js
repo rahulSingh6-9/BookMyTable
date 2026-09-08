@@ -48,6 +48,20 @@ export async function uploadBrandLogo(brandId, file) {
 }
 
 /**
+ * Upload restaurant logo directly to dedicated endpoint.
+ */
+export async function uploadRestaurantLogo(restaurantId, file) {
+  const formData = new FormData();
+  formData.append("image", file);
+  const response = await apiClient.patch(`/restaurants/${restaurantId}/logo`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return response.data;
+}
+
+/**
  * Upload restaurant cover image directly to dedicated endpoint.
  */
 export async function uploadRestaurantCover(restaurantId, file) {

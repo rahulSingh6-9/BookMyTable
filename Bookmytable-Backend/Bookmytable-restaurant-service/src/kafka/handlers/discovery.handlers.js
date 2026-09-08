@@ -45,6 +45,10 @@ const syncRestaurantToDiscovery = async (restaurantId) => {
   if (!restaurant) return;
 
   const brand = await Brand.findById(restaurant.brandId);
+  
+  // Fetch settings to accurately determine booking features
+  const { default: RestaurantSettings } = await import("../../models/restaurantSettings.model.js");
+  const settings = await RestaurantSettings.findOne({ branch: restaurantId }).lean();
 
   const discoveryData = {
     restaurantId: restaurant._id,
@@ -65,11 +69,21 @@ const syncRestaurantToDiscovery = async (restaurantId) => {
     averageRating: restaurant.averageRating || 0,
     totalReviews: restaurant.totalReviews || 0,
     
-    logo: restaurant.logo || brand?.logo,
-    coverImage: restaurant.coverImage || brand?.coverImage,
+    logo: restaurant.logo,
+    coverImage: restaurant.coverImage,
     phone: restaurant.contact?.primaryPhone?.number || restaurant.phone || "",
     
     costForTwo: restaurant.costForTwo,
+    
+    // Menu Stats mapping
+    hasMenu: restaurant.menuStats?.hasMenu || false,
+    popularCategories: restaurant.menuStats?.popularCategories || [],
+    featuredItems: restaurant.menuStats?.featuredItemNames || [], 
+
+    // Table / Booking Stats
+    hasTables: restaurant.tableStats?.hasTables || false,
+    reservationEnabled: settings?.autoAcceptBookings ?? false,
+
     
     status: restaurant.status,
     isActive: restaurant.isActive && !restaurant.isHiddenFromDiscovery && restaurant.status !== 'suspended' && restaurant.status !== 'blocked',

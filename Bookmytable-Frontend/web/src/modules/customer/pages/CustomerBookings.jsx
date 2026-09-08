@@ -455,7 +455,7 @@ function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelle
 
         {isCancelled && (
           <Button asChild size="sm" variant="outline" className="w-full rounded-xl gap-1.5 border-slate-200 text-slate-600 font-bold">
-            <Link to={`/restaurant/${booking.restaurantId}`}>
+            <Link to={`/restaurant/${booking.restaurant?.slug || booking.restaurantId}`}>
               <TrendingUp className="h-4 w-4" />
               Rebook Table
             </Link>

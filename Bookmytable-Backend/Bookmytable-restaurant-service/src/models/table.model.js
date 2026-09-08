@@ -73,17 +73,8 @@ const tableSchema = new mongoose.Schema(
      */
     type: {
       type: String,
-      enum: [
-        "indoor",
-        "outdoor",
-        "vip",
-        "private",
-        "bar",
-        "rooftop",
-        "family",
-        "couple",
-      ],
-      default: "indoor",
+      enum: ["indoor_dining", "outdoor_dining", "rooftop_dining", "private_room"],
+      default: "indoor_dining",
       index: true,
     },
 
@@ -100,7 +91,10 @@ const tableSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-
+    diningArea: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DiningArea",
+    },
     section: {
       type: String,
       trim: true,
@@ -189,6 +183,36 @@ const tableSchema = new mongoose.Schema(
 
     /**
      * =========================================================
+     * PRICING HIERARCHY
+     * =========================================================
+     * Resolution order:
+     *   1. tablePriceOverride  (highest — table-specific)
+     *   2. sectionPrice        (mid — from parent section canvas metadata)
+     *   3. diningArea.basePrice (lowest — dining area default)
+     */
+
+    // Set by the user to override section/area pricing
+    tablePriceOverride: {
+      type: Number,
+      min: 0,
+    },
+
+    // Tracks where the resolved price came from
+    priceSource: {
+      type: String,
+      enum: ["override", "section", "dining_area", "dining_area_pricing", "none"],
+      default: "none",
+    },
+
+    // The computed price at save time (denormalized for fast booking queries)
+    resolvedPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    /**
+     * =========================================================
      * FEATURES
      * =========================================================
      */
@@ -211,6 +235,12 @@ const tableSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
+      index: true,
+    },
+
+    isDeleted: {
+      type: Boolean,
+      default: false,
       index: true,
     },
 
@@ -242,13 +272,22 @@ const tableSchema = new mongoose.Schema(
 
 // Unique table code per branch
 tableSchema.index(
-  {
-    branch: 1,
-    tableCode: 1,
-  },
-  {
-    unique: true,
-  }
+{
+ branch: 1,
+ tableCode: 1,
+},
+{
+ name: "branch_1_tableCode_1_active_only",
+
+ unique: true,
+
+ partialFilterExpression: {
+
+   isDeleted: false
+
+ }
+
+}
 );
 
 // Fast booking lookup

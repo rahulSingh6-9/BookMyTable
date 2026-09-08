@@ -2,6 +2,8 @@ import { producer } from "./config/kafka.js";
 import { startAdminConsumer } from "./consumers/admin.consumer.js";
 import { startNotificationConsumer } from "./consumers/notification.consumer.js";
 import { startDiscoveryConsumer } from "./consumers/discovery.consumer.js";
+import { startMenuConsumer } from "./consumers/menu.consumer.js";
+import { startTableConsumer } from "./consumers/table.consumer.js";
 
 /**
  * Initialize all Kafka related components
@@ -16,6 +18,9 @@ export const initKafka = async (retries = 5, delay = 5000) => {
       // 2. Start Consumers
       await startAdminConsumer();
       await startDiscoveryConsumer();
+      await startMenuConsumer();
+      await startTableConsumer();
+      console.log("✅ All Kafka consumers started successfully");
 
       console.log("🚀 Kafka System Initialized");
       return;

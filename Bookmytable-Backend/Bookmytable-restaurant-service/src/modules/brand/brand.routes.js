@@ -1,5 +1,17 @@
 import express from 'express';
-import { getMyBrands, getArchivedBrands, updateBrandLogo, deactivateBrand, archiveBrand, restoreBrand } from './brand.controller.js';
+import { 
+  getMyBrands, 
+  getArchivedBrands, 
+  updateBrandLogo, 
+  deactivateBrand, 
+  archiveBrand, 
+  restoreBrand, 
+  updateBasicContactInfo,
+  requestContactPhoneOTP,
+  verifyContactPhoneOTP,
+  requestContactEmailChange,
+  verifyContactEmailToken
+} from './brand.controller.js';
 import { protect } from '../../middleware/auth.middleware.js';
 import upload from '../../middleware/upload.js';
 
@@ -30,5 +42,10 @@ router.delete('/:brandId/branches/:branchId/permanent', protect, permanentDelete
 router.patch('/:id/deactivate', protect, deactivateBrand);
 router.patch('/:id/archive', protect, archiveBrand);
 router.patch('/:id/restore', protect, restoreBrand);
+router.patch('/:id/contact/basic', protect, updateBasicContactInfo);
+router.post('/:id/contact/phone/request', protect, requestContactPhoneOTP);
+router.post('/:id/contact/phone/verify', protect, verifyContactPhoneOTP);
+router.post('/:id/contact/email/request', protect, requestContactEmailChange);
+router.post('/:id/contact/email/verify', protect, verifyContactEmailToken);
 
 export default router;

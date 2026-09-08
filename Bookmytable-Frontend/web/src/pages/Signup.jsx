@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import logo from "@/assets/BookMyTable_logo.jpg";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 import { signup as signupApi } from "../services/auth.service.js";
 import { socket } from "../services/socket";
@@ -162,11 +162,15 @@ export default function Signup() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 pt-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <img src={logo} alt="BookMyTable" className="h-10 w-10 rounded-md object-cover" />
-            <span className="text-xl font-bold text-foreground">Book<span className="text-primary">My</span>Table</span>
+        <div className="flex justify-center mb-6">
+          <Link to="/" className="flex items-center gap-2">
+            <BrandLogo className="h-10 w-auto max-w-[150px] rounded-md" />
+            <span className="text-2xl font-bold tracking-tight text-foreground">
+              Book<span className="text-primary">My</span>Table
+            </span>
           </Link>
+        </div>
+        <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-foreground">Create your account</h1>
           <p className="mt-1 text-sm text-muted-foreground">Start booking tables in seconds</p>
         </div>

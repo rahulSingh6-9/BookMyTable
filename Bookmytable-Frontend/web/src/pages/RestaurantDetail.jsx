@@ -1,36 +1,49 @@
-import { useParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, AlertCircle, ChevronLeft } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // Modular Components
 import { RestaurantHero } from "@/components/restaurant/RestaurantHero";
-import { BookingSidebar } from "@/components/restaurant/BookingSidebar";
-import { RestaurantMenuTabs } from "@/components/restaurant/RestaurantMenuTabs";
+import { ReservationSection } from "@/components/restaurant/ReservationSection";
 import { RestaurantReviews } from "@/components/restaurant/RestaurantReviews";
 import { RestaurantDetails } from "@/components/restaurant/RestaurantDetails";
 import { RestaurantSettings } from "@/components/restaurant/RestaurantSettings";
+import { RestaurantMenuTabs } from "@/components/restaurant/RestaurantMenuTabs";
 
 // Services
 import { getRestaurantDetails, getRestaurantMenu } from "@/services/discovery.service";
 
 export default function RestaurantDetail() {
-  const { id } = useParams();
+  const { slug } = useParams();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("Book a Table");
 
   // 1. Fetch Restaurant Details (Hero, Settings, Address)
   const { data: detailsRes, isLoading: detailsLoading, error: detailsErr } = useQuery({
-    queryKey: ["restaurant", id],
-    queryFn: () => getRestaurantDetails(id),
+    queryKey: ["restaurant", slug],
+    queryFn: () => getRestaurantDetails(slug),
     staleTime: 5 * 60 * 1000, // Cache for 5 mins
   });
 
-  // 2. Fetch Menu Data (Lazy/Parallel)
+  const restaurant = detailsRes?.data?.data;
+
+  // 2. Fetch Menu for the Menu Tab
   const { data: menuRes, isLoading: menuLoading } = useQuery({
-    queryKey: ["menu", id],
-    queryFn: () => getRestaurantMenu(id),
+    queryKey: ["menu", slug],
+    queryFn: () => getRestaurantMenu(slug),
     staleTime: 5 * 60 * 1000,
   });
+
+  // Handle old ObjectId URL redirect
+  useEffect(() => {
+    if (restaurant && restaurant.slug && restaurant.slug !== slug) {
+      navigate(`/restaurant/${restaurant.slug}`, { replace: true });
+    }
+  }, [restaurant, slug, navigate]);
 
   // Loading State
   if (detailsLoading) {
@@ -58,61 +71,74 @@ export default function RestaurantDetail() {
     );
   }
 
-  const restaurant = detailsRes.data.data;
+  const TABS = ["Book a Table", "Overview", "Review", "Menu"];
 
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* 1. Hero Section */}
       <RestaurantHero restaurant={restaurant} />
 
-      <div className="container mx-auto px-4 lg:px-8 mt-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 xl:gap-12 relative items-start">
+      {/* 2. Sticky Tab Navigation */}
+      <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
+        <div className="container mx-auto px-4 lg:px-8">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-center gap-8 md:gap-16 overflow-x-auto scrollbar-hide">
+              {TABS.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    "py-4 px-2 text-sm md:text-lg font-bold whitespace-nowrap border-b-[3px] transition-all",
+                    activeTab === tab 
+                      ? "border-primary text-primary" 
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border/50"
+                  )}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Tab Content Area */}
+      <div className="container mx-auto px-4 lg:px-8 mt-6">
+        <div className="max-w-5xl mx-auto min-h-[400px]">
           
-          {/* Main Content (Left Side - 2/3 width) */}
-          <div className="lg:col-span-2 space-y-12">
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              transition={{ duration: 0.4 }}
-              className="space-y-12"
-            >
-              {/* 3. Menu Section */}
-              <section id="menu" className="scroll-mt-24">
-                <RestaurantMenuTabs menuRes={menuRes} menuLoading={menuLoading} />
-              </section>
+          {activeTab === "Book a Table" && (
+            <motion.div key="book" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+              <ReservationSection restaurant={restaurant} />
+            </motion.div>
+          )}
 
-              <hr className="border-border" />
-
-              {/* 4. Reviews & Ratings Section */}
-              <section id="reviews" className="scroll-mt-24">
-                <RestaurantReviews restaurant={restaurant} />
-              </section>
-
-              <hr className="border-border" />
-
-              {/* 5. Address & Maps Section */}
-              <section id="location" className="scroll-mt-24">
+          {activeTab === "Overview" && (
+            <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="space-y-12">
+              <section>
                 <RestaurantDetails restaurant={restaurant} />
               </section>
-
               <hr className="border-border" />
-
-              {/* 6. Settings & Operational Info Section */}
-              <section id="policies" className="scroll-mt-24">
+              <section>
                 <RestaurantSettings settings={restaurant.settings} />
               </section>
-
             </motion.div>
-          </div>
+          )}
 
-          {/* 2. Booking Sidebar (Right Side - 1/3 width, Sticky) */}
-          <div className="lg:col-span-1 mt-8 lg:mt-0">
-            <BookingSidebar restaurant={restaurant} />
-          </div>
+          {activeTab === "Review" && (
+            <motion.div key="review" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+              <RestaurantReviews restaurant={restaurant} />
+            </motion.div>
+          )}
+
+          {activeTab === "Menu" && (
+            <motion.div key="menu" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+              <RestaurantMenuTabs menuRes={menuRes} menuLoading={menuLoading} isViewOnly={true} />
+            </motion.div>
+          )}
 
         </div>
       </div>
+
     </div>
   );
 }

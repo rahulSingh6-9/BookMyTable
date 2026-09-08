@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -11,24 +12,28 @@ import {
   SidebarMenuItem,
   SidebarFooter,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { 
   LayoutDashboard, Users, Store, CalendarCheck, MessageSquare, 
   CreditCard, Bell, BarChart3, Settings, LogOut, ShieldAlert, 
   Briefcase, PanelLeft, CheckCircle, ShieldCheck, AlertTriangle, 
-  Compass, LifeBuoy, Server 
+  Compass, LifeBuoy, Server, ChevronDown, ChevronRight
 } from "lucide-react";
 
 import { useAdminAuth } from "../../context/AuthContext";
+import { cn } from "@/lib/utils";
 
 export function AppSidebar() {
-  const { logout, admin, hasPermission, hasAnyPermission } = useAdminAuth();
+  const { logout, admin, hasPermission } = useAdminAuth();
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout?.();
   };
-
-  const location = useLocation();
 
   const navGroups = [
     {
@@ -37,54 +42,73 @@ export function AppSidebar() {
     },
     {
       label: "Management",
+      icon: Briefcase,
       items: [
-        { title: "Users", url: "/admin/users", icon: Users, permission: "users.view" },
-        { title: "Brands", url: "/admin/brands", icon: Briefcase, permission: "brands.view" },
-        { title: "Restaurants", url: "/admin/restaurants", icon: Store, permission: "restaurants.view" },
-        { title: "Bookings", url: "/admin/bookings", icon: CalendarCheck, permission: "bookings.view" },
-        { title: "Reviews", url: "/admin/reviews", icon: MessageSquare, permission: "content.moderate" },
+        { title: "Users", url: "/admin/management/users", icon: Users, permission: "users.view" },
+        { title: "Brands", url: "/admin/management/brands", icon: Briefcase, permission: "brands.view" },
+        { title: "Restaurants", url: "/admin/management/restaurants", icon: Store, permission: "restaurants.view" },
+        { title: "Bookings", url: "/admin/management/bookings", icon: CalendarCheck, permission: "bookings.view" },
+        { title: "Reviews", url: "/admin/management/reviews", icon: MessageSquare, permission: "content.moderate" },
       ],
     },
     {
       label: "Moderation",
+      icon: ShieldCheck,
       items: [
-        { title: "Approval Queue", url: "/admin/approvals", icon: CheckCircle, permission: "restaurants.manage" },
-        { title: "Verification Center", url: "/admin/verifications", icon: ShieldCheck, permission: "users.manage" },
-        { title: "Reports & Abuse", url: "/admin/reports", icon: AlertTriangle, permission: "content.moderate" },
+        { title: "Approval Queue", url: "/admin/moderation/approvals", icon: CheckCircle, permission: "restaurants.manage" },
+        { title: "Verification Center", url: "/admin/moderation/verifications", icon: ShieldCheck, permission: "users.manage" },
+        { title: "Reports & Abuse", url: "/admin/moderation/reports", icon: AlertTriangle, permission: "content.moderate" },
       ],
     },
     {
       label: "Business",
+      icon: CreditCard,
       items: [
-        { title: "Payments", url: "/admin/payments", icon: CreditCard, permission: "payments.view" },
-        { title: "Subscriptions", url: "/admin/subscriptions", icon: CreditCard, permission: "payments.view" },
-        { title: "Discovery Management", url: "/admin/discovery", icon: Compass, permission: "brands.manage" },
+        { title: "Payments", url: "/admin/business/payments", icon: CreditCard, permission: "payments.view" },
+        { title: "Subscriptions", url: "/admin/business/subscriptions", icon: CreditCard, permission: "payments.view" },
+        { title: "Discovery Management", url: "/admin/business/discovery", icon: Compass, permission: "brands.manage" },
       ],
     },
     {
       label: "Operations",
+      icon: Settings,
       items: [
-        { title: "Notifications", url: "/admin/notifications", icon: Bell, permission: "settings.manage" },
-        { title: "Analytics", url: "/admin/analytics", icon: BarChart3, permission: "analytics.view" },
-        { title: "Support / Issues", url: "/admin/support", icon: LifeBuoy, permission: "settings.manage" },
+        { title: "Notifications", url: "/admin/operations/notifications", icon: Bell, permission: "settings.manage" },
+        { title: "Analytics", url: "/admin/operations/analytics", icon: BarChart3, permission: "analytics.view" },
+        { title: "Support / Issues", url: "/admin/operations/support", icon: LifeBuoy, permission: "settings.manage" },
       ],
     },
     {
       label: "Administration",
+      icon: Server,
       items: [
-        { title: "System Logs", url: "/admin/logs", icon: Server, permission: "audit_logs.view" },
-        { title: "Audit Logs", url: "/admin/audit", icon: ShieldAlert, permission: "audit_logs.view" },
-        { title: "Admins", url: "/admin/invitations", icon: Users, permission: "admins.manage" },
-        { title: "Platform Settings", url: "/admin/settings", icon: Settings, permission: "settings.manage" },
+        { title: "System Logs", url: "/admin/system/logs", icon: Server, permission: "audit_logs.view" },
+        { title: "Audit Logs", url: "/admin/system/audit", icon: ShieldAlert, permission: "audit_logs.view" },
+        { title: "Admins", url: "/admin/system/invitations", icon: Users, permission: "admins.manage" },
+        { title: "Platform Settings", url: "/admin/system/settings", icon: Settings, permission: "settings.manage" },
       ],
     },
   ];
 
-  // Filter groups and items based on permissions
-  const filteredNavGroups = navGroups.map(group => ({
-    ...group,
-    items: group.items.filter(item => !item.permission || hasPermission(item.permission))
-  })).filter(group => group.items.length > 0);
+  const [expandedGroups, setExpandedGroups] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("adminSidebarExpandedGroups")) || {
+        "Management": true,
+      };
+    } catch {
+      return {
+        "Management": true,
+      };
+    }
+  });
+
+  const toggleGroup = (label) => {
+    setExpandedGroups((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      localStorage.setItem("adminSidebarExpandedGroups", JSON.stringify(next));
+      return next;
+    });
+  };
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
@@ -92,32 +116,107 @@ export function AppSidebar() {
         <SidebarTrigger className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors" />
       </SidebarHeader>
       <SidebarContent className="[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {filteredNavGroups.map((group) => (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel className="text-muted-foreground">{group.label}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => {
+        <SidebarGroup>
+          <SidebarGroupLabel>Admin Panel</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navGroups.map((group) => {
+                // Determine visible items based on permissions
+                const visibleSubItems = group.items.filter(item => !item.permission || hasPermission(item.permission));
+                
+                if (visibleSubItems.length === 0) return null;
+
+                // Dashboard (single link behavior)
+                if (group.label === "Dashboard") {
+                  const item = visibleSubItems[0];
                   const isActive = location.pathname === item.url;
                   return (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton 
-                        asChild 
-                        tooltip={item.title}
-                        className={isActive ? "bg-sidebar-accent/25 text-primary font-bold hover:bg-sidebar-accent/25 hover:text-primary" : "text-sidebar-foreground/85 hover:bg-muted/50 hover:text-sidebar-foreground"}
-                      >
-                        <Link to={item.url} className="flex items-center gap-3 w-full">
-                          <item.icon className="w-4 h-4 shrink-0" />
-                          <span>{item.title}</span>
-                        </Link>
+                    <SidebarMenuItem key={item.title} className="px-1 py-0.5">
+                      <SidebarMenuButton asChild tooltip={item.title}>
+                        <NavLink 
+                          to={item.url} 
+                          end={item.url === "/admin"}
+                          className={cn(
+                            "flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold rounded-md transition-colors",
+                            isActive 
+                              ? "bg-sidebar-accent/25 text-primary font-bold" 
+                              : "text-sidebar-foreground/85 hover:bg-muted/50 hover:text-sidebar-foreground"
+                          )}
+                        >
+                          <item.icon className="h-4 w-4 shrink-0" />
+                          {!collapsed && <span>{item.title}</span>}
+                        </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+                }
+
+                // Group (accordion behavior)
+                const isGroupOpen = expandedGroups[group.label];
+                const isGroupActive = visibleSubItems.some(sub => location.pathname === sub.url || location.pathname.startsWith(sub.url));
+
+                if (collapsed) {
+                  return (
+                    <SidebarMenuItem key={group.label} className="px-1 py-0.5">
+                      <SidebarMenuButton 
+                        tooltip={group.label} 
+                        onClick={() => navigate(visibleSubItems[0].url)}
+                        className={cn(isGroupActive && "bg-sidebar-accent/25 text-primary")}
+                      >
+                        <group.icon className="h-4 w-4 shrink-0" />
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+
+                return (
+                  <SidebarMenuItem key={group.label} className="px-1 py-0.5">
+                    <button
+                      onClick={() => toggleGroup(group.label)}
+                      className={cn(
+                        "flex w-full items-center justify-between px-3 py-2 text-sm font-semibold rounded-md transition-colors",
+                        isGroupActive 
+                          ? "bg-sidebar-accent/25 text-primary font-bold" 
+                          : "text-sidebar-foreground/85 hover:bg-muted/50 hover:text-sidebar-foreground"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <group.icon className="h-4 w-4 shrink-0" />
+                        <span>{group.label}</span>
+                      </div>
+                      {isGroupOpen ? (
+                        <ChevronDown className="h-4 w-4 shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0" />
+                      )}
+                    </button>
+                    
+                    {isGroupOpen && (
+                      <div className="pl-6 mt-1.5 space-y-1 border-l border-border/60 ml-5">
+                        {visibleSubItems.map((subItem) => {
+                          return (
+                          <NavLink 
+                            key={subItem.title}
+                            to={subItem.url}
+                            className={({ isActive }) => cn(
+                              "flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors",
+                              isActive 
+                                ? "bg-sidebar-accent/25 text-primary font-extrabold" 
+                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                            )}
+                          >
+                            <subItem.icon className="h-3.5 w-3.5 shrink-0" />
+                            <span>{subItem.title}</span>
+                          </NavLink>
+                        )})}
+                      </div>
+                    )}
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="border-t p-2">
         <SidebarMenu>
@@ -127,10 +226,10 @@ export function AppSidebar() {
             tooltip="Logout"
             onClick={handleLogout}
             >
-              <Link to="/logout" className="text-destructive hover:bg-destructive/10 transition-colors">
+              <button className="text-destructive hover:bg-destructive/10 transition-colors w-full flex items-center gap-2">
                 <LogOut className="w-4 h-4" />
                 <span>Logout</span>
-              </Link>
+              </button>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

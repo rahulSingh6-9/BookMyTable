@@ -8,8 +8,8 @@ import mongoose from "mongoose";
 
 export const connectDB = async () => {
   try {
-    const conn = await mongoose.connect("mongodb://host.docker.internal:27017/", {
-      dbName: "bookmytable", // 🔥 your DB name
+    const conn = await mongoose.connect(`${process.env.MONGO_URI}`, {
+      // dbName: "bookmytable", // 🔥 your DB name
      
     });
 

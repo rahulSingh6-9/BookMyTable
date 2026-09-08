@@ -1,6 +1,7 @@
 import { getTableServices, createTableService, updateTableService, deleteTableService, bulkGenerateTablesService } from "./table.service.js";
 import { createLog } from "../log/log.service.js";
 import { ROLES } from "../../config/roles.js";
+import { emitTableCreated, emitTableUpdated, emitTableDeleted, emitTableBulkUpdated } from "../../kafka/producers/restaurant.producer.js";
 
 export const getTables = async (req, res, next) => {
   try {
@@ -39,6 +40,9 @@ export const createTable = async (req, res, next) => {
       ipAddress: req.ip,
     });
 
+    // 📢 Emit Kafka Event
+    await emitTableCreated(result);
+
     res.status(201).json({
       success: true,
       message: "Table created successfully",
@@ -69,6 +73,11 @@ export const bulkGenerateTables = async (req, res, next) => {
       metadata: { prefix: req.body.prefix, quantity: req.body.quantity, createdCount: createdTables.length },
       ipAddress: req.ip,
     });
+
+    // 📢 Emit Kafka Event
+    if (createdTables.length > 0) {
+      await emitTableBulkUpdated(restaurantId, createdTables[0].brand, createdTables.length);
+    }
 
     res.status(201).json({
       success: true,
@@ -103,6 +112,9 @@ export const updateTable = async (req, res) => {
       ipAddress: req.ip,
     });
 
+    // 📢 Emit Kafka Event
+    await emitTableUpdated(result);
+
     res.status(200).json({
       success: true,
       message: "Table updated successfully",
@@ -133,6 +145,9 @@ export const deleteTable = async (req, res) => {
       metadata: { tableId },
       ipAddress: req.ip,
     });
+
+    // 📢 Emit Kafka Event
+    await emitTableDeleted(table);
 
     res.status(200).json({
       success: true,

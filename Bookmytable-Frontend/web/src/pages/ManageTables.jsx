@@ -7,16 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit2, Trash2, Users, LayoutDashboard, List } from "lucide-react";
-import { useLayout } from "@/hooks/useLayout";
+import { Plus, Edit2, Trash2, Users, List } from "lucide-react";
 import { TABLE_TYPES } from "@/lib/mockData";
-import { LayoutEditor } from "@/components/visual-layout/LayoutEditor";
-import { RoomSelector } from "@/components/visual-layout/RoomSelector";
 import { BulkAddForm } from "@/components/partner/register/tables/BulkAddForm";
 import { toast } from "sonner";
 import { Search, Filter } from "lucide-react";
 import { FLOOR_OPTIONS, SECTION_OPTIONS } from "@/lib/tableConstants";
+import { CreateTableModal } from "@/components/tables/CreateTableModal";
+import { getPriceSourceBadgeClass, getPriceSourceLabel } from "@/lib/priceUtils";
 
 import { useBranch } from "@/context/BranchContext";
 import { useTables, useCreateTable, useUpdateTable, useDeleteTable, useBulkGenerateTables } from "@/hooks/useTables";
@@ -24,9 +22,10 @@ import { useTables, useCreateTable, useUpdateTable, useDeleteTable, useBulkGener
 
 
 const typeColor = {
-  indoor: "text-primary border-primary/20",
-  outdoor: "text-accent border-accent/20",
-  vip: "text-amber-500 border-amber-500/20",
+  indoor_dining: "text-primary border-primary/20",
+  outdoor_dining: "text-accent border-accent/20",
+  rooftop_dining: "text-amber-500 border-amber-500/20",
+  private_room: "text-purple-500 border-purple-500/20",
 };
 
 export default function ManageTables() {
@@ -42,8 +41,6 @@ export default function ManageTables() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTable, setEditingTable] = useState(null);
-  const [form, setForm] = useState({ tableCode: "", capacity: 2, type: "indoor", floor: "", floorLabel: "", section: "", sectionLabel: "" });
-  const [activeTab, setActiveTab] = useState("list");
 
   // Subscription Usage
   const [usageData, setUsageData] = useState(null);
@@ -52,7 +49,7 @@ export default function ManageTables() {
     const fetchUsage = async () => {
       try {
         const { default: apiClient } = await import("@/lib/api");
-        const res = await apiClient.get("/subscriptions/my-usage");
+        const res = await apiClient.get("/restaurants/subscriptions/my-usage");
         if (res.data?.success) {
           setUsageData(res.data.data);
         }
@@ -101,50 +98,36 @@ export default function ManageTables() {
     return acc;
   }, {});
 
-  const { rooms, activeRoom, activeRoomId, setActiveRoomId, updateTablePosition, saveLayout } = useLayout(restaurantId);
-
   const openNew = () => {
     setEditingTable(null);
-    setForm({ tableCode: "", capacity: 2, type: "indoor", floor: "", floorLabel: "", section: "", sectionLabel: "", isActive: true });
     setDialogOpen(true);
   };
 
   const openEdit = (t) => {
     setEditingTable(t);
-    setForm({ 
-      tableCode: t.tableCode, 
-      capacity: t.capacity, 
-      type: t.type, 
-      floor: t.floor || "", 
-      floorLabel: t.floorLabel || "",
-      section: t.section || "", 
-      sectionLabel: t.sectionLabel || "",
-      isActive: t.isActive 
-    });
     setDialogOpen(true);
   };
 
 
-  const handleSave = () => {
-    if (!form.tableCode.trim()) {
+  const handleSave = (formData) => {
+    if (!formData.tableCode.trim()) {
       toast.error("Table code is required");
       return;
     }
 
-    if (form.capacity < 1) {
+    if (formData.capacity < 1) {
       toast.error("Capacity must be at least 1");
       return;
     }
 
     if (!editingTable) {
-      createTable(form, {
+      createTable(formData, {
         onSuccess: () => {
           setDialogOpen(false);
-          setForm({ tableCode: "", capacity: 2, type: "indoor", floor: "", floorLabel: "", section: "", sectionLabel: "" });
         },
       });
     } else {
-      updateTable({ tableId: editingTable._id, data: form }, {
+      updateTable({ tableId: editingTable._id, data: formData }, {
         onSuccess: () => {
           setDialogOpen(false);
           setEditingTable(null);
@@ -160,11 +143,6 @@ export default function ManageTables() {
     }
   };
 
-  const handleSaveLayout = () => {
-    saveLayout();
-    toast.success("Layout saved successfully!");
-  };
-
   return (
     <div className="w-full">
       <div className="container mx-auto px-4 py-8 lg:px-8">
@@ -172,36 +150,22 @@ export default function ManageTables() {
           <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-foreground">Manage Tables</h1>
-              <p className="text-muted-foreground">Configure your restaurant's table layout and details</p>
+              <p className="text-muted-foreground">Configure your restaurant's table list and details</p>
             </div>
+            <Button 
+              className="gap-2 rounded-xl shadow-sm" 
+              onClick={openNew}
+              disabled={isLimitReached}
+            >
+              <Plus className="h-4 w-4" /> Add Table
+            </Button>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="flex items-center justify-between mb-6">
-              <TabsList className="bg-muted/50 rounded-xl p-1">
-                <TabsTrigger value="list" className="rounded-lg gap-2 px-4 transition-all">
-                  <List className="w-4 h-4" /> List View
-                </TabsTrigger>
-                <TabsTrigger value="visual" className="rounded-lg gap-2 px-4 transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
-                  <LayoutDashboard className="w-4 h-4" /> Visual Editor
-                </TabsTrigger>
-              </TabsList>
-              
-              {activeTab === "list" && (
-                <Button 
-                  className="gap-2 rounded-xl shadow-sm" 
-                  onClick={openNew}
-                  disabled={isLimitReached}
-                >
-                  <Plus className="h-4 w-4" /> Add Table
-                </Button>
-              )}
-            </div>
-
-            <TabsContent value="list" className="animate-in fade-in slide-in-from-bottom-2 focus-visible:outline-none focus-visible:ring-0">
+          <div className="w-full">
+            <div className="pt-2">
               
               <div className="mb-6">
-                <BulkAddForm onGenerate={bulkGenerateTables} disabled={isLimitReached} />
+                <BulkAddForm onGenerate={bulkGenerateTables} disabled={isLimitReached} restaurantId={restaurantId} />
               </div>
 
               <div className="mb-6 flex flex-col md:flex-row gap-4 items-center bg-card p-4 rounded-2xl border border-border/40 shadow-sm">
@@ -284,17 +248,31 @@ export default function ManageTables() {
                                       {!t.isActive && <Badge variant="secondary" className="text-xs">Inactive</Badge>}
                                     </div>
                                   </div>
-                                  <div className="space-y-1.5 mb-4">
-                                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                      <Users className="h-3.5 w-3.5" />
-                                      <span>{t.capacity} seats</span>
+                                    <div className="space-y-1.5 mb-4">
+                                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                        <Users className="h-3.5 w-3.5" />
+                                        <span>{t.capacity} seats</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground italic">
+                                        <span className="truncate">{t.floorLabel || t.floor || "Unassigned Floor"}</span>
+                                        <span>•</span>
+                                        <span className="truncate">{t.sectionLabel || t.section || "Unassigned Section"}</span>
+                                      </div>
+                                      
+                                      {t.resolvedPrice > 0 && (
+                                        <div className="flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/5 px-2 py-1 rounded-md border border-primary/10 mt-2 w-fit">
+                                          ₹{t.resolvedPrice}
+                                          {t.priceSource && (
+                                            <>
+                                              <span className="text-muted-foreground font-normal mx-0.5">•</span>
+                                              <span className="text-[10px] uppercase text-muted-foreground">
+                                                {t.priceSource === 'override' ? 'Override' : t.priceSource === 'section' ? 'Section' : 'Area'}
+                                              </span>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
-                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground italic">
-                                      <span className="truncate">{t.floorLabel || t.floor || "Unassigned Floor"}</span>
-                                      <span>•</span>
-                                      <span className="truncate">{t.sectionLabel || t.section || "Unassigned Section"}</span>
-                                    </div>
-                                  </div>
 
                                   <div className="flex gap-2 border-t border-border/40 pt-4 mt-2">
                                     <Button variant="ghost" size="sm" className="gap-1 flex-1 h-8 rounded-lg" onClick={() => openEdit(t)}>
@@ -327,117 +305,21 @@ export default function ManageTables() {
                   <Button onClick={openNew} disabled={isLimitReached}><Plus className="h-4 w-4 mr-2" /> Add Table</Button>
                 </div>
               )}
-            </TabsContent>
-
-            <TabsContent value="visual" className="animate-in fade-in slide-in-from-bottom-2 focus-visible:outline-none focus-visible:ring-0">
-              <RoomSelector 
-                rooms={rooms} 
-                activeRoomId={activeRoomId} 
-                onSelect={setActiveRoomId} 
-              />
-              <LayoutEditor 
-                room={activeRoom}
-                updateTablePosition={updateTablePosition}
-                saveLayout={handleSaveLayout}
-              />
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </motion.div>
       </div>
 
-      {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="rounded-2xl border-border/40 sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingTable ? "Edit Table" : "Add Table"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label className="mb-2 block text-sm font-medium">Table Code</Label>
-              <Input
-                placeholder="e.g., T-07"
-                value={form.tableCode}
-                onChange={(e) => setForm((f) => ({ ...f, tableCode: e.target.value }))}
-                className="rounded-lg"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="mb-2 block text-sm font-medium">Floor</Label>
-                <Select value={form.floor} onValueChange={(v) => setForm(f => ({ ...f, floor: v, floorLabel: v !== 'custom' ? FLOOR_OPTIONS.find(o => o.value === v)?.label : "" }))}>
-                  <SelectTrigger className="rounded-lg bg-white"><SelectValue placeholder="Select Floor" /></SelectTrigger>
-                  <SelectContent>
-                    {FLOOR_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {form.floor === 'custom' && (
-                  <Input 
-                    placeholder="Enter custom floor name" 
-                    value={form.floorLabel}
-                    onChange={(e) => setForm(f => ({ ...f, floorLabel: e.target.value }))}
-                    className="mt-2 rounded-lg"
-                  />
-                )}
-              </div>
-              <div>
-                <Label className="mb-2 block text-sm font-medium">Section</Label>
-                <Select value={form.section} onValueChange={(v) => setForm(f => ({ ...f, section: v, sectionLabel: v !== 'custom' ? SECTION_OPTIONS.find(o => o.value === v)?.label : "" }))}>
-                  <SelectTrigger className="rounded-lg bg-white"><SelectValue placeholder="Select Section" /></SelectTrigger>
-                  <SelectContent>
-                    {SECTION_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {form.section === 'custom' && (
-                  <Input 
-                    placeholder="Enter custom section name" 
-                    value={form.sectionLabel}
-                    onChange={(e) => setForm(f => ({ ...f, sectionLabel: e.target.value }))}
-                    className="mt-2 rounded-lg"
-                  />
-                )}
-              </div>
-            </div>
-
-            <div>
-              <Label className="mb-2 block text-sm font-medium">Capacity (seats)</Label>
-              <Input
-                type="number"
-                min={1}
-                max={20}
-                value={form.capacity}
-                onChange={(e) => setForm((f) => ({ ...f, capacity: Number(e.target.value) }))}
-                className="rounded-lg"
-              />
-            </div>
-            <div>
-              <Label className="mb-2 block text-sm font-medium">Type</Label>
-              <Select value={form.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v }))}>
-                <SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {TABLE_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-           
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0 mt-10 mb-4">
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="rounded-lg">Cancel</Button>
-            <Button 
-              onClick={handleSave} 
-              className="rounded-lg" 
-              disabled={isCreating || isUpdating}
-            >
-              {isCreating ? "Creating..." : isUpdating ? "Saving..." : (editingTable ? "Save Changes" : "Create Table")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Add/Edit Dialog using shared component */}
+      <CreateTableModal
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        restaurantId={restaurantId}
+        isCreating={isCreating}
+        isUpdating={isUpdating}
+        editingTable={editingTable}
+        onSave={handleSave}
+      />
     </div>
   );
 }

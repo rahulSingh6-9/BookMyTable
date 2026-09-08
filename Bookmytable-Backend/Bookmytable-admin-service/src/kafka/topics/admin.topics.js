@@ -13,6 +13,9 @@ export const ADMIN_TOPICS = {
 
   BRAND_CREATED: "brand.created",
   BRAND_UPDATED: "brand.updated",
+  BRAND_DEACTIVATED: "brand.deactivated",
+  BRAND_ARCHIVED: "brand.archived",
+  BRAND_RESTORED: "brand.restored",
 
   MEMBERSHIP_CREATED: "membership.created",
   MEMBERSHIP_UPDATED: "membership.updated",
@@ -41,7 +44,14 @@ export const ADMIN_TOPICS = {
   BOOKING_CANCELLED: "booking.cancelled",
   BOOKING_COMPLETED: "booking.completed",
   TABLE_CREATED: "table.created",
+  TABLE_UPDATED: "table.updated",
   TABLE_DELETED: "table.deleted",
+  TABLE_STATUS_CHANGED: "table.status.changed",
+  TABLE_BULK_UPDATED: "table.bulk.updated",
+  TABLE_FLOOR_CREATED: "table.floor.created",
+  TABLE_FLOOR_DELETED: "table.floor.deleted",
+  TABLE_SECTION_CREATED: "table.section.created",
+  TABLE_SECTION_DELETED: "table.section.deleted",
 
   // Subscription CQRS Topics
   SUBSCRIPTION_PLAN_CREATED: "subscription.plan.created",

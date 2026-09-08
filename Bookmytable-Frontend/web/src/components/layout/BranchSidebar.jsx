@@ -32,7 +32,11 @@ import {
   ChevronRight,
   Briefcase,
   Bell,
-  Store
+  Store,
+  CreditCard,
+  Activity,
+  Mail,
+  MapPin
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -79,8 +83,9 @@ const branchSidebarConfig = [
     icon: Briefcase,
     items: [
       { title: "Tables", path: "/operations/tables", icon: Table2, permission: "MANAGE_TABLES" },
-      { title: "Layout", path: "/operations/layout", icon: Map, permission: "MANAGE_TABLES" },
+      { title: "Layouts", path: "/operations/layout", icon: Map, permission: "MANAGE_TABLES" },
       { title: "Availability & Schedule", path: "/operations/availability", icon: Zap, permission: "MANAGE_SETTINGS" },
+      { title: "Pricing Management", path: "/operations/pricing", icon: CreditCard, permission: "MANAGE_TABLES" },
     ]
   },
   {
@@ -101,6 +106,10 @@ const branchSidebarConfig = [
     icon: Settings,
     items: [
       { title: "Booking Policies", path: "/settings/booking-policies", icon: CalendarCheck, permission: "MANAGE_SETTINGS", end: true },
+      { title: "Contact Information", path: "/settings/contact-information", icon: Mail, permission: "MANAGE_SETTINGS" },
+      { title: "Location", path: "/settings/location", icon: MapPin, permission: "MANAGE_SETTINGS" },
+      { title: "Payments & Payouts", path: "/settings/payments", icon: CreditCard, permission: "MANAGE_SETTINGS" },
+      { title: "Plan & Usage", path: "/settings/plan", icon: Activity, permission: "MANAGE_SETTINGS" },
       { title: "Notifications", path: "/settings/notifications", icon: Bell, permission: "MANAGE_SETTINGS" },
     ]
   }

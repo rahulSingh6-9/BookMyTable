@@ -1,17 +1,19 @@
 import { Link } from "react-router-dom";
-import logo from "@/assets/BookMyTable_logo.jpg";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 function Footer() {
   return (
-    <footer className="border-t border-border bg-card">
-      <div className="container mx-auto px-4 py-8 sm:py-12 lg:px-8">
+    <footer className="border-t bg-background pt-16 pb-8 border-border/40 px-6 sm:px-12 mt-20">
+      <div className="mx-auto max-w-7xl">
         <div className="grid gap-8 grid-cols-2 lg:grid-cols-5">
           <div className="col-span-2 lg:col-span-1">
             <div className="mb-4 flex items-center gap-2">
-              <img src={logo} alt="BookMyTable" className="h-8 w-8 rounded-md object-cover" />
-              <span className="font-bold text-foreground">
-                Book<span className="text-primary">My</span>Table
-              </span>
+              <Link to="/" className="flex items-center gap-2">
+                <BrandLogo className="h-8 w-auto max-w-[120px] rounded-md" />
+                <span className="text-xl font-bold tracking-tight text-foreground">
+                  Book<span className="text-primary">My</span>Table
+                </span>
+              </Link>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Tables found, not searched. The fastest way to discover and book restaurants.

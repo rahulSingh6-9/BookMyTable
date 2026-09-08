@@ -102,7 +102,7 @@ export default function ManageMenu() {
         description: item.description || "",
         price: item.price,
         category: item.category?._id || item.category || selectedCategoryId,
-        isVeg: item.isVeg,
+        isVeg: item.foodType === "veg" || item.foodType === "vegan",
         isAvailable: item.isAvailable,
         imageFile: null,
       });
@@ -142,7 +142,7 @@ export default function ManageMenu() {
     formData.append("description", itemForm.description);
     formData.append("price", itemForm.price);
     formData.append("category", itemForm.category);
-    formData.append("isVeg", itemForm.isVeg);
+    formData.append("foodType", itemForm.isVeg ? "veg" : "non_veg");
     formData.append("isAvailable", itemForm.isAvailable);
     if (itemForm.imageFile) {
       formData.append("image", itemForm.imageFile);
@@ -237,7 +237,7 @@ export default function ManageMenu() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <AnimatePresence mode="popLayout">
                   {menuItems.map((item) => (
                     <motion.div
@@ -259,8 +259,8 @@ export default function ManageMenu() {
                       )}
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center gap-2">
-                          <div className={`h-2.5 w-2.5 rounded-full ${item.isVeg ? "bg-green-500" : "bg-red-500"}`} />
-                          <Badge variant="secondary" className="text-[10px] uppercase font-bold py-0.5">{item.isVeg ? "Veg" : "Non-Veg"}</Badge>
+                          <div className={`h-2.5 w-2.5 rounded-full ${item.foodType === "veg" || item.foodType === "vegan" ? "bg-green-500" : "bg-red-500"}`} />
+                          <Badge variant="secondary" className="text-[10px] uppercase font-bold py-0.5">{item.foodType === "veg" || item.foodType === "vegan" ? "Veg" : "Non-Veg"}</Badge>
                         </div>
                         <Badge variant={item.isAvailable ? "outline" : "secondary"} className="text-[10px] rounded-lg">
                           {item.isAvailable ? "Available" : "Sold Out"}
@@ -422,10 +422,10 @@ export default function ManageMenu() {
 
             <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border border-border/40">
               <div className="space-y-0.5">
-                <Label className="text-sm font-medium">Vegetarian</Label>
-                <p className="text-xs text-muted-foreground">Is this a veg dish?</p>
+                <Label className="text-sm font-medium">Non-Vegetarian</Label>
+                <p className="text-xs text-muted-foreground">Is this a non-veg dish?</p>
               </div>
-              <Switch checked={itemForm.isVeg} onCheckedChange={(v) => setItemForm({ ...itemForm, isVeg: v })} />
+              <Switch checked={!itemForm.isVeg} onCheckedChange={(v) => setItemForm({ ...itemForm, isVeg: !v })} />
             </div>
 
             <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border border-border/40">

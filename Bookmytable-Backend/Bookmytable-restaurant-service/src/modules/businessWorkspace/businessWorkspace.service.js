@@ -279,11 +279,11 @@ export const updateBrandingDetails = async (branchId, updateData, userId) => {
     if (updateData.fssaiLicenseNumber !== undefined) brandDelta.fssaiLicenseNumber = updateData.fssaiLicenseNumber;
 
     if (Object.keys(branchDelta).length > 0) {
-      await emitRestaurantPartialUpdate(branch._id, branch.brandId, branchDelta);
+      await emitRestaurantPartialUpdate(branch._id, branch.brandId, branchDelta, null, userId);
     }
     
     if (Object.keys(brandDelta).length > 0) {
-      await emitBrandPartialUpdate(brand._id, brandDelta);
+      await emitBrandPartialUpdate(brand._id, brandDelta, null, userId);
     }
 
   } catch (kafkaError) {

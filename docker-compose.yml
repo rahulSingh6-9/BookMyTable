@@ -1,49 +1,5 @@
 services:
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    container_name: zookeeper
-    ports:
-      - "2181:2181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka
-
-    depends_on:
-      - zookeeper
-
-    ports:
-      - "9092:9092"
-
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
-    healthcheck:
-      test: ["CMD", "bash", "-c", "nc -z localhost 9092"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  mongodb:
-    image: mongo:8
-    container_name: mongodb
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-
-  redis:
-    image: redis:8
-    container_name: redis
-    ports:
-      - "6379:6379"
 
   api-gateway:
     build:
@@ -55,139 +11,102 @@ services:
       - ./Bookmytable-API-Gateway:/app
       - /app/node_modules
 
+    env_file:
+      - ./Bookmytable-API-Gateway/.env
+
     depends_on:
       - auth-service
       - user-service
       - restaurant-service
-      - booking-service
       - admin-service
 
     command: npm run dev
 
   auth-service:
     build:
-      context: ./Bookmytable-Backend/bookmytable-auth-service
+      context: ./Bookmytable-Backend/Bookmytable-auth-service
 
     container_name: auth-service
 
     ports:
       - "5001:5001"
 
-    volumes:
-      - ./Bookmytable-Backend/bookmytable-auth-service:/app
-      - /app/node_modules
+    env_file:
+      - ./Bookmytable-Backend/Bookmytable-auth-service/.env
 
-    depends_on:
-      mongodb:
-        condition: service_started
-      redis:
-        condition: service_started
-      kafka:
-        condition: service_healthy
+    volumes:
+      - ./Bookmytable-Backend/Bookmytable-auth-service:/app
+      - /app/node_modules
 
     command: npm run dev
 
   user-service:
     build:
-      context: ./Bookmytable-Backend/bookmytable-user-service
+      context: ./Bookmytable-Backend/Bookmytable-user-service
 
     container_name: user-service
 
     ports:
       - "5002:5002"
 
-    volumes:
-      - ./Bookmytable-Backend/bookmytable-user-service:/app
-      - /app/node_modules
+    env_file:
+      - ./Bookmytable-Backend/Bookmytable-user-service/.env
 
-    depends_on:
-      mongodb:
-        condition: service_started
-      redis:
-        condition: service_started
-      kafka:
-        condition: service_healthy
+    volumes:
+      - ./Bookmytable-Backend/Bookmytable-user-service:/app
+      - /app/node_modules
 
     command: npm run dev
 
   restaurant-service:
     build:
-      context: ./Bookmytable-Backend/bookmytable-restaurant-service
+      context: ./Bookmytable-Backend/Bookmytable-restaurant-service
 
     container_name: restaurant-service
 
     ports:
       - "5003:5003"
 
-    volumes:
-      - ./Bookmytable-Backend/bookmytable-restaurant-service:/app
-      - /app/node_modules
+    env_file:
+      - ./Bookmytable-Backend/Bookmytable-restaurant-service/.env
 
-    depends_on:
-      mongodb:
-        condition: service_started
-      redis:
-        condition: service_started
-      kafka:
-        condition: service_healthy
+    volumes:
+      - ./Bookmytable-Backend/Bookmytable-restaurant-service:/app
+      - /app/node_modules
 
     command: npm run dev
 
-  booking-service:
-    build:
-      context: ./Bookmytable-Backend/Bookmytable-booking-service
-    container_name: booking-service
-    ports:
-      - "5004:5004"
-    volumes:
-      - ./Bookmytable-Backend/Bookmytable-booking-service:/app
-      - /app/node_modules
-    depends_on:
-      mongodb:
-        condition: service_started
-      kafka:
-        condition: service_healthy
-    command: npm run dev
+
 
   admin-service:
     build:
-      context: ./Bookmytable-Backend/bookmytable-admin-service
+      context: ./Bookmytable-Backend/Bookmytable-admin-service
 
     container_name: admin-service
 
     ports:
       - "5006:5006"
 
-    volumes:
-      - ./Bookmytable-Backend/bookmytable-admin-service:/app
-      - /app/node_modules
+    env_file:
+      - ./Bookmytable-Backend/Bookmytable-admin-service/.env
 
-    depends_on:
-      mongodb:
-        condition: service_started
-      redis:
-        condition: service_started
-      kafka:
-        condition: service_healthy
+    volumes:
+      - ./Bookmytable-Backend/Bookmytable-admin-service:/app
+      - /app/node_modules
 
     command: npm run dev
 
   notification-service:
     build:
-      context: ./Bookmytable-Backend/bookmytable-notifications-service
+      context: ./Bookmytable-Backend/Bookmytable-notifications-service
     container_name: notification-service
     ports:
       - "5007:5007"
+    env_file:
+      - ./Bookmytable-Backend/Bookmytable-notifications-service/.env
     volumes:
-      - ./Bookmytable-Backend/bookmytable-notifications-service:/app
+      - ./Bookmytable-Backend/Bookmytable-notifications-service:/app
       - /app/node_modules
-    depends_on:
-      mongodb:
-        condition: service_started
-      redis:
-        condition: service_started
-      kafka:
-        condition: service_healthy
     command: npm run dev
 
 
@@ -217,5 +136,9 @@ services:
       - VITE_API_BASE_URL=http://localhost:5000
     command: npm run dev  
 
-volumes:
-  mongodb_data:
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.driver.mtu: 1350

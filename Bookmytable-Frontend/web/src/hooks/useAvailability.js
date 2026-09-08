@@ -5,6 +5,7 @@ import {
   updateSlotConfig,
   addException,
   deleteException,
+  updateBookingPolicies
 } from "../services/settings.service";
 import { toast } from "sonner";
 
@@ -65,6 +66,17 @@ export const useAvailability = (restaurantId) => {
     },
   });
 
+  const bookingPoliciesMutation = useMutation({
+    mutationFn: (data) => updateBookingPolicies(restaurantId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(["availability-settings", restaurantId]);
+      toast.success("Booking policies updated successfully");
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Failed to update booking policies");
+    },
+  });
+
   return {
     ...query,
     updateSchedule: scheduleMutation.mutate,
@@ -75,5 +87,7 @@ export const useAvailability = (restaurantId) => {
     isAddingException: addExceptionMutation.isPending,
     deleteException: deleteExceptionMutation.mutate,
     isDeletingException: deleteExceptionMutation.isPending,
+    updateBookingPolicies: bookingPoliciesMutation.mutate,
+    isUpdatingBookingPolicies: bookingPoliciesMutation.isPending,
   };
 };

@@ -30,7 +30,7 @@ export default function StaffListPage() {
     const fetchUsage = async () => {
       try {
         const { default: apiClient } = await import("@/lib/api");
-        const res = await apiClient.get("/subscriptions/my-usage");
+        const res = await apiClient.get("/restaurants/subscriptions/my-usage");
         if (res.data?.success) {
           setUsageData(res.data.data);
         }

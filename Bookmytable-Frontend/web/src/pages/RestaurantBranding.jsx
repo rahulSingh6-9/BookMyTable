@@ -6,6 +6,7 @@ import {
   getBrandingDetails, 
   updateBrandingDetails,
   uploadBrandLogo,
+  uploadRestaurantLogo,
   uploadRestaurantCover,
   uploadRestaurantGallery,
   deleteRestaurantGalleryImage as deleteGalleryImageAPI
@@ -86,7 +87,7 @@ export default function RestaurantBranding() {
     setSlug(initSlug);
     setDescription(initDesc);
     setCuisines(initCuisines);
-    setLogo(branch.logo || brand.logo || "");
+    setLogo(branch.logo || "");
     setCoverImage(branch.coverImage || brand.coverImage || "");
     setGallery(branch.images || []);
     
@@ -145,22 +146,21 @@ export default function RestaurantBranding() {
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const brandId = activeBranch?.brandId || activeMembership?.brand?._id || data?.brand?._id;
-    if (!brandId) {
-      toast.error("Associated Brand ID context not found");
+    if (!activeBranch?._id) {
+      toast.error("Branch ID context not found");
       return;
     }
     setIsUploadingLogo(true);
     try {
-      const response = await uploadBrandLogo(brandId, file);
+      const response = await uploadRestaurantLogo(activeBranch._id, file);
       if (response.success && response.data) {
         setLogo(response.data);
-        toast.success("Logo uploaded successfully");
+        toast.success("Branch logo uploaded successfully");
         await refreshMemberships();
       }
     } catch (error) {
       console.error("Logo upload error:", error);
-      toast.error(error.response?.data?.message || "Failed to upload logo image");
+      toast.error(error.response?.data?.message || "Failed to upload branch logo image");
     } finally {
       setIsUploadingLogo(false);
     }

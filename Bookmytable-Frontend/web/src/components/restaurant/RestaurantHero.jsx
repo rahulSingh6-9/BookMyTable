@@ -3,7 +3,8 @@ import { ChevronLeft, Heart, Share2, Star, MapPin, Phone, ArrowUpRight } from "l
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useFavoritesStore } from "@/store/useFavoritesStore";
-import { useEffect } from "react";
+import { useEffect, useState, Fragment } from "react";
+import { LightboxCarousel } from "./LightboxCarousel";
 
 export function RestaurantHero({ restaurant }) {
   // Compute Open/Closed status for the badge
@@ -19,6 +20,12 @@ export function RestaurantHero({ restaurant }) {
 
   const { favoriteIds, toggleFavorite, initialize } = useFavoritesStore();
 
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  // Aggregate images for carousel
+  const coverImage = restaurant.coverImage || restaurant.image || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80";
+  const allImages = [coverImage, ...(restaurant.images || [])].filter(Boolean);
+
   useEffect(() => {
     initialize();
   }, [initialize]);
@@ -31,19 +38,31 @@ export function RestaurantHero({ restaurant }) {
   };
 
   return (
-    <div className="relative h-72 sm:h-80 lg:h-96 w-full">
-      {/* Background Image */}
-      <img 
-        src={restaurant.coverImage || restaurant.image || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80"} 
-        alt={restaurant.branchName || restaurant.name} 
-        className="h-full w-full object-cover" 
-      />
-      
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent lg:from-background lg:via-background/40" />
-      <div className="absolute inset-0 bg-black/20" />
+    <Fragment>
+      <div className="relative h-72 sm:h-80 lg:h-96 w-full">
+        {/* Background Image (Clickable for Lightbox) */}
+        <div 
+          className="absolute inset-0 cursor-pointer group"
+          onClick={() => setIsLightboxOpen(true)}
+        >
+          <img 
+            src={coverImage} 
+            alt={restaurant.branchName || restaurant.name} 
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]" 
+          />
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent lg:from-background lg:via-background/40 transition-opacity duration-300 group-hover:opacity-90" />
+          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300" />
+          
+          {/* View Gallery Hint */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+            <span className="bg-black/50 backdrop-blur-md text-white font-semibold tracking-wider text-sm px-6 py-2.5 rounded-full border border-white/20 shadow-xl">
+              View Gallery
+            </span>
+          </div>
+        </div>
 
-      {/* Top Nav Actions */}
+        {/* Top Nav Actions */}
       <div className="absolute top-20 left-4 z-10">
         <Link to="/search">
           <Button variant="ghost" size="icon" className="bg-background/20 backdrop-blur-md text-white hover:bg-background/40 border border-white/20">
@@ -167,5 +186,14 @@ export function RestaurantHero({ restaurant }) {
         
       </div>
     </div>
+
+      {/* Lightbox Carousel Portal */}
+      <LightboxCarousel 
+        isOpen={isLightboxOpen}
+        onClose={() => setIsLightboxOpen(false)}
+        images={allImages}
+        initialIndex={0}
+      />
+    </Fragment>
   );
 }

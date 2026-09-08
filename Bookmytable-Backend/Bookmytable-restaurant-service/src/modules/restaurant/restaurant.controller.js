@@ -6,7 +6,64 @@ import Brand from "../../models/brand.model.js";
 import BranchMembership from "../../models/branchmemberships.model.js";
 import cloudinary from "../../config/cloudinary.js";
 import { emitRestaurantStatusChanged, emitBrandUpdated, emitMembershipDeleted, emitRestaurantPartialUpdate } from "../../kafka/index.js";
+import { updateBranchLocation, updateBranchBasicContact, requestBranchPhoneOTP, verifyBranchPhoneOTP, requestBranchEmailUpdate, verifyBranchEmailToken } from "./branchContact.service.js";
 import mongoose from "mongoose";
+
+export const updateBasicContact = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    const { branchId } = req.params;
+    const branch = await updateBranchBasicContact(userId, branchId, req.body, req.user?.roles);
+    res.status(200).json({ success: true, message: "Contact updated successfully", data: branch });
+  } catch (error) { next(error); }
+};
+
+export const requestPhoneOTP = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    const { branchId } = req.params;
+    await requestBranchPhoneOTP(userId, branchId, req.body, req.user?.roles);
+    res.status(200).json({ success: true, message: "OTP sent successfully" });
+  } catch (error) { next(error); }
+};
+
+export const verifyPhoneOTP = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    const { branchId } = req.params;
+    const branch = await verifyBranchPhoneOTP(userId, branchId, req.body, req.user?.roles);
+    res.status(200).json({ success: true, message: "Phone verified successfully", data: branch });
+  } catch (error) { next(error); }
+};
+
+export const requestEmailUpdate = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    const { branchId } = req.params;
+    await requestBranchEmailUpdate(userId, branchId, req.body, req.user?.roles);
+    res.status(200).json({ success: true, message: "Verification email sent" });
+  } catch (error) { next(error); }
+};
+
+export const verifyEmailToken = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    const { branchId } = req.params;
+    const branch = await verifyBranchEmailToken(userId, branchId, req.body, req.user?.roles);
+    res.status(200).json({ success: true, message: "Email verified successfully", data: branch });
+  } catch (error) { next(error); }
+};
+
+export const updateBranchLocationHandler = async (req, res, next) => {
+  try {
+    const branchId = req.params.id;
+    const userId = req.user?.id;
+    const branch = await updateBranchLocation(userId, branchId, req.body, req.user?.roles);
+    res.status(200).json({ success: true, message: "Branch location updated successfully.", data: branch });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const create = async (req, res) => {
   try {
@@ -149,6 +206,83 @@ const healBranchDocument = (branch, userId) => {
 };
 
 /**
+ * Upload and update Restaurant Logo
+ */
+export const updateRestaurantLogo = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No logo image file provided" });
+    }
+
+    const branch = await Restaurant.findById(id);
+    if (!branch) {
+      return res.status(404).json({ success: false, message: "Restaurant branch not found" });
+    }
+
+    healBranchDocument(branch, userId);
+
+    // Authorization check
+    const globalRoles = req.user?.roles || [];
+    const isPlatformAdmin = globalRoles.includes("admin") || globalRoles.includes("super_admin");
+    const ownerId = branch.ownerId || branch.createdBy;
+    const isOwnerDirect = ownerId && ownerId.toString() === userId.toString();
+
+    let hasManagerMembership = false;
+    if (!isOwnerDirect && !isPlatformAdmin) {
+      const membership = await BranchMembership.findOne({
+        user: userId,
+        branch: id,
+        status: "active",
+        role: { $in: ["owner", "co_owner", "manager"] }
+      });
+      if (membership) {
+        hasManagerMembership = true;
+      }
+    }
+
+    if (!isOwnerDirect && !isPlatformAdmin && !hasManagerMembership) {
+      return res.status(403).json({ success: false, message: "Access Denied: You do not have permission to manage this branch." });
+    }
+
+    const uploadResult = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        { folder: "bookmytable/branches/logos" },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      ).end(req.file.buffer);
+    });
+
+    const logoUrl = uploadResult.secure_url;
+
+    branch.logo = logoUrl;
+    branch.updatedBy = userId;
+    await branch.save();
+
+    // Note: Intentionally NOT syncing to Brand, as user requested logos to belong strictly to the branch.
+
+    try {
+      await emitRestaurantPartialUpdate(branch._id, branch.brandId, { logo: logoUrl }, null, userId);
+    } catch (kafkaError) {
+      console.error("⚠️ Kafka status change emit failure:", kafkaError.message);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Restaurant logo updated successfully",
+      data: logoUrl
+    });
+  } catch (error) {
+    console.error("[RestaurantController] Error in updateRestaurantLogo:", error);
+    next(error);
+  }
+};
+
+/**
  * Upload and update Restaurant Cover Image
  */
 export const updateRestaurantCoverImage = async (req, res, next) => {
@@ -225,7 +359,7 @@ export const updateRestaurantCoverImage = async (req, res, next) => {
 
     // Emit CQRS update
     try {
-      await emitRestaurantPartialUpdate(branch._id, branch.brandId, { coverImage: coverUrl });
+      await emitRestaurantPartialUpdate(branch._id, branch.brandId, { coverImage: coverUrl }, null, userId);
     } catch (kafkaError) {
       console.error("⚠️ Kafka status change emit failure:", kafkaError.message);
     }

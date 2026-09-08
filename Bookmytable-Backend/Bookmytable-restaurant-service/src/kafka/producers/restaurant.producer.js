@@ -144,6 +144,7 @@ export const emitRestaurantCreated = async (restaurant, ownerId, correlationId) 
       brandId: restaurant.brandId?.toString(),
       branchName: restaurant.branchName,
       branchCode: restaurant.branchCode,
+      slug: restaurant.slug,
       owner: ownerId.toString(),
       ownerId: ownerId.toString(),
       status: restaurant.status,
@@ -223,6 +224,52 @@ export const emitTableCreated = async (tableData, correlationId) => {
   });
 };
 
+export const emitTableUpdated = async (tableData, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.TABLE_UPDATED,
+    eventType: "table.updated",
+    data: {
+      id: tableData._id?.toString() || tableData.id,
+      branchId: tableData.branch?.toString() || tableData.branchId,
+      brandId: tableData.brand?.toString() || tableData.brandId,
+      tableCode: tableData.tableCode,
+      status: tableData.status,
+      isActive: tableData.isActive,
+      updatedAt: tableData.updatedAt || new Date(),
+    },
+    correlationId,
+  });
+};
+
+export const emitTableDeleted = async (tableData, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.TABLE_DELETED,
+    eventType: "table.deleted",
+    data: {
+      id: tableData._id?.toString() || tableData.id,
+      branchId: tableData.branch?.toString() || tableData.branchId,
+      brandId: tableData.brand?.toString() || tableData.brandId,
+      isActive: tableData.isActive,
+      updatedAt: tableData.updatedAt || new Date(),
+    },
+    correlationId,
+  });
+};
+
+export const emitTableBulkUpdated = async (branchId, brandId, count, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.TABLE_BULK_UPDATED,
+    eventType: "table.bulk.updated",
+    data: {
+      branchId: branchId?.toString(),
+      brandId: brandId?.toString(),
+      count,
+      updatedAt: new Date(),
+    },
+    correlationId,
+  });
+};
+
 export const emitRestaurantOnboardingCompleted = async ({ branchId, brandId, ownerId, completionScore = 100 }, correlationId) => {
   return publishEvent({
     topic: RESTAURANT_TOPICS.RESTAURANT_ONBOARDING_COMPLETED,
@@ -255,7 +302,7 @@ export const emitNotificationEmailSend = async ({ template, recipient, variables
 };
 
 // Partial Updates support to preserve Read-Model state for CQRS
-export const emitRestaurantPartialUpdate = async (branchId, brandId, delta, correlationId) => {
+export const emitRestaurantPartialUpdate = async (branchId, brandId, delta, correlationId, actorId) => {
   return publishEvent({
     topic: RESTAURANT_TOPICS.RESTAURANT_UPDATED,
     eventType: "restaurant.updated.partial",
@@ -265,12 +312,13 @@ export const emitRestaurantPartialUpdate = async (branchId, brandId, delta, corr
       brandId: brandId?.toString() || brandId,
       ...delta,
       timestamp: Date.now(),
+      actorId,
     },
     correlationId,
   });
 };
 
-export const emitBrandPartialUpdate = async (brandId, delta, correlationId) => {
+export const emitBrandPartialUpdate = async (brandId, delta, correlationId, actorId) => {
   return publishEvent({
     topic: RESTAURANT_TOPICS.BRAND_UPDATED,
     eventType: "brand.updated.partial",
@@ -279,6 +327,7 @@ export const emitBrandPartialUpdate = async (brandId, delta, correlationId) => {
       brandId: brandId?.toString() || brandId,
       ...delta,
       timestamp: Date.now(),
+      actorId,
     },
     correlationId,
   });
@@ -307,6 +356,7 @@ export const emitRestaurantStatusChanged = async (restaurant, action = "STATUS_C
       brandId: restaurant.brandId?.toString(),
       branchName: restaurant.branchName,
       branchCode: restaurant.branchCode,
+      slug: restaurant.slug,
       status: restaurant.status,
       logo: restaurant.logo || "",
       coverImage: restaurant.coverImage || "",
@@ -486,3 +536,84 @@ export const emitBillingUpdated = async (billing, correlationId) => {
   });
 };
 
+// Menu Events
+export const emitMenuItemCreated = async (item, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.MENU_ITEM_CREATED,
+    eventType: "menu.item.created",
+    data: {
+      id: item._id?.toString() || item.id,
+      branchId: item.branch?.toString() || item.branchId,
+      brandId: item.brand?.toString() || item.brandId,
+      categoryId: item.category?.toString() || item.categoryId,
+    },
+    correlationId,
+  });
+};
+
+export const emitMenuItemUpdated = async (item, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.MENU_ITEM_UPDATED,
+    eventType: "menu.item.updated",
+    data: {
+      id: item._id?.toString() || item.id,
+      branchId: item.branch?.toString() || item.branchId,
+      brandId: item.brand?.toString() || item.brandId,
+      categoryId: item.category?.toString() || item.categoryId,
+    },
+    correlationId,
+  });
+};
+
+export const emitMenuItemDeleted = async (item, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.MENU_ITEM_DELETED,
+    eventType: "menu.item.deleted",
+    data: {
+      id: item._id?.toString() || item.id,
+      branchId: item.branch?.toString() || item.branchId,
+      brandId: item.brand?.toString() || item.brandId,
+      categoryId: item.category?.toString() || item.categoryId,
+    },
+    correlationId,
+  });
+};
+
+export const emitMenuCategoryCreated = async (category, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.MENU_CATEGORY_CREATED,
+    eventType: "menu.category.created",
+    data: {
+      id: category._id?.toString() || category.id,
+      branchId: category.branch?.toString() || category.branchId,
+      brandId: category.brand?.toString() || category.brandId,
+    },
+    correlationId,
+  });
+};
+
+export const emitMenuCategoryUpdated = async (category, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.MENU_CATEGORY_UPDATED,
+    eventType: "menu.category.updated",
+    data: {
+      id: category._id?.toString() || category.id,
+      branchId: category.branch?.toString() || category.branchId,
+      brandId: category.brand?.toString() || category.brandId,
+    },
+    correlationId,
+  });
+};
+
+export const emitMenuCategoryDeleted = async (category, correlationId) => {
+  return publishEvent({
+    topic: RESTAURANT_TOPICS.MENU_CATEGORY_DELETED,
+    eventType: "menu.category.deleted",
+    data: {
+      id: category._id?.toString() || category.id,
+      branchId: category.branch?.toString() || category.branchId,
+      brandId: category.brand?.toString() || category.brandId,
+    },
+    correlationId,
+  });
+};

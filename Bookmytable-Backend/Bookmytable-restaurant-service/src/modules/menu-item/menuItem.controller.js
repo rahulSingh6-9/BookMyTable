@@ -6,6 +6,11 @@ import {
 } from "./menuItem.service.js";
 import { createLog } from "../log/log.service.js";
 import { ROLES } from "../../config/roles.js";
+import {
+  emitMenuItemCreated,
+  emitMenuItemUpdated,
+  emitMenuItemDeleted,
+} from "../../kafka/producers/restaurant.producer.js";
 
 export const createMenuItem = async (req, res) => {
   try {
@@ -27,6 +32,9 @@ export const createMenuItem = async (req, res) => {
       metadata: { itemName: item.name, price: item.price },
       ipAddress: req.ip,
     });
+
+    // 📢 Emit Kafka Event
+    await emitMenuItemCreated(item);
 
     res.status(201).json({
       success: true,
@@ -76,6 +84,9 @@ export const updateMenuItem = async (req, res) => {
       ipAddress: req.ip,
     });
 
+    // 📢 Emit Kafka Event
+    await emitMenuItemUpdated(item);
+
     res.status(200).json({
       success: true,
       message: "Menu item updated successfully",
@@ -103,6 +114,10 @@ export const deleteMenuItem = async (req, res) => {
       metadata: { itemId },
       ipAddress: req.ip,
     });
+
+    // 📢 Emit Kafka Event
+    // We only have the itemId here, so we create a stub object for the emitter payload
+    await emitMenuItemDeleted({ _id: itemId, branch: branchId });
 
     res.status(200).json({
       success: true,

@@ -6,7 +6,6 @@ export const env = {
   PORT: process.env.PORT || 5001,
   MONGO_URI: process.env.MONGO_URI,
   JWT_SECRET: process.env.JWT_SECRET,
-  KAFKA_BROKER: process.env.KAFKA_BROKER || 'localhost:9092',
   WEB_URL: process.env.WEB_URL || 'http://localhost:3000',
   EMAIL_USER: process.env.EMAIL_USER,
   EMAIL_PASS: process.env.EMAIL_PASS,

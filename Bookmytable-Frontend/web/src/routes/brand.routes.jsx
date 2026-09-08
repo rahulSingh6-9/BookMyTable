@@ -8,6 +8,7 @@ import BrandLogs from "@/pages/brand/BrandLogs";
 import OwnerSubscription from "@/pages/OwnerSubscription";
 import OwnerBillingSettings from "@/pages/settings/OwnerBillingSettings";
 import OwnerAccountSettings from "@/pages/settings/OwnerAccountSettings";
+import OwnerContactSettings from "@/pages/settings/OwnerContactSettings";
 import OwnerIntegrationsSettings from "@/pages/settings/OwnerIntegrationsSettings";
 import OwnerSecuritySettings from "@/pages/settings/OwnerSecuritySettings";
 import OwnerRolesAccessSettings from "@/pages/settings/OwnerRolesAccessSettings";
@@ -39,12 +40,13 @@ export const brandRoutes = (
         
         {/* Subscription & Billing */}
         <Route path="subscription" element={<BrandProtectedRoute allowedRoles={["owner", "co_owner"]}><OwnerSubscription /></BrandProtectedRoute>} />
-        <Route path="billing" element={<BrandProtectedRoute allowedRoles={["owner", "co_owner"]}><OwnerBillingSettings /></BrandProtectedRoute>} />
         
         {/* Settings */}
         <Route path="settings">
           <Route index element={<Navigate to="account" replace />} />
           <Route path="account" element={<BrandProtectedRoute allowedRoles={["owner", "co_owner"]}><OwnerAccountSettings /></BrandProtectedRoute>} />
+          <Route path="billing" element={<BrandProtectedRoute allowedRoles={["owner", "co_owner"]}><OwnerBillingSettings /></BrandProtectedRoute>} />
+          <Route path="contact-information" element={<BrandProtectedRoute allowedRoles={["owner", "co_owner"]}><OwnerContactSettings /></BrandProtectedRoute>} />
         </Route>
         <Route path="integrations" element={<BrandProtectedRoute allowedRoles={["owner", "co_owner"]}><OwnerIntegrationsSettings /></BrandProtectedRoute>} />
         <Route path="security" element={<BrandProtectedRoute allowedRoles={["owner", "co_owner"]}><OwnerSecuritySettings /></BrandProtectedRoute>} />

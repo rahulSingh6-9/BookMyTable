@@ -5,10 +5,12 @@ import { Navbar } from "@/components/Navbar";
 
 export function ProfileLayout() {
   return (
-    <DashboardLayout sidebar={<ProfileSidebar />} showFooter={false} >
+    <>
       <Navbar />
-      <Outlet />
-    </DashboardLayout>
+      <DashboardLayout sidebar={<ProfileSidebar />} showFooter={false} >
+        <Outlet />
+      </DashboardLayout>
+    </>
   );
 }
 

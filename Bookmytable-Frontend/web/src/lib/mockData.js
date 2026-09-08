@@ -112,7 +112,8 @@ export const mockBookings = [
 export const DAYS_OF_WEEK = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
 export const TABLE_TYPES = [
-  { value: "indoor", label: "Indoor" },
-  { value: "outdoor", label: "Outdoor" },
-  { value: "vip", label: "VIP" },
+  { value: "indoor_dining", label: "Indoor Dining" },
+  { value: "outdoor_dining", label: "Outdoor Dining" },
+  { value: "rooftop_dining", label: "Rooftop Dining" },
+  { value: "private_room", label: "Private Room" },
 ];

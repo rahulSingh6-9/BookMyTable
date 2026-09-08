@@ -4,9 +4,11 @@ import { OwnerSidebar } from "@/components/layout/OwnerSidebar";
 import { Navbar } from "@/components/Navbar";
 export function OwnerLayout() {
   return (
-    <DashboardLayout sidebar={<OwnerSidebar />} showFooter={false}>
+    <>
       <Navbar />
-      <Outlet />
-    </DashboardLayout>
+      <DashboardLayout sidebar={<OwnerSidebar />} showFooter={false}>
+        <Outlet />
+      </DashboardLayout>
+    </>
   );
 }

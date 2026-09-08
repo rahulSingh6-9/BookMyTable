@@ -10,12 +10,12 @@ export const syncTable = async (topic, data) => {
     return;
   }
 
-  const incValue = topic === KAFKA_TOPICS.TABLE_CREATED ? 1 : 
-                   topic === KAFKA_TOPICS.TABLE_DELETED ? -1 : 0;
+  // Disabled blind incrementing. Relies on RESTAURANT_UPDATED sync with tableStats instead.
+  // const incValue = topic === KAFKA_TOPICS.TABLE_CREATED ? 1 : 
+  //                  topic === KAFKA_TOPICS.TABLE_DELETED ? -1 : 0;
+  // if (incValue !== 0) {
+  //   await BranchReadModel.findByIdAndUpdate(targetBranchId, { $inc: { tablesCount: incValue } });
+  // }
 
-  if (incValue !== 0) {
-    await BranchReadModel.findByIdAndUpdate(targetBranchId, { $inc: { tablesCount: incValue } });
-  }
-
-  console.log(`🪑 Read-Model Synced: Table [${topic}] metric updated.`);
+  console.log(`🪑 Read-Model Synced: Table [${topic}] event acknowledged.`);
 };

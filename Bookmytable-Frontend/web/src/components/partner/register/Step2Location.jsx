@@ -210,6 +210,7 @@ export function Step2Location({ register, errors, setValue, watch }) {
             id="location-search" 
             placeholder="Search for your building, street or area..." 
             className="h-14 rounded-2xl border-2 pl-12 focus-visible:ring-primary/20 bg-card shadow-sm"
+            autoComplete="new-password"
           />
           <MapIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
         </div>
@@ -285,6 +286,7 @@ export function Step2Location({ register, errors, setValue, watch }) {
                 placeholder="e.g. 12 Civil Lines" 
                 className="h-12 rounded-xl border-2"
                 {...register("addressLine1")}
+                autoComplete="new-password"
               />
               {errors.addressLine1 && <p className="text-xs text-destructive ml-1">{errors.addressLine1.message}</p>}
             </div>
@@ -297,6 +299,7 @@ export function Step2Location({ register, errors, setValue, watch }) {
                   placeholder="Floor, suite, etc." 
                   className="h-12 rounded-xl border-2"
                   {...register("addressLine2")}
+                  autoComplete="new-password"
                 />
               </div>
               <div className="space-y-2">
@@ -306,6 +309,7 @@ export function Step2Location({ register, errors, setValue, watch }) {
                   placeholder="Near central park" 
                   className="h-12 rounded-xl border-2"
                   {...register("landmark")}
+                  autoComplete="new-password"
                 />
               </div>
             </div>
@@ -318,6 +322,7 @@ export function Step2Location({ register, errors, setValue, watch }) {
                   placeholder="e.g. Kota" 
                   className="h-12 rounded-xl border-2"
                   {...register("city")}
+                  autoComplete="new-password"
                 />
                 {errors.city && <p className="text-xs text-destructive ml-1">{errors.city.message}</p>}
               </div>
@@ -328,6 +333,7 @@ export function Step2Location({ register, errors, setValue, watch }) {
                   placeholder="e.g. Rajasthan" 
                   className="h-12 rounded-xl border-2"
                   {...register("state")}
+                  autoComplete="new-password"
                 />
                 {errors.state && <p className="text-xs text-destructive ml-1">{errors.state.message}</p>}
               </div>
@@ -342,6 +348,7 @@ export function Step2Location({ register, errors, setValue, watch }) {
                     placeholder="e.g. India" 
                     className="h-12 rounded-xl border-2 pl-10"
                     {...register("country")}
+                    autoComplete="new-password"
                   />
                   <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 </div>
@@ -354,6 +361,7 @@ export function Step2Location({ register, errors, setValue, watch }) {
                   placeholder="6-digit ZIP code" 
                   className="h-12 rounded-xl border-2"
                   {...register("pincode")}
+                  autoComplete="new-password"
                 />
                 {errors.pincode && <p className="text-xs text-destructive ml-1">{errors.pincode.message}</p>}
               </div>

@@ -148,8 +148,8 @@ export default function CustomerHome() {
                 <Button size="sm" variant="outline" className="flex-1 sm:flex-none border-slate-200 text-slate-600 rounded-xl" onClick={() => navigate("/profile/bookings")}>
                   Manage
                 </Button>
-                <Button size="sm" className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white rounded-xl shadow-md shadow-primary/10" onClick={() => navigate(`/restaurant/${upcomingBooking.restaurantId}`)}>
-                  View Ticket
+                <Button size="sm" className="flex-1 sm:flex-none bg-primary hover:bg-primary/95 text-white rounded-xl shadow-md shadow-primary/10" onClick={() => navigate(`/restaurant/${upcomingBooking.restaurant?.slug || upcomingBooking.restaurantId}`)}>
+                  View Restaurant
                 </Button>
               </div>
             </CardContent>
@@ -325,7 +325,7 @@ export function RestaurantCard({ restaurant, onBook }) {
       whileHover={{ y: -5 }}
       className="group bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full select-none"
     >
-      <Link to={`/restaurant/${restaurant._id || restaurant.id}`} className="block relative aspect-[4/3] overflow-hidden">
+      <Link to={`/restaurant/${restaurant.slug || restaurant._id || restaurant.id}`} className="block relative aspect-[4/3] overflow-hidden">
         {/* Cover Image */}
         <img 
           src={restaurant.image} 
@@ -362,7 +362,7 @@ export function RestaurantCard({ restaurant, onBook }) {
             <span>{restaurant.city}</span>
           </div>
 
-          <Link to={`/restaurant/${restaurant._id || restaurant.id}`} className="block group-hover:text-primary transition">
+          <Link to={`/restaurant/${restaurant.slug || restaurant._id || restaurant.id}`} className="block group-hover:text-primary transition">
             <h3 className="font-extrabold text-slate-900 leading-snug truncate text-sm md:text-base">{restaurant.name}</h3>
           </Link>
 

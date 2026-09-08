@@ -18,8 +18,8 @@ export function createBooking(data) {
  * @param {string} date
  * @param {number} guests
  */
-export function getRestaurantAvailability(restaurantId, date, guests, tableType) {
-  return apiClient.get(`/booking/public/availability/${restaurantId}`, { params: { date, guests, tableType } });
+export function getRestaurantAvailability(branchSlug, date, guests, tableType) {
+  return apiClient.get(`/booking/public/availability/${branchSlug}`, { params: { date, guests, tableType } });
 }
 
 /**

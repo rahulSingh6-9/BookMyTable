@@ -167,7 +167,7 @@ function BookingCard({ booking, onCancel }) {
           </Dialog>
 
           <Button asChild variant="outline" className="gap-2">
-            <Link to={`/restaurant/${booking.restaurantId}`}>
+            <Link to={`/restaurant/${booking.restaurant?.slug || booking.restaurantId}`}>
               <Repeat2 className="h-4 w-4" />
               Rebook
             </Link>

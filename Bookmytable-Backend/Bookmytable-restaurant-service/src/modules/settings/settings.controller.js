@@ -75,3 +75,19 @@ export const deleteSpecialDayController = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+/**
+ * UPDATE BOOKING POLICIES
+ */
+export const updateBookingPoliciesController = async (req, res) => {
+  try {
+    const data = await SettingsService.updateBookingPolicies(
+      req.params.restaurantId,
+      req.body
+    );
+
+    res.json({ message: "Booking policies updated", data });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};

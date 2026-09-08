@@ -19,6 +19,13 @@ export const RESTAURANT_TOPICS = {
 
   TABLE_CREATED: "table.created",
   TABLE_UPDATED: "table.updated",
+  TABLE_DELETED: "table.deleted",
+  TABLE_STATUS_CHANGED: "table.status.changed",
+  TABLE_BULK_UPDATED: "table.bulk.updated",
+  TABLE_FLOOR_CREATED: "table.floor.created",
+  TABLE_FLOOR_DELETED: "table.floor.deleted",
+  TABLE_SECTION_CREATED: "table.section.created",
+  TABLE_SECTION_DELETED: "table.section.deleted",
 
   RESTAURANT_ONBOARDING_STARTED: "restaurant.onboarding.started",
   RESTAURANT_ONBOARDING_COMPLETED: "restaurant.onboarding.completed",
@@ -41,4 +48,12 @@ export const RESTAURANT_TOPICS = {
   SUBSCRIPTION_SUSPENDED: "subscription.suspended",
   SUBSCRIPTION_OVERRIDE_CREATED: "subscription.override.created",
   BILLING_UPDATED: "billing.updated",
+
+  // Menu Events
+  MENU_ITEM_CREATED: "menu.item.created",
+  MENU_ITEM_UPDATED: "menu.item.updated",
+  MENU_ITEM_DELETED: "menu.item.deleted",
+  MENU_CATEGORY_CREATED: "menu.category.created",
+  MENU_CATEGORY_UPDATED: "menu.category.updated",
+  MENU_CATEGORY_DELETED: "menu.category.deleted",
 };

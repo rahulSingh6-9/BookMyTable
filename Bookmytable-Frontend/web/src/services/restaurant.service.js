@@ -96,3 +96,34 @@ export function restoreBranch(brandId, branchId) {
 export function permanentlyDeleteBranch(brandId, branchId) {
   return apiClient.delete(`/brands/${brandId}/branches/${branchId}/permanent`);
 }
+
+// ──────────────────────────────────────────────
+// Branch Contact API
+// ──────────────────────────────────────────────
+
+export function updateBranchBasicContact(branchId, data) {
+  return apiClient.patch(`/restaurants/${branchId}/contact/basic`, data);
+}
+
+export function requestBranchPhoneOTP(branchId, data) {
+  return apiClient.post(`/restaurants/${branchId}/contact/phone/request`, data);
+}
+
+export function verifyBranchPhoneOTP(branchId, data) {
+  return apiClient.post(`/restaurants/${branchId}/contact/phone/verify`, data);
+}
+
+export const requestBranchEmailUpdate = async (branchId, data) => {
+  const response = await apiClient.post(`/restaurants/${branchId}/contact/email/request`, data);
+  return response.data;
+};
+
+export const verifyBranchEmailToken = async (branchId, data) => {
+  const response = await apiClient.post(`/restaurants/${branchId}/contact/email/verify`, data);
+  return response.data;
+};
+
+export const updateBranchLocation = async (branchId, data) => {
+  const response = await apiClient.put(`/restaurants/${branchId}/location`, data);
+  return response.data;
+};

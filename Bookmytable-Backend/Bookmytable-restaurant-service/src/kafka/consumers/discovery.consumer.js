@@ -1,6 +1,7 @@
 import kafka from "../config/kafka.js";
 import { KAFKA_TOPICS } from "../topics/topics.js";
 import { handleDiscoveryRestaurantUpdate } from "../handlers/discovery.handlers.js";
+import { handleBranchProfileLog } from "../handlers/branchLogSync.handler.js";
 
 const consumer = kafka.consumer({ groupId: "restaurant-service-discovery-group" });
 
@@ -31,6 +32,12 @@ export const startDiscoveryConsumer = async () => {
           console.log(`📥 [DiscoveryConsumer] Received Kafka event on topic [${topic}]`);
           
           await handleDiscoveryRestaurantUpdate({ ...event, topic });
+          
+          // Log Branch Profile changes (grouped)
+          if (topic === KAFKA_TOPICS.RESTAURANT_UPDATED) {
+            await handleBranchProfileLog(event);
+          }
+          
         } catch (error) {
           console.error(`❌ [DiscoveryConsumer] Error handling message on topic [${topic}]:`, error.message);
         }

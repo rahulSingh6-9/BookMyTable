@@ -76,7 +76,7 @@ export const createRestaurant = async (data, user) => {
   const { getOrCreateSubscription, checkLimit } = await import("../subscriptions/subscription.service.js");
   await getOrCreateSubscription(brandId, userId);
 
-  const branchCount = await Restaurant.countDocuments({ brandId, isDeleted: { $ne: true } });
+  const branchCount = await Restaurant.countDocuments({ brandId, isDeleted: { $ne: true }, isActive: true });
   try {
     await checkLimit(brandId, "maxBranches", branchCount);
   } catch (error) {

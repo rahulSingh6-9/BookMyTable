@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { navLinks } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import logo from "@/assets/BookMyTable_logo.jpg";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useAuth } from "../context/AuthContext";
 import { useLocationStore } from "@/store/useLocationStore";
 import { useQuery } from "@tanstack/react-query";
@@ -52,13 +52,13 @@ function Navbar({ children }) {
     <motion.nav
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="fixed top-0 left-0 right-0 z-50 glass shadow-card"
+      className="fixed top-0 left-0 right-0 z-[100] glass shadow-card"
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4 lg:px-8">
         {/* Left Side (Logo & Location) */}
         <div className="flex flex-1 items-center gap-6">
           <Link to="/" className="flex items-center gap-2">
-            <img src={logo} alt="BookMyTable" className="h-9 w-9 rounded-md object-cover" />
+            <BrandLogo className="h-9 w-auto max-w-[120px] rounded-md" />
             <span className="text-lg font-bold text-foreground tracking-tight hidden sm:inline-block">
               Book<span className="text-primary">My</span>Table
             </span>

@@ -57,11 +57,11 @@ const AdminAcceptInvite = () => {
       toast.success("Invitation accepted successfully!");
       setTimeout(() => {
         if (inviteData?.role === "RESTAURANT_APPROVAL_MANAGER") {
-          navigate("/admin/restaurants");
+          navigate("/admin/management/restaurants");
         } else if (inviteData?.role === "CONTENT_MODERATOR") {
-          navigate("/admin/reviews");
+          navigate("/admin/management/reviews");
         } else if (inviteData?.role === "FINANCE_ADMIN") {
-          navigate("/admin/payments");
+          navigate("/admin/business/payments");
         } else {
           navigate("/admin");
         }

@@ -74,6 +74,30 @@ const discoveryRestaurantSchema = new mongoose.Schema(
     
     costForTwo: Number,
     
+    // Menu Stats
+    hasMenu: {
+      type: Boolean,
+      default: false,
+    },
+    popularCategories: {
+      type: [String],
+      default: [],
+    },
+    featuredItems: {
+      type: [String], // Storing names of featured items
+      default: [],
+    },
+
+    // Table / Booking Stats
+    hasTables: {
+      type: Boolean,
+      default: false,
+    },
+    reservationEnabled: {
+      type: Boolean,
+      default: false,
+    },
+
     // Status
     status: {
       type: String,

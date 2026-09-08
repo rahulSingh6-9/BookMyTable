@@ -2,11 +2,14 @@ import { BrowserRouter, Navigate, Route, Routes, Outlet } from "react-router-dom
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { CartProvider } from "@/context/CartContext";
 import { customerRoutes } from "./modules/customer/routes/customer.routes";
 import Index from "./pages/Index";
 import Discover from "./pages/Discover";
 import RestaurantSearch from "./pages/RestaurantSearch";
 import RestaurantDetail from "./pages/RestaurantDetail";
+import RestaurantBooking from "./pages/RestaurantBooking";
+import RestaurantCheckout from "./pages/RestaurantCheckout";
 import TableBooking from "./pages/TableBooking";
 import BookingConfirmation from "./pages/BookingConfirmation";
 import Login from "./pages/Login";
@@ -70,15 +73,11 @@ import PermissionProtectedRoute from "@/routes/PermissionProtectedRoute";
 
 
 const App = () => (
+  <CartProvider>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <BrowserRouter>
       <Routes>
 
         {/* 🌍 PUBLIC ROUTES */}
@@ -97,7 +96,9 @@ const App = () => (
                 </ProtectedRoute>} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/search" element={<RestaurantSearch />} />
-          <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+          <Route path="/restaurant/:slug" element={<RestaurantDetail />} />
+          <Route path="/restaurant/:slug/book" element={<RestaurantBooking />} />
+          <Route path="/restaurant/:slug/checkout" element={<RestaurantCheckout />} />
 
           {/* 🔥 Booking needs login */}
           <Route
@@ -226,6 +227,7 @@ const App = () => (
       </Routes>
       </BrowserRouter>
     </TooltipProvider>
+  </CartProvider>
 );
 
 export default App;

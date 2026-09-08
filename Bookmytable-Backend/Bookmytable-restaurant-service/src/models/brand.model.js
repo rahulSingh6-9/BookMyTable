@@ -193,10 +193,26 @@ const brandSchema = new mongoose.Schema(
       default: "",
     },
 
+    contactEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    pendingContactEmail: {
+      email: { type: String, trim: true, lowercase: true },
+      tokenId: { type: String },
+      expiresAt: { type: Date }
+    },
+
     contactPhone: {
       type: String,
       trim: true,
       default: "",
+    },
+
+    contactPhoneVerified: {
+      type: Boolean,
+      default: false,
     },
 
     supportEmail: {

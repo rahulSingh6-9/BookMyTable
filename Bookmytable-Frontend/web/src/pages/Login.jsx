@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import logo from "@/assets/BookMyTable_logo.jpg";
+import { Label } from "@/components/ui/label";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { ROLE_PERMISSIONS } from "@/config/roles";
@@ -177,10 +178,14 @@ export default function Login() {
         className="w-full max-w-md"
       >
         <div className="mb-8 text-center">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <img src={logo} alt="BookMyTable" className="h-10 w-10 rounded-md object-cover" />
-            <span className="text-xl font-bold text-foreground">Book<span className="text-primary">My</span>Table</span>
-          </Link>
+          <div className="flex justify-center mb-6">
+            <Link to="/" className="flex items-center gap-2">
+              <BrandLogo className="h-10 w-auto max-w-[150px] rounded-md" />
+              <span className="text-2xl font-bold tracking-tight text-foreground">
+                Book<span className="text-primary">My</span>Table
+              </span>
+            </Link>
+          </div>
           <h1 className="text-2xl font-bold text-foreground">
             {inviteToken ? "Join the Team" : "Welcome back"}
           </h1>

@@ -5,9 +5,11 @@ import { Navbar } from "@/components/Navbar";
 
 export function BranchLayout() {
   return (
-    <DashboardLayout sidebar={<BranchSidebar />} showFooter={false}>
+    <>
       <Navbar />
-      <Outlet />
-    </DashboardLayout>
+      <DashboardLayout sidebar={<BranchSidebar />} showFooter={false}>
+        <Outlet />
+      </DashboardLayout>
+    </>
   );
 }

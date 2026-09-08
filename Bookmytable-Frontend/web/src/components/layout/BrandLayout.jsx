@@ -14,9 +14,11 @@ export function BrandLayout() {
   }, []);
 
   return (
-    <DashboardLayout sidebar={<BrandSidebar />} showFooter={false}>
+    <>
       <Navbar />
-      <Outlet />
-    </DashboardLayout>
+      <DashboardLayout sidebar={<BrandSidebar />} showFooter={false}>
+        <Outlet />
+      </DashboardLayout>
+    </>
   );
 }

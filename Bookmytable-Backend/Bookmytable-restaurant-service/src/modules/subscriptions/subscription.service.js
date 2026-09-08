@@ -372,7 +372,7 @@ export const applyOverride = async (data, adminId) => {
 /**
  * SAAS LIMIT VALIDATIONS
  */
-export const checkLimit = async (brandId, limitType, currentCount) => {
+export const checkLimit = async (brandId, limitType, currentCount, requestedAmount = 1) => {
   const subscription = await getActiveSubscription(brandId);
   
   // Default fallback limits for non-subscribed or expired
@@ -385,7 +385,7 @@ export const checkLimit = async (brandId, limitType, currentCount) => {
 
   const limitVal = subscription?.subscriptionPlanId?.limits?.[limitType] ?? defaultLimits[limitType];
   
-  if (currentCount >= limitVal) {
+  if (currentCount + requestedAmount > limitVal) {
     const error = new Error(
       `SaaS Limit Exceeded: Your plan allows a maximum of ${limitVal} ${limitType.replace("max", "")}. Please upgrade your subscription plan.`
     );
@@ -418,11 +418,11 @@ export const recalculateUsage = async (brandId) => {
   if (!brandId) return null;
 
   // Count active branches
-  const branchesCount = await Restaurant.countDocuments({ brandId, isDeleted: { $ne: true } });
+  const branchesCount = await Restaurant.countDocuments({ brandId, isDeleted: { $ne: true }, isActive: true });
 
   // Count active tables across all branches of this brand
-  const branchIds = await Restaurant.find({ brandId, isDeleted: { $ne: true } }).distinct("_id");
-  const tablesCount = await Table.countDocuments({ branch: { $in: branchIds }, isActive: { $ne: false } });
+  const branchIds = await Restaurant.find({ brandId, isDeleted: { $ne: true }, isActive: true }).distinct("_id");
+  const tablesCount = await Table.countDocuments({ branch: { $in: branchIds }, isDeleted: { $ne: true }, isActive: true });
 
   // Count active staff memberships under this brand
   const staffCount = await BranchMembership.countDocuments({ brandId, status: "active" });
@@ -444,3 +444,19 @@ export const recalculateUsage = async (brandId) => {
   return usage;
 };
 
+export const checkReservationLimits = async (brandId, restaurantId) => {
+  let usage = await SubscriptionUsage.findOne({ brandId });
+  if (!usage) {
+    usage = await recalculateUsage(brandId);
+  }
+  
+  await checkLimit(brandId, "maxReservationsPerMonth", usage?.reservationsThisMonth || 0, 1);
+};
+
+export const incrementReservationUsage = async (brandId, restaurantId) => {
+  await SubscriptionUsage.findOneAndUpdate(
+    { brandId },
+    { $inc: { reservationsThisMonth: 1 } },
+    { upsert: true }
+  );
+};

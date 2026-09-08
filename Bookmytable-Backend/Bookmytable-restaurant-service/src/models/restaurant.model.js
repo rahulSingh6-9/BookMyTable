@@ -209,10 +209,36 @@ const restaurantSchema = new mongoose.Schema(
         type: Date,
       },
 
+      pendingContactEmail: {
+        email: { type: String, trim: true, lowercase: true },
+        tokenId: { type: String },
+        expiresAt: { type: Date }
+      },
+
       supportEmail: {
         type: String,
         trim: true,
         lowercase: true,
+      },
+
+      whatsappNumber: {
+        type: String,
+        trim: true,
+      },
+
+      managerName: {
+        type: String,
+        trim: true,
+      },
+
+      managerPhone: {
+        type: String,
+        trim: true,
+      },
+
+      googleMapsLink: {
+        type: String,
+        trim: true,
       },
     },
 
@@ -388,6 +414,41 @@ const restaurantSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+
+    /**
+     * =====================================================
+     * MENU STATS (CQRS PROJECTION)
+     * =====================================================
+     */
+    menuStats: {
+      totalItems: { type: Number, default: 0 },
+      totalCategories: { type: Number, default: 0 },
+      featuredItems: { type: Number, default: 0 },
+      featuredItemNames: { type: [String], default: [] },
+      vegCount: { type: Number, default: 0 },
+      nonVegCount: { type: Number, default: 0 },
+      availableItems: { type: Number, default: 0 },
+      hasMenu: { type: Boolean, default: false },
+      popularCategories: { type: [String], default: [] },
+      lastUpdated: { type: Date },
+    },
+
+    /**
+     * =====================================================
+     * TABLE STATS (CQRS PROJECTION)
+     * =====================================================
+     */
+    tableStats: {
+      totalTables: { type: Number, default: 0 },
+      availableTables: { type: Number, default: 0 },
+      occupiedTables: { type: Number, default: 0 },
+      reservedTables: { type: Number, default: 0 },
+      inactiveTables: { type: Number, default: 0 },
+      totalFloors: { type: Number, default: 0 },
+      totalSections: { type: Number, default: 0 },
+      hasTables: { type: Boolean, default: false },
+      lastUpdated: { type: Date },
     },
 
     /**

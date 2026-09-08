@@ -6,6 +6,11 @@ import {
 } from "./menuCategory.service.js";
 import { createLog } from "../log/log.service.js";
 import { ROLES } from "../../config/roles.js";
+import {
+  emitMenuCategoryCreated,
+  emitMenuCategoryUpdated,
+  emitMenuCategoryDeleted,
+} from "../../kafka/producers/restaurant.producer.js";
 
 // ✅ CREATE
 export const createCategory = async (req, res) => {
@@ -25,6 +30,9 @@ export const createCategory = async (req, res) => {
       metadata: { categoryName: result.name },
       ipAddress: req.ip,
     });
+
+    // 📢 Emit Kafka Event
+    await emitMenuCategoryCreated(result);
 
     res.status(201).json({
       success: true,
@@ -77,6 +85,9 @@ export const updateCategory = async (req, res) => {
       ipAddress: req.ip,
     });
 
+    // 📢 Emit Kafka Event
+    await emitMenuCategoryUpdated(result);
+
     res.json({
       success: true,
       message: "Category updated successfully",
@@ -108,6 +119,9 @@ export const deleteCategory = async (req, res) => {
       metadata: { categoryId },
       ipAddress: req.ip,
     });
+
+    // 📢 Emit Kafka Event
+    await emitMenuCategoryDeleted({ _id: categoryId, branch: branchId });
 
     res.json({
       success: true,

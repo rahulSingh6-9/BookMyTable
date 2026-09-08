@@ -122,14 +122,15 @@ export const getAreasData = async (city) => {
 
 export const getRestaurantDetailsData = async (idParam) => {
   // The frontend might pass either the DiscoveryRestaurant _id or the original restaurantId.
-  const restaurant = await DiscoveryRestaurant.findOne({
-    $or: [
-      { _id: idParam },
-      { restaurantId: idParam }
-    ],
-    isActive: true,
-    isDeleted: false
-  }).lean();
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(idParam);
+  const query = { isActive: true, isDeleted: false };
+  if (isObjectId) {
+    query.$or = [{ _id: idParam }, { restaurantId: idParam }];
+  } else {
+    query.slug = idParam;
+  }
+
+  const restaurant = await DiscoveryRestaurant.findOne(query).lean();
 
   console.log(`[getRestaurantDetailsData] Found restaurant:`, restaurant ? restaurant.name : "null");
   console.log('restaurant: ', restaurant)
@@ -142,8 +143,21 @@ export const getRestaurantDetailsData = async (idParam) => {
   let settings = null;
   try {
     settings = await RestaurantSettings.findOne({ branch: resolvedBranchId }).lean();
-
-    console.log("settings 👆: ", settings)
+    
+    // The frontend expects openingHours inside settings or on the root. 
+    // Fetch it from the native RestaurantBranch model.
+    const { default: RestaurantBranch } = await import("../../models/restaurant.model.js");
+    const branch = await RestaurantBranch.findById(resolvedBranchId).select("openingHours bookingSettings images").lean();
+    
+    if (settings && branch) {
+      settings.openingHours = branch.openingHours;
+      settings.bookingSettings = branch.bookingSettings;
+    }
+    
+    // Attach gallery images to the discovery restaurant object
+    if (branch && branch.images) {
+      restaurant.images = branch.images;
+    }
   } catch (e) {
     console.warn(`Could not load settings for restaurant ${resolvedBranchId}`);
   }
@@ -167,14 +181,15 @@ export const getRestaurantDetailsData = async (idParam) => {
 
 export const getRestaurantMenuData = async (idParam) => {
   // First find the restaurant to get its branch ID
-  const restaurant = await DiscoveryRestaurant.findOne({
-    $or: [
-      { _id: idParam },
-      { restaurantId: idParam }
-    ],
-    isActive: true,
-    isDeleted: false
-  }).lean();
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(idParam);
+  const query = { isActive: true, isDeleted: false };
+  if (isObjectId) {
+    query.$or = [{ _id: idParam }, { restaurantId: idParam }];
+  } else {
+    query.slug = idParam;
+  }
+
+  const restaurant = await DiscoveryRestaurant.findOne(query).lean();
   
   if (!restaurant) return null;
 
@@ -196,12 +211,9 @@ export const getRestaurantMenuData = async (idParam) => {
 };
 
 export const checkReservationLimitData = async (idParam) => {
-  const restaurant = await DiscoveryRestaurant.findOne({
-    $or: [
-      { _id: idParam },
-      { restaurantId: idParam }
-    ]
-  }).lean();
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(idParam);
+  const query = isObjectId ? { $or: [{ _id: idParam }, { restaurantId: idParam }] } : { slug: idParam };
+  const restaurant = await DiscoveryRestaurant.findOne(query).lean();
   
   if (!restaurant) throw new Error("Restaurant not found");
 
@@ -219,12 +231,9 @@ export const checkReservationLimitData = async (idParam) => {
 };
 
 export const incrementReservationUsageData = async (idParam) => {
-  const restaurant = await DiscoveryRestaurant.findOne({
-    $or: [
-      { _id: idParam },
-      { restaurantId: idParam }
-    ]
-  }).lean();
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(idParam);
+  const query = isObjectId ? { $or: [{ _id: idParam }, { restaurantId: idParam }] } : { slug: idParam };
+  const restaurant = await DiscoveryRestaurant.findOne(query).lean();
   
   if (!restaurant) return;
 

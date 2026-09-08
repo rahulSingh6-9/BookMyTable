@@ -66,7 +66,8 @@ const brandSidebarConfig = [
     icon: Settings,
     items: [
       { title: "Account", path: "/settings/account", icon: User, allowedRoles: ["owner", "co_owner"] },
-      { title: "Billing", path: "/billing", icon: CreditCard, allowedRoles: ["owner", "co_owner"] },
+      { title: "Contact Information", path: "/settings/contact-information", icon: ShieldCheck, allowedRoles: ["owner", "co_owner"] },
+      { title: "Billing", path: "/settings/billing", icon: CreditCard, allowedRoles: ["owner", "co_owner"] },
       { title: "Integrations", path: "/integrations", icon: Blocks, allowedRoles: ["owner", "co_owner"] },
       { title: "Security", path: "/security", icon: Shield, allowedRoles: ["owner", "co_owner"] },
       { title: "Roles & Access", path: "/roles", icon: Key, allowedRoles: ["owner", "co_owner"] },

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { TimePicker } from "@/components/ui/time-picker";
 import { Plus, Trash2, CalendarOff, CalendarCheck, Loader2 } from "lucide-react";
 
 export function SpecialDaysManager({ specialDays = [], onAdd, onRemove, isAdding, isDeleting }) {
@@ -32,13 +33,13 @@ export function SpecialDaysManager({ specialDays = [], onAdd, onRemove, isAdding
           </div>
         </div>
         {!isClosed && (
-          <div className="flex items-center gap-2">
-            <Input type="time" value={slotOpen} onChange={(e) => setSlotOpen(e.target.value)} className="w-32" />
-            <span className="text-muted-foreground text-sm">to</span>
-            <Input type="time" value={slotClose} onChange={(e) => setSlotClose(e.target.value)} className="w-32" />
+          <div className="flex items-center gap-3">
+            <TimePicker value={slotOpen} onChange={setSlotOpen} className="w-[140px] border-border hover:bg-accent hover:text-accent-foreground transition-colors shadow-sm" />
+            <span className="text-muted-foreground text-sm font-medium">to</span>
+            <TimePicker value={slotClose} onChange={setSlotClose} className="w-[140px] border-border hover:bg-accent hover:text-accent-foreground transition-colors shadow-sm" />
           </div>
         )}
-        <Button size="sm" onClick={handleAdd} disabled={!date || isAdding} className="gap-1">
+        <Button size="sm" onClick={handleAdd} disabled={!date || isAdding} className="gap-1 mt-2">
           {isAdding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add Special Day
         </Button>
       </div>

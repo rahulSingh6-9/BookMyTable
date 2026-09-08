@@ -65,7 +65,7 @@ export default function CustomerFavorites() {
           <motion.div layout className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {renderFavorites.map((r) => (
               <div key={r._id || r.id} className="relative group bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition">
-                <Link to={`/restaurant/${r._id || r.id || r.restaurantId}`} className="block relative aspect-[4/3] overflow-hidden">
+                <Link to={`/restaurant/${r.slug || r._id || r.id || r.restaurantId}`} className="block relative aspect-[4/3] overflow-hidden">
                   <img src={r.coverImage || r.image} alt={r.name} className="h-full w-full object-cover group-hover:scale-102 transition duration-300" />
                   
                   {/* Remove Button */}

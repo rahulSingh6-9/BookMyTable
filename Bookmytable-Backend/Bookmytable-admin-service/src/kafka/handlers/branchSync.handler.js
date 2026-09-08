@@ -21,8 +21,9 @@ export const syncBranch = async (data) => {
 
   const { __v, name, restaurantName, branchName, id, _id, emailVerified, emailVerifiedAt, contact, action, timestamp, eventType, ...safeData } = data;
   
-  // Build safe partial update payload
   const setPayload = { ...safeData, _id: branchId, updatedAt: incomingUpdatedAt };
+
+  if (safeData.slug !== undefined) setPayload.branchSlug = safeData.slug;
 
   if (branchName !== undefined) setPayload.branchName = branchName;
   else if (name !== undefined) setPayload.branchName = name;
@@ -36,6 +37,52 @@ export const syncBranch = async (data) => {
 
   if (safeData.email !== undefined) setPayload.email = safeData.email;
   else if (contact?.email !== undefined) setPayload.email = contact.email;
+
+  if (safeData.cuisines !== undefined) {
+    setPayload.cuisineTypes = safeData.cuisines;
+    delete setPayload.cuisines; // Remove so it doesn't try to save into un-mapped field
+  }
+
+  if (contact?.primaryPhone?.number !== undefined) {
+    setPayload.contactNumber = contact.primaryPhone.number;
+  }
+
+  if (contact?.secondaryPhone?.number !== undefined) {
+    setPayload.reservationPhone = contact.secondaryPhone.number;
+  }
+
+  if (contact?.whatsappNumber !== undefined) setPayload.whatsappNumber = contact.whatsappNumber;
+  if (contact?.managerName !== undefined) setPayload.managerName = contact.managerName;
+  if (contact?.managerPhone !== undefined) setPayload.managerPhone = contact.managerPhone;
+  if (contact?.googleMapsLink !== undefined) setPayload.googleMapsLink = contact.googleMapsLink;
+
+  if (safeData.address && typeof safeData.address === 'object') {
+    if (safeData.address.city) setPayload.city = safeData.address.city;
+    if (safeData.address.addressLine1) setPayload.address = safeData.address.addressLine1;
+    setPayload.fullAddress = safeData.address;
+  }
+
+  if (safeData.location && typeof safeData.location === 'object') {
+    setPayload.location = safeData.location;
+  }
+
+  if (safeData.menuStats !== undefined) {
+    setPayload.menuStats = safeData.menuStats;
+  }
+
+  if (safeData.tableStats !== undefined) {
+    setPayload.tableStats = safeData.tableStats;
+    // Overwrite the legacy tablesCount with the trusted projection
+    setPayload.tablesCount = safeData.tableStats.totalTables || 0;
+  }
+
+  if (safeData.bookingPolicySummary !== undefined) {
+    setPayload.bookingPolicySummary = safeData.bookingPolicySummary;
+  }
+
+  if (safeData.availabilitySummary !== undefined) {
+    setPayload.availabilitySummary = safeData.availabilitySummary;
+  }
 
   if (data.action === "PERMANENT_DELETE") {
     const existingBranch = await BranchReadModel.findById(branchId);

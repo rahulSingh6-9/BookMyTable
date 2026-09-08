@@ -86,7 +86,7 @@ export default function Topbar() {
             </div>
             <div className="p-2 bg-muted/30 border-t border-border/40">
               <Button asChild variant="ghost" className="w-full justify-center h-8 text-xs font-medium text-muted-foreground hover:text-foreground">
-                <Link to="/admin/notifications">View all notifications</Link>
+                <Link to="/admin/operations/notifications">View all notifications</Link>
               </Button>
             </div>
           </PopoverContent>

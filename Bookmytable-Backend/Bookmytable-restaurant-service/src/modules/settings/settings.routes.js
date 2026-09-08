@@ -18,5 +18,6 @@ router.patch("/:restaurantId/schedule", protect, authorize("MANAGE_SETTINGS"), c
 router.patch("/:restaurantId/slot-config", protect, authorize("MANAGE_SETTINGS"), controller.updateSlotConfigController);
 router.post("/:restaurantId/special-days", protect, authorize("MANAGE_SETTINGS"), controller.addSpecialDayController);
 router.delete("/:restaurantId/special-days/:date", protect, authorize("MANAGE_SETTINGS"), controller.deleteSpecialDayController);
+router.patch("/:restaurantId/booking-policies", protect, authorize("MANAGE_SETTINGS"), controller.updateBookingPoliciesController);
 
 export default router;

@@ -34,7 +34,7 @@ export const updateSlotConfig = async (restaurantId, data) => {
  */
 export const addException = async (restaurantId, data) => {
   return await apiClient.post(
-    `/availability/${restaurantId}/exceptions`,
+    `/availability/${restaurantId}/special-days`,
     data
   );
 };
@@ -44,6 +44,16 @@ export const addException = async (restaurantId, data) => {
  */
 export const deleteException = async (restaurantId, date) => {
   return await apiClient.delete(
-    `/availability/${restaurantId}/exceptions/${date}`
+    `/availability/${restaurantId}/special-days/${date}`
+  );
+};
+
+/**
+ * 🔥 UPDATE BOOKING POLICIES
+ */
+export const updateBookingPolicies = async (restaurantId, data) => {
+  return await apiClient.patch(
+    `/availability/${restaurantId}/booking-policies`,
+    data
   );
 };

@@ -16,9 +16,10 @@ export const requireFeature = (featureName) => {
         req.headers["x-branch-id"] ||
         req.params.branchId ||
         req.params.restaurantId ||
+        req.params.id ||
         req.query.branchId ||
-        req.body.branchId ||
-        req.body.restaurantId;
+        req.body?.branchId ||
+        req.body?.restaurantId;
 
       let brandId = req.brandId;
 
@@ -57,6 +58,8 @@ export const requireFeature = (featureName) => {
       return res.status(500).json({
         success: false,
         message: "Internal subscription processing error",
+        error: error.message,
+        stack: error.stack
       });
     }
   };
