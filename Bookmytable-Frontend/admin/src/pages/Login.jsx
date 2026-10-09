@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useAdminAuth } from "../context/AuthContext";
 
+import { BrandLogo } from "@/components/brand/BrandLogo";
+
 export default function Login() {
   const  { login } = useAdminAuth()
   
@@ -52,14 +54,12 @@ export default function Login() {
         className="w-full max-w-md relative z-10"
       >
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-elevated transform -rotate-6">
-            <UtensilsCrossed className="w-8 h-8 text-primary-foreground" />
-          </div>
+          <BrandLogo className="h-16 w-auto max-w-[200px] mb-4 rounded-xl shadow-sm" />
           <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
             Admin <span className="text-primary">Portal</span>
           </h1>
           <p className="text-muted-foreground max-w-[280px]">
-            Table-Time-Connect administrative management system.
+            BookMyTable administrative management system.
           </p>
         </div>
 

@@ -2,10 +2,19 @@ import { motion } from "framer-motion";
 import { Star, Trophy, Award } from "lucide-react";
 import { RestaurantCard } from "@/components/RestaurantCard";
 import { restaurants } from "@/lib/data";
+import { dummyRestaurants } from "@/lib/dummyRestaurants";
+
+// Combine real + demo, sort by rating, take top 24
+const allRestaurants = [
+  ...restaurants,
+  ...dummyRestaurants,
+];
+
 
 export default function TopRated() {
-  // Sort by rating descending
-  const topRated = [...restaurants].sort((a, b) => b.rating - a.rating).slice(0, 8);
+  // Sort all (real + demo) by rating descending, take top 24
+  const getRating = r => r.rating || r.averageRating || 0;
+  const topRated = [...allRestaurants].sort((a, b) => getRating(b) - getRating(a)).slice(0, 24);
 
   return (
     <div className="container mx-auto py-12 px-4 lg:px-8">
@@ -22,7 +31,7 @@ export default function TopRated() {
 
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {topRated.map((restaurant, i) => (
-            <div key={restaurant.id} className="relative">
+            <div key={restaurant.restaurantId || restaurant._id || restaurant.id} className="relative">
                <div className="absolute -top-3 -left-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white font-bold shadow-lg border-2 border-background">
                  #{i + 1}
                </div>

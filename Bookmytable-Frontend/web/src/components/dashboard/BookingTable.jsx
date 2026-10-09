@@ -2,51 +2,65 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 
 const statusColors = {
-  confirmed: "bg-accent/10 text-accent border-accent/20",
-  pending: "bg-primary/10 text-primary border-primary/20",
-  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+  confirmed: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  pending: "bg-amber-50 text-amber-600 border-amber-200",
+  payment_pending: "bg-amber-50 text-amber-600 border-amber-200",
+  cancelled: "bg-slate-100 text-slate-600 border-slate-200",
+  expired: "bg-slate-100 text-slate-500 border-slate-200",
   completed: "bg-muted text-muted-foreground border-border",
+  payment_failed: "bg-red-50 text-red-600 border-red-200",
 };
 
-const mockBookings = [
-  { id: "B001", guest: "Alice Johnson", date: "2026-03-18", time: "7:00 PM", guests: 4, table: "Table 2", status: "confirmed" },
-  { id: "B002", guest: "Bob Smith", date: "2026-03-18", time: "8:00 PM", guests: 2, table: "Table 1", status: "pending" },
-  { id: "B003", guest: "Carol White", date: "2026-03-19", time: "6:30 PM", guests: 6, table: "Table 5", status: "confirmed" },
-  { id: "B004", guest: "Dave Brown", date: "2026-03-17", time: "7:30 PM", guests: 3, table: "Table 3", status: "completed" },
-  { id: "B005", guest: "Eva Green", date: "2026-03-16", time: "8:30 PM", guests: 2, table: "Table 4", status: "cancelled" },
-];
+export function BookingTable({ bookings = [] }) {
+  if (!bookings || bookings.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground text-sm">
+        No bookings found in this category.
+      </div>
+    );
+  }
 
-export function BookingTable({ bookings = mockBookings }) {
   return (
-    <div className="rounded-lg border border-border bg-card shadow-card overflow-hidden">
+    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow className="bg-muted/50">
+          <TableRow className="bg-muted/40">
             <TableHead>Booking ID</TableHead>
-            <TableHead>Guest</TableHead>
+            <TableHead>Restaurant / Guest</TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Time</TableHead>
             <TableHead>Guests</TableHead>
             <TableHead>Table</TableHead>
+            <TableHead>Amount</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {bookings.map((b) => (
-            <TableRow key={b.id}>
-              <TableCell className="font-mono text-xs">{b.id}</TableCell>
-              <TableCell className="font-medium">{b.guest}</TableCell>
-              <TableCell>{b.date}</TableCell>
-              <TableCell>{b.time}</TableCell>
-              <TableCell>{b.guests}</TableCell>
-              <TableCell>{b.table}</TableCell>
-              <TableCell>
-                <Badge variant="outline" className={statusColors[b.status] || ""}>
-                  {b.status}
-                </Badge>
-              </TableCell>
-            </TableRow>
-          ))}
+          {bookings.map((b) => {
+            const id = b._id ? b._id.slice(-8).toUpperCase() : b.id;
+            const restaurantName = b.restaurantId?.name || b.guest || "Restaurant";
+            const tableText = b.tables?.length > 0
+              ? b.tables.map(t => t.tableName).join(", ")
+              : b.tableName || b.table || "Reserved";
+            const amount = b.grandTotal != null ? `₹${b.grandTotal}` : b.price || "-";
+
+            return (
+              <TableRow key={b._id || b.id} className="hover:bg-muted/30 transition-colors">
+                <TableCell className="font-mono text-xs font-semibold">{id}</TableCell>
+                <TableCell className="font-medium text-foreground">{restaurantName}</TableCell>
+                <TableCell>{b.date}</TableCell>
+                <TableCell>{b.time}</TableCell>
+                <TableCell>{b.guests} Guests</TableCell>
+                <TableCell>{tableText}</TableCell>
+                <TableCell className="font-medium">{amount}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={`capitalize font-semibold text-[11px] ${statusColors[b.status] || ""}`}>
+                    {b.status?.replace("_", " ") || "confirmed"}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

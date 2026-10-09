@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { useAdminAuth } from "../../context/AuthContext";
 
 export default function Topbar() {
-  const { admin } = useAdminAuth()
+  const { admin, logout } = useAdminAuth()
 
   const recentNotifications = [
     {
@@ -107,7 +107,7 @@ export default function Topbar() {
             <DropdownMenuItem>Profile</DropdownMenuItem>
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive font-medium cursor-pointer">Log out</DropdownMenuItem>
+            <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive font-medium cursor-pointer">Log out</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

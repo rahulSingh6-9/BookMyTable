@@ -1,8 +1,6 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { CustomerLayout } from "../layouts/CustomerLayout";
-import CustomerHome from "../pages/CustomerHome";
-import CustomerDiscover from "../pages/CustomerDiscover";
 import CustomerBookings from "../pages/CustomerBookings";
 import CustomerFavorites from "../pages/CustomerFavorites";
 import CustomerRewards from "../pages/CustomerRewards";
@@ -18,9 +16,9 @@ export const customerRoutes = {
   path: "/profile",
   element: <CustomerLayout />,
   children: [
-    { index: true, element: <Navigate to="home" replace /> },
-    { path: "home", element: <CustomerHome /> },
-    { path: "discover", element: <CustomerDiscover /> },
+    { index: true, element: <Navigate to="bookings" replace /> },
+    { path: "home", element: <Navigate to="/profile/bookings" replace /> },
+    { path: "discover", element: <Navigate to="/discover" replace /> },
     { path: "bookings", element: <CustomerBookings /> },
     { path: "favorites", element: <CustomerFavorites /> },
     { path: "rewards", element: <CustomerRewards /> },

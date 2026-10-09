@@ -12,7 +12,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Public Sans", "system-ui", "-apple-system", "sans-serif"]
+        sans: ["Inter", "Plus Jakarta Sans", "Public Sans", "system-ui", "-apple-system", "sans-serif"],
+        serif: ["Newsreader", "Cormorant Garamond", "Playfair Display", "Georgia", "serif"],
+        display: ["Inter", "Plus Jakarta Sans", "system-ui", "-apple-system", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

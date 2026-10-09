@@ -2,10 +2,13 @@ import { motion } from "framer-motion";
 import { Sparkles, Calendar, Clock } from "lucide-react";
 import { RestaurantCard } from "@/components/RestaurantCard";
 import { restaurants } from "@/lib/data";
+import { dummyRestaurants } from "@/lib/dummyRestaurants";
 
 export default function NewOpenings() {
-  // Use last few as "new"
-  const newOpenings = restaurants.slice(-6).reverse();
+  // Use last few real restaurants + demo entries as "new openings"
+  const realNew = restaurants.slice(-6).reverse();
+  const demoNew = dummyRestaurants.slice(20, 36); // pick from later entries to give variety
+  const newOpenings = [...realNew, ...demoNew].slice(0, 20);
 
   return (
     <div className="container mx-auto py-12 px-4 lg:px-8">
@@ -20,7 +23,7 @@ export default function NewOpenings() {
 
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {newOpenings.map((restaurant, i) => (
-            <div key={restaurant.id} className="group relative">
+            <div key={restaurant.restaurantId || restaurant._id || restaurant.id} className="group relative">
                <div className="absolute top-2 right-2 z-10 flex h-6 w-16 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white uppercase tracking-tighter shadow-sm animate-pulse">
                  New
                </div>

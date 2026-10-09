@@ -23,6 +23,7 @@ import {
 
 import { useAdminAuth } from "../../context/AuthContext";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 export function AppSidebar() {
   const { logout, admin, hasPermission } = useAdminAuth();
@@ -112,7 +113,12 @@ export function AppSidebar() {
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
-      <SidebarHeader className="h-14 border-b border-sidebar-border flex flex-row items-center justify-end px-3">
+      <SidebarHeader className={cn("h-14 border-b border-sidebar-border flex flex-row items-center px-3", collapsed ? "justify-center" : "justify-between")}>
+        {!collapsed && (
+          <div className="flex items-center">
+            <BrandLogo className="h-8 w-auto max-w-[140px] rounded" />
+          </div>
+        )}
         <SidebarTrigger className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors" />
       </SidebarHeader>
       <SidebarContent className="[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">

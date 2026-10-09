@@ -68,6 +68,44 @@ apiClient.interceptors.response.use(
       });
     }
 
+    if (status === 401) {
+      if (typeof window !== "undefined") {
+        const hadToken = Boolean(localStorage.getItem("token"));
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+
+        // Public routes where a 401 should never forcibly redirect guest visitors to /login
+        const publicPrefixes = [
+          "/",
+          "/discover",
+          "/near-me",
+          "/top-rated",
+          "/new-openings",
+          "/partner-with-us",
+          "/pricing",
+          "/search",
+          "/restaurant",
+          "/about",
+          "/careers",
+          "/privacy",
+          "/security",
+          "/terms",
+          "/support",
+          "/report-fraud",
+          "/blog",
+        ];
+
+        const currentPath = window.location.pathname;
+        const isPublicPage =
+          currentPath === "/" ||
+          publicPrefixes.some((p) => p !== "/" && currentPath.startsWith(p));
+
+        if (currentPath !== "/login" && !isPublicPage && hadToken) {
+          window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
+        }
+      }
+    }
+
     // Normalize the error so consumers always get the same shape
     const normalizedError = new Error(message);
     normalizedError.status = status;

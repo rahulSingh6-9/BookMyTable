@@ -45,10 +45,21 @@ export default function RestaurantDetail() {
     }
   }, [restaurant, slug, navigate]);
 
+  // Demo slug boundary guard
+  useEffect(() => {
+    if (slug && slug.startsWith("demo-")) {
+      import("sonner").then(({ toast }) => {
+        toast.info("Demo Restaurant — booking not available for demonstration entries.");
+      });
+      navigate("/discover", { replace: true });
+    }
+  }, [slug, navigate]);
+
+
   // Loading State
   if (detailsLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center pt-16 bg-background">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground font-medium animate-pulse">Loading restaurant details...</p>
       </div>
@@ -58,7 +69,7 @@ export default function RestaurantDetail() {
   // Error State
   if (detailsErr || !detailsRes?.data?.data) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center pt-16 bg-background px-4 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 text-center">
         <AlertCircle className="h-12 w-12 text-destructive mb-4" />
         <h2 className="text-2xl font-bold text-foreground mb-2">Restaurant Not Found</h2>
         <p className="text-muted-foreground mb-6">The restaurant you are looking for does not exist or has been removed.</p>
@@ -79,7 +90,7 @@ export default function RestaurantDetail() {
       <RestaurantHero restaurant={restaurant} />
 
       {/* 2. Sticky Tab Navigation */}
-      <div className="sticky top-16 z-30 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="max-w-5xl mx-auto">
             <div className="flex items-center gap-8 md:gap-16 overflow-x-auto scrollbar-hide">

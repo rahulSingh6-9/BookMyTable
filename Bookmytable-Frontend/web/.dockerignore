@@ -4,3 +4,6 @@ npm-debug.log
 dist
 coverage
 .env
+# Skip large video and heavy assets from Docker build context
+# (they are mounted via volume at runtime anyway)
+src/assets/discover2/*.mp4

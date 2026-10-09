@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 
 import { restaurants, cuisineFilters } from "@/lib/data";
+import { dummyRestaurants } from "@/lib/dummyRestaurants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,18 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useFavoritesStore } from "@/store/useFavoritesStore";
 import { useAuth } from "@/context/AuthContext";
+import { DemoRestaurantModal } from "@/components/common/DemoRestaurantModal";
+
+// Merge real + dummy restaurants: real first, then fill with demo entries
+function buildCombinedList(realList, demoList, totalCount = 8) {
+  const combined = [...realList];
+  let demoIndex = 0;
+  while (combined.length < totalCount && demoIndex < demoList.length) {
+    combined.push(demoList[demoIndex]);
+    demoIndex++;
+  }
+  return combined;
+}
 
 export default function CustomerHome() {
   const { user } = useAuth();
@@ -41,10 +54,27 @@ export default function CustomerHome() {
     }
   };
 
-  // Curated lists based on real data array
-  const nearbyRestaurants = useMemo(() => restaurants.slice(0, 4), []);
-  const recommendedRestaurants = useMemo(() => restaurants.filter(r => r.rating >= 4.7).slice(0, 4), []);
-  const trendingRestaurants = useMemo(() => restaurants.filter(r => r.reviewCount > 400).slice(0, 4), []);
+  // Curated lists: real data first, then padded with demo entries
+  const nearbyRestaurants = useMemo(
+    () => buildCombinedList(restaurants.slice(0, 4), dummyRestaurants.slice(0, 4), 8),
+    []
+  );
+  const recommendedRestaurants = useMemo(
+    () => buildCombinedList(
+      restaurants.filter(r => r.rating >= 4.7).slice(0, 4),
+      dummyRestaurants.filter(r => r.rating >= 4.7).slice(0, 4),
+      8
+    ),
+    []
+  );
+  const trendingRestaurants = useMemo(
+    () => buildCombinedList(
+      restaurants.filter(r => r.reviewCount > 400).slice(0, 4),
+      dummyRestaurants.filter(r => r.reviewCount > 400).slice(0, 4),
+      8
+    ),
+    []
+  );
 
   const upcomingBooking = {
     id: "BM-10241",
@@ -66,11 +96,6 @@ export default function CustomerHome() {
         staggerChildren: 0.08
       }
     }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } }
   };
 
   return (
@@ -184,7 +209,7 @@ export default function CustomerHome() {
       <div className="space-y-3">
         <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Explore Cuisines</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-          {cuisineFilters.filter(c => c !== "All").slice(0, 6).map((cuisine, index) => (
+          {cuisineFilters.filter(c => c !== "All").slice(0, 6).map((cuisine) => (
             <div
               key={cuisine}
               onClick={() => navigate(`/profile/discover?cuisine=${cuisine}`)}
@@ -210,7 +235,7 @@ export default function CustomerHome() {
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <h2 className="text-lg font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
-              <Sparkles className="h-4.5 w-4.5 text-amber-500 fill-amber-500" />
+              <Sparkles className="h-4 w-4 text-amber-500 fill-amber-500" />
               Recommended for You
             </h2>
             <p className="text-xs text-slate-500">Tailored culinary spots matching your high rating preferences</p>
@@ -223,9 +248,9 @@ export default function CustomerHome() {
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {recommendedRestaurants.map((restaurant) => (
             <RestaurantCard 
-              key={restaurant.id} 
+              key={restaurant.restaurantId || restaurant.id} 
               restaurant={restaurant} 
-              onBook={() => navigate(`/book/${restaurant.id}`)}
+              onBook={restaurant.isDemo ? undefined : () => navigate(`/book/${restaurant.id}`)}
             />
           ))}
         </div>
@@ -242,7 +267,7 @@ export default function CustomerHome() {
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <h2 className="text-lg font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
-              <MapPin className="h-4.5 w-4.5 text-primary" />
+              <MapPin className="h-4 w-4 text-primary" />
               Nearby Fine Dining
             </h2>
             <p className="text-xs text-slate-500">Perfect slots and exquisite seating right around your area</p>
@@ -255,9 +280,9 @@ export default function CustomerHome() {
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {nearbyRestaurants.map((restaurant) => (
             <RestaurantCard 
-              key={restaurant.id} 
+              key={restaurant.restaurantId || restaurant.id} 
               restaurant={restaurant} 
-              onBook={() => navigate(`/book/${restaurant.id}`)}
+              onBook={restaurant.isDemo ? undefined : () => navigate(`/book/${restaurant.id}`)}
             />
           ))}
         </div>
@@ -274,7 +299,7 @@ export default function CustomerHome() {
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <h2 className="text-lg font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
-              <TrendingUp className="h-4.5 w-4.5 text-primary" />
+              <TrendingUp className="h-4 w-4 text-primary" />
               Trending Gourmets
             </h2>
             <p className="text-xs text-slate-500">Highly-rated restaurants with rapid reservation booking rates</p>
@@ -287,9 +312,9 @@ export default function CustomerHome() {
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {trendingRestaurants.map((restaurant) => (
             <RestaurantCard 
-              key={restaurant.id} 
+              key={restaurant.restaurantId || restaurant.id} 
               restaurant={restaurant} 
-              onBook={() => navigate(`/book/${restaurant.id}`)}
+              onBook={restaurant.isDemo ? undefined : () => navigate(`/book/${restaurant.id}`)}
             />
           ))}
         </div>
@@ -301,13 +326,14 @@ export default function CustomerHome() {
 
 /* REUSABLE PREMIUM RESTAURANT CARD COMPONENT */
 export function RestaurantCard({ restaurant, onBook }) {
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
   const { favoriteIds, toggleFavorite, initialize } = useFavoritesStore();
 
   useEffect(() => {
     initialize();
   }, [initialize]);
 
-  const id = restaurant._id || restaurant.id;
+  const id = restaurant._id || restaurant.restaurantId || restaurant.id;
   const isFavorite = favoriteIds.includes(id);
 
   const handleToggleFavorite = (e) => {
@@ -316,85 +342,126 @@ export function RestaurantCard({ restaurant, onBook }) {
     toggleFavorite(id, restaurant.name);
   };
 
+  const handleCardClick = (e) => {
+    if (restaurant.isDemo) {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDemoModalOpen(true);
+    }
+  };
+
+  const handleSlotClick = (e) => {
+    if (restaurant.isDemo) {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDemoModalOpen(true);
+    } else if (onBook) {
+      e.preventDefault();
+      e.stopPropagation();
+      onBook();
+    }
+  };
+
+  const cardTo = restaurant.isDemo
+    ? "#"
+    : `/restaurant/${restaurant.slug || restaurant._id || restaurant.id}`;
+
   return (
-    <motion.div 
-      variants={{
-        hidden: { opacity: 0, y: 15 },
-        show: { opacity: 1, y: 0 }
-      }}
-      whileHover={{ y: -5 }}
-      className="group bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full select-none"
-    >
-      <Link to={`/restaurant/${restaurant.slug || restaurant._id || restaurant.id}`} className="block relative aspect-[4/3] overflow-hidden">
-        {/* Cover Image */}
-        <img 
-          src={restaurant.image} 
-          alt={restaurant.name} 
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
-        />
-        
-        {/* Distance Badge */}
-        <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white font-bold text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
-          <MapPin className="h-3 w-3 text-primary" />
-          <span>{restaurant.distance}</span>
-        </div>
-
-        {/* Favorite Heart Trigger */}
-        <button
-          onClick={handleToggleFavorite}
-          className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-primary hover:scale-110 shadow-sm transition active:scale-95 z-10"
-        >
-          <Heart className={cn("h-4 w-4 transition-colors", isFavorite ? "fill-primary text-primary" : "text-slate-600")} />
-        </button>
-
-        {/* Price Indicator */}
-        <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-sm text-slate-800 font-extrabold text-[10px] px-2 py-0.5 rounded shadow-sm">
-          {restaurant.priceRange}
-        </div>
-      </Link>
-
-      {/* Details Box */}
-      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            <span>{restaurant.cuisine}</span>
-            <span>•</span>
-            <span>{restaurant.city}</span>
+    <>
+      <motion.div 
+        variants={{
+          hidden: { opacity: 0, y: 15 },
+          show: { opacity: 1, y: 0 }
+        }}
+        whileHover={{ y: -5 }}
+        className="group bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full select-none"
+      >
+        <Link to={cardTo} onClick={handleCardClick} className="block relative aspect-[4/3] overflow-hidden">
+          {/* Cover Image */}
+          <img 
+            src={restaurant.image || restaurant.coverImage} 
+            alt={restaurant.name} 
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
+          />
+          
+          {/* Distance Badge */}
+          <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white font-bold text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+            <MapPin className="h-3 w-3 text-primary" />
+            <span>{restaurant.distance}</span>
           </div>
 
-          <Link to={`/restaurant/${restaurant.slug || restaurant._id || restaurant.id}`} className="block group-hover:text-primary transition">
-            <h3 className="font-extrabold text-slate-900 leading-snug truncate text-sm md:text-base">{restaurant.name}</h3>
-          </Link>
+          {/* DEMO badge */}
+          {restaurant.isDemo && (
+            <div className="absolute top-3 left-[calc(100%-3.5rem)] z-10">
+              <Badge className="bg-amber-500 text-white font-extrabold border-0 text-[10px] tracking-wider uppercase shadow-sm">
+                DEMO
+              </Badge>
+            </div>
+          )}
 
-          {/* Rating Block */}
-          <div className="flex items-center gap-1 text-xs">
-            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-            <span className="font-extrabold text-slate-900">{restaurant.rating}</span>
-            <span className="text-slate-400 text-[10px]">({restaurant.reviewCount} reviews)</span>
+          {/* Favorite Heart Trigger */}
+          <button
+            onClick={handleToggleFavorite}
+            className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-slate-600 hover:text-primary hover:scale-110 shadow-sm transition active:scale-95 z-10"
+          >
+            <Heart className={cn("h-4 w-4 transition-colors", isFavorite ? "fill-primary text-primary" : "text-slate-600")} />
+          </button>
+
+          {/* Price Indicator */}
+          <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur-sm text-slate-800 font-extrabold text-[10px] px-2 py-0.5 rounded shadow-sm">
+            {restaurant.priceRange}
+          </div>
+        </Link>
+
+        {/* Details Box */}
+        <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              <span>{Array.isArray(restaurant.cuisines) ? restaurant.cuisines[0] : restaurant.cuisine}</span>
+              <span>•</span>
+              <span>{restaurant.city}</span>
+            </div>
+
+            <Link to={cardTo} onClick={handleCardClick} className="block group-hover:text-primary transition">
+              <h3 className="font-extrabold text-slate-900 leading-snug truncate text-sm md:text-base">{restaurant.name}</h3>
+            </Link>
+
+            {/* Rating Block */}
+            <div className="flex items-center gap-1 text-xs">
+              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+              <span className="font-extrabold text-slate-900">{restaurant.rating || restaurant.averageRating}</span>
+              <span className="text-slate-400 text-[10px]">({restaurant.reviewCount || restaurant.totalReviews} reviews)</span>
+            </div>
+          </div>
+
+          {/* Live Slot Pill Grid */}
+          <div className="space-y-2 pt-1.5 border-t border-slate-50">
+            <div className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 uppercase tracking-wider">
+              <Clock className="h-3 w-3" />
+              <span>{restaurant.isDemo ? "Demo slots only" : "Live booking slots"}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(restaurant.availableSlots || []).slice(0, 3).map((slot) => (
+                <Button
+                  key={slot}
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSlotClick}
+                  className="h-7 px-2.5 text-[10px] font-semibold border-slate-200 text-slate-600 hover:border-primary/50 hover:bg-primary/5 hover:text-primary rounded-lg transition"
+                >
+                  {slot}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
+      </motion.div>
 
-        {/* Live Slot Pill Grid */}
-        <div className="space-y-2 pt-1.5 border-t border-slate-50">
-          <div className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 uppercase tracking-wider">
-            <Clock className="h-3 w-3" />
-            <span>Live booking slots</span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {restaurant.availableSlots.slice(0, 3).map((slot) => (
-              <Button
-                key={slot}
-                variant="outline"
-                size="sm"
-                onClick={onBook}
-                className="h-7 px-2.5 text-[10px] font-semibold border-slate-200 text-slate-600 hover:border-primary/50 hover:bg-primary/5 hover:text-primary rounded-lg transition"
-              >
-                {slot}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </motion.div>
+      <DemoRestaurantModal
+        isOpen={isDemoModalOpen}
+        onClose={() => setIsDemoModalOpen(false)}
+        restaurantName={restaurant.name}
+      />
+    </>
   );
 }

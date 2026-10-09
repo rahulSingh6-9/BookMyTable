@@ -39,21 +39,27 @@ export function CreateTableModal({
   });
 
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
+  const [customPrice, setCustomPrice] = useState("");
 
   // Use new pricing configuration from backend
   const { data: pricingConfigs = [] } = usePricingConfig(restaurantId);
 
-  const matchedPricing = pricingConfigs.find(p => 
-    p.floor === form.floor && 
-    p.diningAreaType === form.type && 
-    p.sectionType === form.section
-  );
+  const matchedPricing = pricingConfigs.find(p => {
+    const typeMatches = p.diningAreaType === form.type || 
+      (p.diningAreaType === 'indoor' && form.type === 'indoor_dining') ||
+      (p.diningAreaType === 'indoor_dining' && form.type === 'indoor') ||
+      (p.diningAreaType === 'outdoor' && form.type === 'outdoor_dining') ||
+      (p.diningAreaType === 'outdoor_dining' && form.type === 'outdoor') ||
+      (p.diningAreaType === 'rooftop' && form.type === 'rooftop_dining') ||
+      (p.diningAreaType === 'rooftop_dining' && form.type === 'rooftop') ||
+      (p.diningAreaType === 'private' && form.type === 'private_room') ||
+      (p.diningAreaType === 'private_room' && form.type === 'private');
 
-  const resolvedPrice = matchedPricing?.price || 0;
-  const priceSource = matchedPricing ? 'dining_area_pricing' : 'none';
+    return p.floor === form.floor && typeMatches && p.sectionType === form.section;
+  });
 
-  const isFormComplete = form.tableCode.trim() !== "" && form.floor && form.type && form.section;
-  const isPricingMissing = isFormComplete && !matchedPricing;
+  const effectivePrice = customPrice !== "" ? Number(customPrice) : (matchedPricing?.price || 0);
+  const priceSource = customPrice !== "" ? 'override' : (matchedPricing ? 'dining_area_pricing' : 'none');
 
   useEffect(() => {
     if (open) {
@@ -68,6 +74,11 @@ export function CreateTableModal({
           sectionLabel: editingTable.sectionLabel || "",
           diningArea: editingTable.diningArea || ""
         });
+        setCustomPrice(
+          editingTable.tablePriceOverride !== undefined && editingTable.tablePriceOverride !== null
+            ? String(editingTable.tablePriceOverride)
+            : (editingTable.resolvedPrice !== undefined && editingTable.resolvedPrice !== null ? String(editingTable.resolvedPrice) : "")
+        );
       } else {
         // Initialize form with defaults when opening for create
         let initialType = defaultType || "indoor_dining";
@@ -91,6 +102,7 @@ export function CreateTableModal({
           sectionLabel: "",
           diningArea: defaultDiningAreaId || ""
         });
+        setCustomPrice("");
       }
     }
   }, [open, editingTable, defaultDiningAreaId, defaultFloor, defaultType, diningAreas]);
@@ -102,8 +114,7 @@ export function CreateTableModal({
       if (match) {
         resolvedDiningArea = match._id;
       } else {
-        import("sonner").then(({ toast }) => toast.error("Please configure/select a valid Dining Area for this Floor and Type before adding tables."));
-        return;
+        resolvedDiningArea = undefined;
       }
     }
 
@@ -114,6 +125,8 @@ export function CreateTableModal({
 
     onSave({
       ...form,
+      price: customPrice !== "" ? Number(customPrice) : (matchedPricing?.price !== undefined ? matchedPricing.price : 0),
+      tablePriceOverride: customPrice !== "" ? Number(customPrice) : undefined,
       diningArea: resolvedDiningArea,
     });
   };
@@ -232,53 +245,59 @@ export function CreateTableModal({
 
           <div className="h-px bg-border/50 my-2" />
 
-          {/* Pricing Details (Read Only) */}
+          {/* Pricing Details */}
           <div className="bg-muted/30 border border-border/50 rounded-xl p-3">
-            <Label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Estimated Pricing</Label>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-muted-foreground">Price</span>
-              <span className="text-base font-bold text-foreground">
-                {resolvedPrice > 0 ? `₹${resolvedPrice}` : 'Not Set'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Source</span>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">Table Pricing (₹)</Label>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getPriceSourceBadgeClass(priceSource)}`}>
-                {getPriceSourceLabel(priceSource)}
+                {customPrice !== "" ? "Custom Price" : getPriceSourceLabel(priceSource)}
               </span>
             </div>
-            {isPricingMissing && (
-              <div className="mt-4 p-4 rounded-xl border bg-card text-card-foreground shadow-sm flex flex-col gap-3">
-                <div className="flex gap-3">
-                  <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                    <span className="text-red-600 font-bold">!</span>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-red-600">Pricing Not Configured</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      You must configure pricing for this section before creating tables.
-                    </p>
-                  </div>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full border-red-200 hover:bg-red-50 hover:text-red-700 font-semibold"
-                  onClick={() => setIsPricingModalOpen(true)}
-                >
-                  Configure Pricing
-                </Button>
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">₹</span>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder={matchedPricing ? String(matchedPricing.price) : "0"}
+                  value={customPrice}
+                  onChange={(e) => setCustomPrice(e.target.value)}
+                  className="pl-7 rounded-lg bg-background"
+                />
               </div>
+              {matchedPricing && (
+                <div className="text-right text-xs">
+                  <div className="text-muted-foreground">Default Rate</div>
+                  <div className="font-bold text-foreground">₹{matchedPricing.price}</div>
+                </div>
+              )}
+            </div>
+            {!matchedPricing && (
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Tip: Enter a price above to apply directly to this table, or configure default section pricing below.
+              </p>
             )}
+            <div className="mt-3 flex justify-end">
+              <Button 
+                type="button"
+                variant="ghost" 
+                size="sm" 
+                className="text-xs text-primary hover:text-primary/80 h-7 px-2"
+                onClick={() => setIsPricingModalOpen(true)}
+              >
+                Configure Default Section Pricing
+              </Button>
+            </div>
           </div>
          
         </div>
         <DialogFooter className="gap-2 sm:gap-0 mt-6 mb-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-lg">Cancel</Button>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-lg">Cancel</Button>
           <Button 
+            type="button"
             onClick={handleSaveClick} 
             className="rounded-lg" 
-            disabled={isCreating || isUpdating || isPricingMissing}
+            disabled={isCreating || isUpdating}
           >
             {isCreating ? "Creating..." : isUpdating ? "Saving..." : (editingTable ? "Save Changes" : "Create Table")}
           </Button>
@@ -288,6 +307,7 @@ export function CreateTableModal({
       <PricingConfigurationModal
         open={isPricingModalOpen}
         onOpenChange={setIsPricingModalOpen}
+        restaurantId={restaurantId}
         floor={form.floor}
         diningAreaType={form.type}
         sectionType={form.section}

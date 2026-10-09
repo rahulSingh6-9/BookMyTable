@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { format, addDays, isSameDay, startOfDay } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Users, Clock, Loader2, Calendar as CalendarIcon, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getRestaurantAvailability } from "@/services/booking.service";
+import { socket, joinRestaurantRoom, leaveRestaurantRoom } from "@/services/socket";
 import { useNavigate } from "react-router-dom";
 import {
   Select,
@@ -16,6 +17,7 @@ import {
 
 export function ReservationSection({ restaurant }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const settings = restaurant.settings || {};
 
   const advanceBookingDays = settings.advanceBookingDays || 7;
@@ -31,10 +33,35 @@ export function ReservationSection({ restaurant }) {
 
   const dateStr = format(date, "yyyy-MM-dd");
 
+  const restId = restaurant._id || restaurant.restaurantId || restaurant.id;
+  const restSlug = restaurant.slug || restaurant.restaurantId;
+
   const { data: availabilityRes, isLoading: availabilityLoading } = useQuery({
-    queryKey: ["availability", restaurant.slug || restaurant.restaurantId, dateStr, guests],
-    queryFn: () => getRestaurantAvailability(restaurant.slug || restaurant.restaurantId, dateStr, guests),
+    queryKey: ["availability", restSlug, dateStr, guests],
+    queryFn: () => getRestaurantAvailability(restSlug, dateStr, guests),
   });
+
+  // Real-time table availability updates via Socket.io
+  useEffect(() => {
+    if (!restId) return;
+
+    joinRestaurantRoom(restId);
+
+    const handleAvailabilityChange = (evt) => {
+      if (String(evt.restaurantId) === String(restId)) {
+        queryClient.invalidateQueries({
+          queryKey: ["availability", restSlug],
+        });
+      }
+    };
+
+    socket.on("table:availability_changed", handleAvailabilityChange);
+
+    return () => {
+      socket.off("table:availability_changed", handleAvailabilityChange);
+      leaveRestaurantRoom(restId);
+    };
+  }, [restId, restSlug, queryClient]);
 
   // Generate selectable dates dynamically
   const availableDates = useMemo(() => {

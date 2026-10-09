@@ -17,6 +17,14 @@ export function getRestaurants(params = {}) {
 }
 
 /**
+ * Get nearby restaurants using geographic coordinates and radius.
+ * @param {object} params - { lat, lng, radius, limit, cuisine, minRating, sort }
+ */
+export function getNearbyRestaurants(params) {
+  return apiClient.get("/restaurants/nearby", { params });
+}
+
+/**
  * Get a single restaurant by ID.
  * @param {string} id
  */

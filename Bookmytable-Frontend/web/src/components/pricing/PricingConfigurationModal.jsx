@@ -12,13 +12,15 @@ import { FLOOR_OPTIONS, SECTION_OPTIONS } from "@/lib/tableConstants";
 export function PricingConfigurationModal({ 
   open, 
   onOpenChange, 
+  restaurantId,
   floor, 
   diningAreaType, 
   sectionType, 
   onSuccess 
 }) {
   const { activeBranchId } = useBranch();
-  const { mutate: updatePricing, isPending } = useUpdatePricingConfig(activeBranchId);
+  const branchId = restaurantId || activeBranchId;
+  const { mutate: updatePricing, isPending } = useUpdatePricingConfig(branchId);
   
   const [price, setPrice] = useState("");
   const [password, setPassword] = useState("");

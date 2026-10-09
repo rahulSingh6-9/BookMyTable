@@ -149,7 +149,9 @@ export default function Signup() {
       setPassword("");
       setPhone("");
 
-      navigate("/profile");
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirect = searchParams.get("redirect") || "/profile";
+      navigate(redirect);
     } catch (error) {
       const message = error.message || "Registration failed. Try again.";
       toast.error(message);

@@ -248,6 +248,7 @@ export function Step3Contact({ register, errors, setValue, watch }) {
                        <p className="text-[10px] text-muted-foreground">Sent to {primaryPhone?.e164}</p>
                     </div>
                     <Button 
+                      type="button"
                       variant="ghost" 
                       size="sm" 
                       onClick={() => setIsOtpSent(false)}

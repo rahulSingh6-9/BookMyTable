@@ -13,7 +13,14 @@ export function TablePresets({ onApply }) {
           id: Math.random().toString(36).substring(7),
           tableCode: `C${i + 1}`,
           capacity: 2,
-          type: "indoor"
+          type: "indoor_dining",
+          floor: "ground",
+          floorLabel: "Ground Floor",
+          section: "couple_zone",
+          sectionLabel: "Couple Zone",
+          price: 0,
+          resolvedPrice: 0,
+          priceSource: "none"
         }));
       }
     },
@@ -23,9 +30,45 @@ export function TablePresets({ onApply }) {
       icon: UtensilsCrossed,
       desc: "Mix of 2, 4, and 6 seaters.",
       generate: () => {
-        const t2 = Array.from({ length: 5 }, (_, i) => ({ id: Math.random().toString(36).substring(7), tableCode: `T${i + 1}`, capacity: 2, type: "indoor" }));
-        const t4 = Array.from({ length: 10 }, (_, i) => ({ id: Math.random().toString(36).substring(7), tableCode: `T${i + 6}`, capacity: 4, type: "indoor" }));
-        const t6 = Array.from({ length: 3 }, (_, i) => ({ id: Math.random().toString(36).substring(7), tableCode: `T${i + 16}`, capacity: 6, type: "indoor" }));
+        const t2 = Array.from({ length: 5 }, (_, i) => ({ 
+          id: Math.random().toString(36).substring(7), 
+          tableCode: `T${i + 1}`, 
+          capacity: 2, 
+          type: "indoor_dining",
+          floor: "ground",
+          floorLabel: "Ground Floor",
+          section: "couple_zone",
+          sectionLabel: "Couple Zone",
+          price: 0,
+          resolvedPrice: 0,
+          priceSource: "none"
+        }));
+        const t4 = Array.from({ length: 10 }, (_, i) => ({ 
+          id: Math.random().toString(36).substring(7), 
+          tableCode: `T${i + 6}`, 
+          capacity: 4, 
+          type: "indoor_dining",
+          floor: "ground",
+          floorLabel: "Ground Floor",
+          section: "family_zone",
+          sectionLabel: "Family Zone",
+          price: 0,
+          resolvedPrice: 0,
+          priceSource: "none"
+        }));
+        const t6 = Array.from({ length: 3 }, (_, i) => ({ 
+          id: Math.random().toString(36).substring(7), 
+          tableCode: `T${i + 16}`, 
+          capacity: 6, 
+          type: "indoor_dining",
+          floor: "ground",
+          floorLabel: "Ground Floor",
+          section: "family_zone",
+          sectionLabel: "Family Zone",
+          price: 0,
+          resolvedPrice: 0,
+          priceSource: "none"
+        }));
         return [...t2, ...t4, ...t6];
       }
     },
@@ -35,8 +78,32 @@ export function TablePresets({ onApply }) {
       icon: Wine,
       desc: "Spacious 4-seaters + VIP.",
       generate: () => {
-        const t4 = Array.from({ length: 12 }, (_, i) => ({ id: Math.random().toString(36).substring(7), tableCode: `D${i + 1}`, capacity: 4, type: "indoor" }));
-        const vip = Array.from({ length: 2 }, (_, i) => ({ id: Math.random().toString(36).substring(7), tableCode: `V${i + 1}`, capacity: 6, type: "vip" }));
+        const t4 = Array.from({ length: 12 }, (_, i) => ({ 
+          id: Math.random().toString(36).substring(7), 
+          tableCode: `D${i + 1}`, 
+          capacity: 4, 
+          type: "indoor_dining",
+          floor: "ground",
+          floorLabel: "Ground Floor",
+          section: "family_zone",
+          sectionLabel: "Family Zone",
+          price: 0,
+          resolvedPrice: 0,
+          priceSource: "none"
+        }));
+        const vip = Array.from({ length: 2 }, (_, i) => ({ 
+          id: Math.random().toString(36).substring(7), 
+          tableCode: `V${i + 1}`, 
+          capacity: 6, 
+          type: "private_room",
+          floor: "floor_1",
+          floorLabel: "Floor 1",
+          section: "family_zone",
+          sectionLabel: "Family Zone",
+          price: 0,
+          resolvedPrice: 0,
+          priceSource: "none"
+        }));
         return [...t4, ...vip];
       }
     },
@@ -46,9 +113,45 @@ export function TablePresets({ onApply }) {
       icon: Building2,
       desc: "Huge capacity, multiple types.",
       generate: () => {
-        const in4 = Array.from({ length: 15 }, (_, i) => ({ id: Math.random().toString(36).substring(7), tableCode: `IN${i + 1}`, capacity: 4, type: "indoor" }));
-        const out4 = Array.from({ length: 10 }, (_, i) => ({ id: Math.random().toString(36).substring(7), tableCode: `OUT${i + 1}`, capacity: 4, type: "outdoor" }));
-        const bar = Array.from({ length: 8 }, (_, i) => ({ id: Math.random().toString(36).substring(7), tableCode: `B${i + 1}`, capacity: 1, type: "bar" }));
+        const in4 = Array.from({ length: 15 }, (_, i) => ({ 
+          id: Math.random().toString(36).substring(7), 
+          tableCode: `IN${i + 1}`, 
+          capacity: 4, 
+          type: "indoor_dining",
+          floor: "ground",
+          floorLabel: "Ground Floor",
+          section: "family_zone",
+          sectionLabel: "Family Zone",
+          price: 0,
+          resolvedPrice: 0,
+          priceSource: "none"
+        }));
+        const out4 = Array.from({ length: 10 }, (_, i) => ({ 
+          id: Math.random().toString(36).substring(7), 
+          tableCode: `OUT${i + 1}`, 
+          capacity: 4, 
+          type: "outdoor_dining",
+          floor: "ground",
+          floorLabel: "Ground Floor",
+          section: "family_zone",
+          sectionLabel: "Family Zone",
+          price: 0,
+          resolvedPrice: 0,
+          priceSource: "none"
+        }));
+        const bar = Array.from({ length: 8 }, (_, i) => ({ 
+          id: Math.random().toString(36).substring(7), 
+          tableCode: `B${i + 1}`, 
+          capacity: 2, 
+          type: "indoor_dining",
+          floor: "ground",
+          floorLabel: "Ground Floor",
+          section: "couple_zone",
+          sectionLabel: "Couple Zone",
+          price: 0,
+          resolvedPrice: 0,
+          priceSource: "none"
+        }));
         return [...in4, ...out4, ...bar];
       }
     }

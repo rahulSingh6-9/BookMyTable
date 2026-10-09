@@ -46,3 +46,12 @@ export function getRestaurantDetails(id) {
 export function getRestaurantMenu(id) {
   return apiClient.get(`/discovery/${id}/menu`);
 }
+
+/**
+ * Fetch nearby restaurants using geographic coordinates and radius
+ * @param {{ lat: number, lng: number, radius?: number, limit?: number, cuisine?: string, minRating?: number, sort?: string }} params
+ */
+export function getNearbyRestaurants(params) {
+  return apiClient.get("/discovery/nearby", { params });
+}
+

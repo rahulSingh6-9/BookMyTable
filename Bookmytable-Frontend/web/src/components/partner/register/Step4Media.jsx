@@ -35,6 +35,7 @@ export function Step4Media({ register, setValue, watch, skipStep }) {
             However, if you don't have them ready right now, you can skip this step and upload them later from your dashboard.
           </p>
           <Button 
+            type="button"
             variant="outline" 
             onClick={skipStep}
             className="rounded-full font-bold"

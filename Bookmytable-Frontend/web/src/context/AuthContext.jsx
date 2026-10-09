@@ -5,6 +5,7 @@ import { login as loginApi, signup as signupApi, loginWithGoogle as loginWithGoo
 import { isAuthenticated as checkAuthenticated } from "../auth/helpers.js";
 import { socket } from "../services/socket.js";
 import { forgotPassword, resetPassword } from "../services/auth.service";
+import { useFavoritesStore } from "../store/useFavoritesStore.js";
 
 const AuthContext = createContext();
 
@@ -85,6 +86,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     socket.disconnect();
+    useFavoritesStore.getState().reset?.();
   };
 
   // LOAD USER ON APP STARTUP

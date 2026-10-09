@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 
 import { restaurants, cuisineFilters } from "@/lib/data";
+import { dummyRestaurants } from "@/lib/dummyRestaurants";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,9 +58,11 @@ export default function CustomerDiscover() {
     toast.success("Filters cleared");
   };
 
-  // Perform advanced filter logic
+  // Perform advanced filter logic (across both real + dummy restaurants)
   const filteredRestaurants = useMemo(() => {
-    let result = [...restaurants];
+    // Combine real + demo, real first
+    const allRestaurants = [...restaurants, ...dummyRestaurants];
+    let result = allRestaurants;
 
     // Search query filter
     if (searchQuery.trim()) {
@@ -67,20 +70,25 @@ export default function CustomerDiscover() {
       result = result.filter(
         r =>
           r.name.toLowerCase().includes(query) ||
-          r.cuisine.toLowerCase().includes(query) ||
-          r.city.toLowerCase().includes(query) ||
+          (r.cuisine || "").toLowerCase().includes(query) ||
+          (Array.isArray(r.cuisines) && r.cuisines.some(c => c.toLowerCase().includes(query))) ||
+          (r.city || "").toLowerCase().includes(query) ||
           (r.tags && r.tags.some(t => t.toLowerCase().includes(query)))
       );
     }
 
     // Cuisine filter
     if (selectedCuisine && selectedCuisine !== "All") {
-      result = result.filter(r => r.cuisine.toLowerCase() === selectedCuisine.toLowerCase());
+      const q = selectedCuisine.toLowerCase();
+      result = result.filter(r =>
+        (r.cuisine || "").toLowerCase() === q ||
+        (Array.isArray(r.cuisines) && r.cuisines.some(c => c.toLowerCase() === q))
+      );
     }
 
     // Rating filter
     if (minRating > 0) {
-      result = result.filter(r => r.rating >= minRating);
+      result = result.filter(r => (r.rating || r.averageRating || 0) >= minRating);
     }
 
     // Price range filter
@@ -94,14 +102,16 @@ export default function CustomerDiscover() {
     }
 
     // Sorting
+    const getRating = r => r.rating || r.averageRating || 0;
+    const getReviews = r => r.reviewCount || r.totalReviews || 0;
     if (sortBy === "rating-desc") {
-      result.sort((a, b) => b.rating - a.rating);
+      result.sort((a, b) => getRating(b) - getRating(a));
     } else if (sortBy === "reviews-desc") {
-      result.sort((a, b) => b.reviewCount - a.reviewCount);
+      result.sort((a, b) => getReviews(b) - getReviews(a));
     } else if (sortBy === "price-asc") {
-      result.sort((a, b) => a.priceRange.length - b.priceRange.length);
+      result.sort((a, b) => (a.priceRange || "").length - (b.priceRange || "").length);
     } else if (sortBy === "price-desc") {
-      result.sort((a, b) => b.priceRange.length - a.priceRange.length);
+      result.sort((a, b) => (b.priceRange || "").length - (a.priceRange || "").length);
     }
 
     return result;

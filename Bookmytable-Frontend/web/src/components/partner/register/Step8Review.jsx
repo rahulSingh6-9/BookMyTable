@@ -336,6 +336,7 @@ export function Step8Review({ watch, onEdit, isLoading }) {
                   <span className="text-foreground/80 leading-relaxed text-xs">{f.text}</span>
                 </div>
                 <Button 
+                  type="button"
                   variant="ghost" 
                   size="sm" 
                   className="text-xs h-7 text-primary hover:text-primary/80 font-bold shrink-0"
@@ -364,6 +365,7 @@ export function Step8Review({ watch, onEdit, isLoading }) {
                   <h4 className="font-extrabold text-sm uppercase tracking-widest text-foreground">{section.title}</h4>
                 </div>
                 <Button 
+                  type="button"
                   variant="ghost" 
                   size="sm" 
                   className="rounded-full text-xs h-8 text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
@@ -401,6 +403,7 @@ export function Step8Review({ watch, onEdit, isLoading }) {
                 <h4 className="font-extrabold text-sm uppercase tracking-widest text-foreground">Table Configuration</h4>
               </div>
               <Button 
+                type="button"
                 variant="ghost" 
                 size="sm" 
                 className="rounded-full text-xs h-8 text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
@@ -416,7 +419,7 @@ export function Step8Review({ watch, onEdit, isLoading }) {
               ) : (
                 data.tables.map((t, idx) => (
                   <Badge key={idx} variant="secondary" className="px-3.5 py-1.5 font-extrabold text-xs bg-muted/65 border border-border rounded-xl">
-                    {t.tableCode} <span className="text-muted-foreground font-normal">({t.capacity}p • {t.type})</span>
+                    {t.tableCode} <span className="text-muted-foreground font-normal">({t.capacity}p • {t.floorLabel || t.floor || "Ground"} • {t.sectionLabel || t.section || "Section"}{t.price > 0 ? ` • ₹${t.price}` : ""})</span>
                   </Badge>
                 ))
               )}
@@ -433,6 +436,7 @@ export function Step8Review({ watch, onEdit, isLoading }) {
                 <h4 className="font-extrabold text-sm uppercase tracking-widest text-foreground">Weekly Operational Hours</h4>
               </div>
               <Button 
+                type="button"
                 variant="ghost" 
                 size="sm" 
                 className="rounded-full text-xs h-8 text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
@@ -576,7 +580,7 @@ export function Step8Review({ watch, onEdit, isLoading }) {
                     <span className="text-[10px] uppercase font-bold tracking-widest text-primary leading-none">Instant Reservation</span>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">Fast confirmation via bookmytable.com</p>
                   </div>
-                  <Button size="sm" className="rounded-full px-4 h-9 font-extrabold bg-primary text-primary-foreground text-xs shadow-lg hover:scale-105 transition-transform flex items-center gap-1">
+                  <Button type="button" size="sm" className="rounded-full px-4 h-9 font-extrabold bg-primary text-primary-foreground text-xs shadow-lg hover:scale-105 transition-transform flex items-center gap-1">
                     Book Now <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>

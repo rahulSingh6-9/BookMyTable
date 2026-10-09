@@ -28,9 +28,12 @@ api.interceptors.response.use(
       console.log("Unauthorized - redirecting to login");
 
       localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin");
 
       // redirect to login
-      window.location.href = "/login"; 
+      if (window.location.pathname !== "/login") {
+         window.location.href = "/login"; 
+      }
     }
 
     return Promise.reject(error);

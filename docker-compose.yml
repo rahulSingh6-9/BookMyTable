@@ -1,144 +1,55 @@
 services:
-
-
-  api-gateway:
+  backend:
     build:
-      context: ./Bookmytable-API-Gateway
-    container_name: api-gateway
+      context: ./Bookmytable-Backend
+    container_name: bookmytable-backend
     ports:
       - "5000:5000"
-    volumes:
-      - ./Bookmytable-API-Gateway:/app
-      - /app/node_modules
-
     env_file:
-      - ./Bookmytable-API-Gateway/.env
-
-    depends_on:
-      - auth-service
-      - user-service
-      - restaurant-service
-      - admin-service
-
-    command: npm run dev
-
-  auth-service:
-    build:
-      context: ./Bookmytable-Backend/Bookmytable-auth-service
-
-    container_name: auth-service
-
-    ports:
-      - "5001:5001"
-
-    env_file:
-      - ./Bookmytable-Backend/Bookmytable-auth-service/.env
-
+      - ./Bookmytable-Backend/.env
     volumes:
-      - ./Bookmytable-Backend/Bookmytable-auth-service:/app
-      - /app/node_modules
-
-    command: npm run dev
-
-  user-service:
-    build:
-      context: ./Bookmytable-Backend/Bookmytable-user-service
-
-    container_name: user-service
-
-    ports:
-      - "5002:5002"
-
-    env_file:
-      - ./Bookmytable-Backend/Bookmytable-user-service/.env
-
-    volumes:
-      - ./Bookmytable-Backend/Bookmytable-user-service:/app
-      - /app/node_modules
-
-    command: npm run dev
-
-  restaurant-service:
-    build:
-      context: ./Bookmytable-Backend/Bookmytable-restaurant-service
-
-    container_name: restaurant-service
-
-    ports:
-      - "5003:5003"
-
-    env_file:
-      - ./Bookmytable-Backend/Bookmytable-restaurant-service/.env
-
-    volumes:
-      - ./Bookmytable-Backend/Bookmytable-restaurant-service:/app
-      - /app/node_modules
-
-    command: npm run dev
-
-
-
-  admin-service:
-    build:
-      context: ./Bookmytable-Backend/Bookmytable-admin-service
-
-    container_name: admin-service
-
-    ports:
-      - "5006:5006"
-
-    env_file:
-      - ./Bookmytable-Backend/Bookmytable-admin-service/.env
-
-    volumes:
-      - ./Bookmytable-Backend/Bookmytable-admin-service:/app
-      - /app/node_modules
-
-    command: npm run dev
-
-  notification-service:
-    build:
-      context: ./Bookmytable-Backend/Bookmytable-notifications-service
-    container_name: notification-service
-    ports:
-      - "5007:5007"
-    env_file:
-      - ./Bookmytable-Backend/Bookmytable-notifications-service/.env
-    volumes:
-      - ./Bookmytable-Backend/Bookmytable-notifications-service:/app
-      - /app/node_modules
-    command: npm run dev
-
-
-  admin-frontend:
-    build:
-      context: ./Bookmytable-Frontend/admin
-    container_name: admin-frontend
-    ports:
-      - "8081:8081"
-    volumes:
-      - ./Bookmytable-Frontend/admin:/app
-      - /app/node_modules
-    environment:
-      - VITE_API_BASE_URL=http://localhost:5000
+      - ./Bookmytable-Backend:/app
+      - backend_node_modules:/app/node_modules
+    restart: unless-stopped
     command: npm run dev
 
   web-frontend:
     build:
       context: ./Bookmytable-Frontend/web
     container_name: web-frontend
+    restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
       - ./Bookmytable-Frontend/web:/app
-      - /app/node_modules
+      - web_node_modules:/app/node_modules
     environment:
       - VITE_API_BASE_URL=http://localhost:5000
-    command: npm run dev  
+    depends_on:
+      - backend
+    command: npm run dev
 
+  admin-frontend:
+    build:
+      context: ./Bookmytable-Frontend/admin
+    container_name: admin-frontend
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./Bookmytable-Frontend/admin:/app
+      - admin_node_modules:/app/node_modules
+    environment:
+      - VITE_API_BASE_URL=http://localhost:5000
+    depends_on:
+      - backend
+    command: npm run dev
+
+volumes:
+  backend_node_modules:
+  web_node_modules:
+  admin_node_modules:
 
 networks:
   default:
     driver: bridge
-    driver_opts:
-      com.docker.network.driver.driver.mtu: 1350

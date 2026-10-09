@@ -14,20 +14,28 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes, disabled, restau
   const [form, setForm] = useState({ prefix: "T", capacity: "2", quantity: "1", type: "indoor_dining", floor: "", floorLabel: "", section: "couple_zone", sectionLabel: "Couple Zone", diningArea: "" });
 
   const isBackendFlow = !!onGenerate;
+  const [customPrice, setCustomPrice] = useState("");
   const { data: pricingConfigs = [] } = usePricingConfig(restaurantId || "");
   const { data: diningAreas = [] } = useDiningAreas(restaurantId || "");
 
-  const matchedPricing = pricingConfigs.find(p => 
-    p.floor === form.floor && 
-    p.diningAreaType === form.type && 
-    p.sectionType === form.section
-  );
+  const matchedPricing = pricingConfigs.find(p => {
+    const typeMatches = p.diningAreaType === form.type || 
+      (p.diningAreaType === 'indoor' && form.type === 'indoor_dining') ||
+      (p.diningAreaType === 'indoor_dining' && form.type === 'indoor') ||
+      (p.diningAreaType === 'outdoor' && form.type === 'outdoor_dining') ||
+      (p.diningAreaType === 'outdoor_dining' && form.type === 'outdoor') ||
+      (p.diningAreaType === 'rooftop' && form.type === 'rooftop_dining') ||
+      (p.diningAreaType === 'rooftop_dining' && form.type === 'rooftop') ||
+      (p.diningAreaType === 'private' && form.type === 'private_room') ||
+      (p.diningAreaType === 'private_room' && form.type === 'private');
 
-  const resolvedPrice = matchedPricing?.price || 0;
-  const priceSource = matchedPricing ? 'dining_area_pricing' : 'none';
+    return p.floor === form.floor && typeMatches && p.sectionType === form.section;
+  });
+
+  const effectivePrice = customPrice !== "" ? Number(customPrice) : (matchedPricing?.price || 0);
+  const priceSource = customPrice !== "" ? 'override' : (matchedPricing ? 'dining_area_pricing' : 'none');
 
   const isFormComplete = form.prefix.trim() !== "" && form.floor && form.type && form.section;
-  const isPricingMissing = isBackendFlow && isFormComplete && !matchedPricing;
 
   const handleCapacityChange = (e) => {
     const val = Number(e.target.value);
@@ -58,7 +66,7 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes, disabled, restau
         if (match) {
           resolvedDiningArea = match._id;
         } else {
-          return toast.error("Please configure/select a valid Dining Area for this Floor and Type before generating tables.");
+          resolvedDiningArea = undefined;
         }
       }
     }
@@ -69,8 +77,14 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes, disabled, restau
 
     // If onGenerate is provided, pass the raw form straight to the parent (Backend Flow)
     if (onGenerate) {
-      onGenerate({ ...form, diningArea: resolvedDiningArea });
+      onGenerate({ 
+        ...form, 
+        diningArea: resolvedDiningArea,
+        price: effectivePrice,
+        tablePriceOverride: customPrice !== "" ? Number(customPrice) : undefined
+      });
       setForm({ prefix: "T", capacity: "2", quantity: "1", type: "indoor_dining", floor: "", floorLabel: "", section: "couple_zone", sectionLabel: "Couple Zone", diningArea: "" });
+      setCustomPrice("");
       return;
     }
 
@@ -91,7 +105,10 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes, disabled, restau
           floor: form.floor,
           floorLabel: form.floorLabel,
           section: form.section,
-          sectionLabel: form.sectionLabel
+          sectionLabel: form.sectionLabel,
+          price: effectivePrice,
+          resolvedPrice: effectivePrice,
+          priceSource
         });
         addedCount++;
       }
@@ -101,60 +118,56 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes, disabled, restau
     onAdd(newTables);
     toast.success(`Generated ${qty} table(s) successfully`);
     setForm({ prefix: "T", capacity: "2", quantity: "1", type: "indoor_dining", floor: "", floorLabel: "", section: "couple_zone", sectionLabel: "Couple Zone", diningArea: "" });
+    setCustomPrice("");
   };
 
   return (
     <div className="bg-primary/5 p-6 rounded-3xl border border-primary/10 mb-8 space-y-6">
-      <div className="flex justify-between items-start">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-primary">Bulk Generate Tables</h3>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-primary">Bulk Generate Tables</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Quickly create multiple tables with matching floor, section, and pricing.</p>
+        </div>
         
-        {/* Read Only Estimated Pricing View for Backend Flow */}
+        {/* Estimated Pricing View for Backend Flow */}
         {isBackendFlow && (
-          <div className="bg-background border border-border p-3 rounded-xl min-w-[200px] shadow-sm">
-            <Label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Estimated Pricing</Label>
-            {!isFormComplete ? (
-              <p className="text-xs text-muted-foreground italic">Select Floor, Type, and Section</p>
-            ) : isPricingMissing ? (
-              <div>
-                <h4 className="text-sm font-bold text-red-600">Pricing Not Configured</h4>
-                <p className="text-xs text-red-500/80 mt-1">Pricing is missing for this area. Configure it to continue.</p>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <span className="text-2xl font-black text-foreground">₹{resolvedPrice}</span>
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${getPriceSourceBadgeClass(priceSource)}`}>
-                  {getPriceSourceLabel(priceSource)}
-                </span>
-              </div>
-            )}
+          <div className="bg-background border border-border px-3.5 py-2 rounded-xl min-w-[180px] shadow-sm flex items-center justify-between gap-3">
+            <div>
+              <Label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Estimated Rate</Label>
+              <span className="text-lg font-black text-foreground">₹{effectivePrice}</span>
+            </div>
+            <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${getPriceSourceBadgeClass(priceSource)}`}>
+              {customPrice !== "" ? "Custom" : getPriceSourceLabel(priceSource)}
+            </span>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 items-end">
-        <div className="space-y-2">
-          <Label className="text-xs">Prefix</Label>
+      {/* Table Specifications Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold text-foreground/80">Prefix</Label>
           <Input 
             placeholder="e.g. T" 
             value={form.prefix} 
             onChange={(e) => setForm({...form, prefix: e.target.value})}
-            className="h-10 bg-white"
+            className="h-10 bg-white rounded-xl text-sm font-medium"
           />
         </div>
-        <div className="space-y-2">
-          <Label className="text-xs">Capacity</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold text-foreground/80">Capacity</Label>
           <Input 
             type="number" 
             min="1"
             value={form.capacity} 
             onChange={handleCapacityChange}
-            className="h-10 bg-white"
+            className="h-10 bg-white rounded-xl text-sm font-medium"
           />
         </div>
-        <div className="space-y-2">
-          <Label className="text-xs">Type</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold text-foreground/80">Type</Label>
           <Select value={form.type} onValueChange={(val) => setForm({...form, type: val})}>
-            <SelectTrigger className="h-10 bg-white">
+            <SelectTrigger className="h-10 bg-white rounded-xl text-sm font-medium">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -165,10 +178,12 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes, disabled, restau
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label className="text-xs">Floor</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold text-foreground/80">Floor</Label>
           <Select value={form.floor} onValueChange={(val) => setForm({...form, floor: val, floorLabel: val !== 'custom' ? FLOOR_OPTIONS.find(o => o.value === val)?.label : ""})}>
-            <SelectTrigger className="h-10 bg-white"><SelectValue placeholder="Floor" /></SelectTrigger>
+            <SelectTrigger className="h-10 bg-white rounded-xl text-sm font-medium">
+              <SelectValue placeholder="Floor" />
+            </SelectTrigger>
             <SelectContent>
               {FLOOR_OPTIONS.map(opt => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
@@ -180,14 +195,16 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes, disabled, restau
               placeholder="Custom Floor" 
               value={form.floorLabel} 
               onChange={(e) => setForm({...form, floorLabel: e.target.value})}
-              className="h-10 bg-white"
+              className="h-10 bg-white rounded-xl mt-1.5 text-sm"
             />
           )}
         </div>
-        <div className="space-y-2">
-          <Label className="text-xs">Section</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold text-foreground/80">Section</Label>
           <Select value={form.section} onValueChange={(val) => setForm({...form, section: val, sectionLabel: val !== 'custom' ? SECTION_OPTIONS.find(o => o.value === val)?.label : ""})}>
-            <SelectTrigger className="h-10 bg-white"><SelectValue placeholder="Section" /></SelectTrigger>
+            <SelectTrigger className="h-10 bg-white rounded-xl text-sm font-medium">
+              <SelectValue placeholder="Section" />
+            </SelectTrigger>
             <SelectContent>
               {SECTION_OPTIONS.map(opt => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
@@ -199,23 +216,45 @@ export function BulkAddForm({ onAdd, onGenerate, existingCodes, disabled, restau
               placeholder="Custom Section" 
               value={form.sectionLabel} 
               onChange={(e) => setForm({...form, sectionLabel: e.target.value})}
-              className="h-10 bg-white"
+              className="h-10 bg-white rounded-xl mt-1.5 text-sm"
             />
           )}
         </div>
-        <div className="space-y-2">
-          <Label className="text-xs">Quantity</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold text-foreground/80">Price (₹)</Label>
+          <Input 
+            type="number" 
+            min="0"
+            placeholder={matchedPricing ? String(matchedPricing.price) : "0"} 
+            value={customPrice} 
+            onChange={(e) => setCustomPrice(e.target.value)}
+            className="h-10 bg-white rounded-xl text-sm font-medium"
+          />
+        </div>
+      </div>
+
+      {/* Action Row: Quantity & Dedicated Generate Button */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-end justify-between gap-4 pt-3 border-t border-primary/10">
+        <div className="w-full sm:w-44 space-y-1.5">
+          <Label className="text-xs font-semibold text-foreground/80">Quantity</Label>
           <Input 
             type="number" 
             min="1"
             max="100"
+            placeholder="1-100"
             value={form.quantity} 
             onChange={(e) => setForm({...form, quantity: e.target.value})}
-            className="h-10 bg-white"
+            className="h-10 bg-white rounded-xl text-sm font-medium"
           />
         </div>
-        <Button onClick={handleAdd} className="rounded-xl h-10 w-full sm:col-span-1 col-span-2" disabled={disabled || isPricingMissing}>
-          <Plus className="h-4 w-4 mr-2" /> Generate
+
+        <Button 
+          type="button" 
+          onClick={handleAdd} 
+          className="rounded-xl h-10 px-6 font-bold shadow-sm sm:w-auto w-full min-w-[160px] gap-2 shrink-0" 
+          disabled={disabled}
+        >
+          <Plus className="h-4 w-4" /> Generate Tables
         </Button>
       </div>
     </div>

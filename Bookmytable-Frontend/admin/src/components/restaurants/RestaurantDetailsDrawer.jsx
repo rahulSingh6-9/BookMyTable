@@ -83,36 +83,103 @@ const ProfileSection = ({ restaurant }) => (
   </div>
 );
 
-const LocationSection = ({ restaurant }) => (
-  <div className="space-y-4">
-    <h4 className="text-sm font-semibold flex items-center gap-2">
-      <MapPin className="w-4 h-4 text-primary" /> Location & Contact
-    </h4>
-    <div className="bg-muted/30 p-4 rounded-xl border border-border/50 space-y-3">
-      <div className="flex justify-between items-start">
-        <span className="text-xs text-muted-foreground w-20">Address</span>
-          {restaurant?.address || "No Address Provided"}<br/>
-          {restaurant?.city}
-      </div>
-      <Separator />
-      <div className="flex justify-between items-center">
-        <span className="text-xs text-muted-foreground">Phone</span>
-        <span className="text-sm font-medium">{restaurant?.phoneVerified ? "Verified" : "Unverified"}</span>
-      </div>
-      <div className="flex justify-between items-center">
-        <span className="text-xs text-muted-foreground">Email</span>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{restaurant?.email || "N/A"}</span>
-          {restaurant?.email && (
-            <Badge variant={restaurant?.emailVerified ? "success" : "secondary"} className="text-[10px] py-0 px-1.5 h-4">
-              {restaurant?.emailVerified ? "Verified" : "Unverified"}
-            </Badge>
-          )}
+const LocationSection = ({ restaurant }) => {
+  const address = restaurant?.address;
+  const city = restaurant?.city || (typeof address === "object" ? address?.city : null);
+
+  const phone =
+    restaurant?.contactInfo?.phone?.e164 ||
+    (restaurant?.contactInfo?.phone?.number
+      ? `${restaurant.contactInfo.phone.countryCode || ""} ${restaurant.contactInfo.phone.number}`.trim()
+      : null) ||
+    (typeof restaurant?.phone === "string" ? restaurant.phone : null) ||
+    restaurant?.ownerId?.phone ||
+    null;
+
+  const email =
+    restaurant?.contactInfo?.email ||
+    restaurant?.email ||
+    restaurant?.ownerId?.email ||
+    null;
+
+  const isPhoneVerified = restaurant?.contactInfo?.isPhoneVerified ?? restaurant?.phoneVerified;
+  const isEmailVerified = restaurant?.contactInfo?.isEmailVerified ?? restaurant?.emailVerified;
+
+  const renderAddress = () => {
+    if (!address) {
+      return <span>{city || "No Address Provided"}</span>;
+    }
+    if (typeof address === "string") {
+      return (
+        <div className="space-y-0.5">
+          <p>{address}</p>
+          {city && city !== address && <p className="text-xs text-muted-foreground">{city}</p>}
+        </div>
+      );
+    }
+    if (typeof address === "object") {
+      const { addressLine1, addressLine2, landmark, state, postalCode, country } = address;
+      const addrCity = address.city || city;
+      const cityStateZip = [addrCity, state, postalCode].filter(Boolean).join(", ");
+
+      const hasAnyDetail = addressLine1 || addressLine2 || landmark || cityStateZip || country;
+      if (!hasAnyDetail) {
+        return <span>No Address Provided</span>;
+      }
+
+      return (
+        <div className="space-y-0.5">
+          {addressLine1 && <p>{addressLine1}</p>}
+          {addressLine2 && <p className="text-xs text-muted-foreground">{addressLine2}</p>}
+          {landmark && <p className="text-xs text-muted-foreground">Near {landmark}</p>}
+          {cityStateZip && <p className="text-xs text-muted-foreground">{cityStateZip}</p>}
+          {country && <p className="text-xs text-muted-foreground">{country}</p>}
+        </div>
+      );
+    }
+    return <span>No Address Provided</span>;
+  };
+
+  return (
+    <div className="space-y-4">
+      <h4 className="text-sm font-semibold flex items-center gap-2">
+        <MapPin className="w-4 h-4 text-primary" /> Location & Contact
+      </h4>
+      <div className="bg-muted/30 p-4 rounded-xl border border-border/50 space-y-3">
+        <div className="flex justify-between items-start gap-4">
+          <span className="text-xs text-muted-foreground w-20 shrink-0">Address</span>
+          <div className="text-sm font-medium text-right">
+            {renderAddress()}
+          </div>
+        </div>
+        <Separator />
+        <div className="flex justify-between items-center gap-4">
+          <span className="text-xs text-muted-foreground">Phone</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{phone || "N/A"}</span>
+            {phone && (
+              <Badge variant={isPhoneVerified ? "success" : "secondary"} className="text-[10px] py-0 px-1.5 h-4">
+                {isPhoneVerified ? "Verified" : "Unverified"}
+              </Badge>
+            )}
+          </div>
+        </div>
+        <Separator />
+        <div className="flex justify-between items-center gap-4">
+          <span className="text-xs text-muted-foreground">Email</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{email || "N/A"}</span>
+            {email && (
+              <Badge variant={isEmailVerified ? "success" : "secondary"} className="text-[10px] py-0 px-1.5 h-4">
+                {isEmailVerified ? "Verified" : "Unverified"}
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const MetricsSection = ({ id }) => {
   const { data, isLoading } = useQuery({
@@ -189,29 +256,33 @@ const OperationsSection = ({ restaurant }) => {
   );
 };
 
-const VerificationSection = ({ restaurant }) => (
-  <div className="space-y-4">
-    <h4 className="text-sm font-semibold flex items-center gap-2">
-      <ShieldCheck className="w-4 h-4 text-primary" /> Verification Status
-    </h4>
-    <div className="bg-muted/30 p-4 rounded-xl border border-border/50 space-y-4">
-      <div className="flex justify-between items-center">
-        <span className="text-sm font-medium">Phone Verification</span>
-        {restaurant?.phoneVerified ? (
-          <Badge variant="success" className="flex items-center gap-1"><Check className="w-3 h-3"/> Verified</Badge>
-        ) : (
-          <Badge variant="secondary" className="flex items-center gap-1"><X className="w-3 h-3"/> Not Verified</Badge>
-        )}
-      </div>
-      <Separator />
-      <div className="flex justify-between items-center">
-        <span className="text-sm font-medium">Email Verification</span>
-        {restaurant?.emailVerified ? (
-          <Badge variant="success" className="flex items-center gap-1"><Check className="w-3 h-3"/> Verified</Badge>
-        ) : (
-          <Badge variant="secondary" className="flex items-center gap-1"><X className="w-3 h-3"/> Not Verified</Badge>
-        )}
-      </div>
+const VerificationSection = ({ restaurant }) => {
+  const isPhoneVerified = restaurant?.contactInfo?.isPhoneVerified ?? restaurant?.phoneVerified;
+  const isEmailVerified = restaurant?.contactInfo?.isEmailVerified ?? restaurant?.emailVerified;
+
+  return (
+    <div className="space-y-4">
+      <h4 className="text-sm font-semibold flex items-center gap-2">
+        <ShieldCheck className="w-4 h-4 text-primary" /> Verification Status
+      </h4>
+      <div className="bg-muted/30 p-4 rounded-xl border border-border/50 space-y-4">
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium">Phone Verification</span>
+          {isPhoneVerified ? (
+            <Badge variant="success" className="flex items-center gap-1"><Check className="w-3 h-3"/> Verified</Badge>
+          ) : (
+            <Badge variant="secondary" className="flex items-center gap-1"><X className="w-3 h-3"/> Not Verified</Badge>
+          )}
+        </div>
+        <Separator />
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium">Email Verification</span>
+          {isEmailVerified ? (
+            <Badge variant="success" className="flex items-center gap-1"><Check className="w-3 h-3"/> Verified</Badge>
+          ) : (
+            <Badge variant="secondary" className="flex items-center gap-1"><X className="w-3 h-3"/> Not Verified</Badge>
+          )}
+        </div>
       <Separator />
       <div className="flex justify-between items-center">
         <span className="text-sm font-medium">Business Approval</span>
@@ -255,7 +326,8 @@ const VerificationSection = ({ restaurant }) => (
       )}
     </div>
   </div>
-);
+  );
+};
 
 export function RestaurantDetailsDrawer({ restaurantId, open, onOpenChange }) {
   const queryClient = useQueryClient();

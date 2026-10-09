@@ -12,6 +12,7 @@ import { useEffect, useCallback, useRef } from "react";
 import { saveOnboardingDraft, getOnboardingDraft, deleteOnboardingDraft, submitOnboardingDraft } from "@/services/onboarding.service";
 
 import { Briefcase } from "lucide-react";
+import { useBrand } from "@/context/BrandContext";
 
 // Import step components
 import { Step0BrandSelection } from "@/components/partner/register/Step0BrandSelection";
@@ -26,7 +27,6 @@ import { Step8Review } from "@/components/partner/register/Step8Review";
 
 // Import schemas
 import { step0Schema, step1Schema, step2Schema, step3Schema, step5Schema } from "@/validation/restaurant.schema";
-import { createRestaurant } from "@/services/restaurant.service";
 import { z } from "zod";
 
 const stepSchemas = [
@@ -108,6 +108,8 @@ export default function PartnerRegister() {
 
   const isCreateBranchMode = mode === "create-branch" && !!autoBrandId;
 
+  const { refreshMemberships } = useBrand();
+  const [createdData, setCreatedData] = useState(null);
   const [currentStep, setCurrentStep] = useState(isCreateBranchMode ? 1 : 0);
   const [completedSteps, setCompletedSteps] = useState(isCreateBranchMode ? [0] : []);
   const [skippedSteps, setSkippedSteps] = useState([]);
@@ -410,6 +412,11 @@ export default function PartnerRegister() {
     }
   };
   const onSubmit = async () => {
+    // Only allow actual submission on the final review step
+    if (currentStep !== totalSteps - 1) {
+      return;
+    }
+
     const data = methods.getValues();
     const isPhoneVerified = data.contactInfo?.primaryPhone?.isVerified;
     const isEmailVerified = data.contactInfo?.businessEmail?.isVerified;
@@ -537,7 +544,13 @@ export default function PartnerRegister() {
         settings: data.settings || {}
       };
 
-      await submitOnboardingDraft(payload);
+      const response = await submitOnboardingDraft(payload);
+      setCreatedData(response?.data || null);
+      try {
+        await refreshMemberships();
+      } catch (e) {
+        console.error("Failed to refresh memberships after registration:", e);
+      }
       toast.success("Registration submitted successfully!");
       setIsSubmitted(true);
     } catch (error) {
@@ -547,6 +560,13 @@ export default function PartnerRegister() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    // Prevent accidental submit when pressing Enter in input fields (except textareas)
+    if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
+      e.preventDefault();
     }
   };
 
@@ -574,6 +594,14 @@ export default function PartnerRegister() {
   };
 
   if (isSubmitted) {
+    const targetBrandSlug = autoBrandSlug || createdData?.brand?.slug;
+    const targetBranchSlug = createdData?.slug;
+    const dashboardUrl = isCreateBranchMode
+      ? `/brand/${autoBrandSlug}/active`
+      : (targetBrandSlug && targetBranchSlug)
+        ? `/brand/${targetBrandSlug}/branch/${targetBranchSlug}/dashboard`
+        : (targetBrandSlug ? `/brand/${targetBrandSlug}/details` : "/brand");
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <motion.div 
@@ -589,8 +617,8 @@ export default function PartnerRegister() {
             Your restaurant application has been received and is currently under review. 
             Our team will contact you within 24-48 hours.
           </p>
-          <Button size="lg" className="w-full rounded-full h-12" onClick={() => window.location.href = isCreateBranchMode ? `/brand/${autoBrandSlug}/active` : "/owner"}>
-            Go to {isCreateBranchMode ? "Brand Dashboard" : "Owner Dashboard"}
+          <Button size="lg" className="w-full rounded-full h-12" onClick={() => window.location.href = dashboardUrl}>
+            Go to {isCreateBranchMode ? "Brand Dashboard" : "Dashboard"}
           </Button>
         </motion.div>
       </div>
@@ -638,7 +666,16 @@ export default function PartnerRegister() {
           <div>
             <Card className="p-8 md:p-12 rounded-[2.5rem] border-border shadow-xl overflow-hidden min-h-[600px] flex flex-col bg-card">
               <FormProvider {...methods}>
-                <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col">
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (currentStep === totalSteps - 1) {
+                      handleSubmit(onSubmit)(e);
+                    }
+                  }} 
+                  onKeyDown={handleKeyDown} 
+                  className="flex-1 flex flex-col"
+                >
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={currentStep}

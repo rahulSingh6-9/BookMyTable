@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Calendar, Check, MessageSquare } from "lucide-react";
+import { Calendar, Check, MessageSquare, Users, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,7 @@ import { GuestSelector } from "@/components/booking/GuestSelector";
 import { BookingSummary } from "@/components/booking/BookingSummary";
 import { TableLayoutViewer } from "@/components/visual-layout/TableLayoutViewer";
 import { RoomSelector } from "@/components/visual-layout/RoomSelector";
+import { useAuth } from "@/context/AuthContext";
 
 export default function TableBooking() {
   const { id } = useParams();
@@ -22,6 +23,7 @@ export default function TableBooking() {
   const settings = restaurantSettings[restaurant.id] || restaurantSettings["1"];
   const tables = (restaurantTables[restaurant.id] || restaurantTables["1"]).filter((t) => t.isActive);
   const { rooms, activeRoom, activeRoomId, setActiveRoomId } = useLayout(restaurant.id || "1");
+  const { user, isLoggedIn } = useAuth();
 
   const [step, setStep] = useState(1);
   const [guests, setGuests] = useState(settings.minGuestsPerBooking || 2);
@@ -152,8 +154,44 @@ export default function TableBooking() {
                   </div>
                   <div className="flex gap-3 pt-4 border-t border-border/40">
                     <Button variant="outline" onClick={() => setStep(1)} className="rounded-lg">Back</Button>
-                    <Button onClick={() => setStep(3)} disabled={!selectedTable} className="flex-1 rounded-lg">Continue to Details</Button>
+                    <Button onClick={() => setStep(2.5)} disabled={!selectedTable} className="flex-1 rounded-lg">Continue to Details</Button>
                   </div>
+                </div>
+              )}
+
+              {step === 2.5 && (
+                <div className="space-y-5 rounded-lg border border-border bg-card p-6 shadow-card">
+                  {!isLoggedIn ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center animate-in fade-in">
+                      <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                        <Users className="h-8 w-8 text-primary" />
+                      </div>
+                      <h2 className="text-2xl font-black text-foreground mb-2">Login to book a table</h2>
+                      <p className="text-muted-foreground mb-6 text-sm max-w-sm">Please login or create an account to securely complete your reservation.</p>
+                      <div className="flex w-full max-w-xs flex-col gap-3">
+                        <Button onClick={() => window.location.href = "/login?redirect=" + encodeURIComponent(window.location.pathname)} className="w-full">Login</Button>
+                        <Button onClick={() => window.location.href = "/signup?redirect=" + encodeURIComponent(window.location.pathname)} variant="outline" className="w-full">Create Account</Button>
+                        <Button variant="ghost" onClick={() => setStep(2)} className="w-full text-muted-foreground mt-2">Back to Tables</Button>
+                      </div>
+                    </div>
+                  ) : (!user?.isPhoneVerified && !user?.verification?.phoneVerified) ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center animate-in fade-in">
+                      <div className="bg-orange-500/10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                        <AlertCircle className="h-8 w-8 text-orange-500" />
+                      </div>
+                      <h2 className="text-2xl font-black text-foreground mb-2">Phone verification required</h2>
+                      <p className="text-muted-foreground mb-6 text-sm max-w-sm">Please verify your phone number to continue booking.</p>
+                      <div className="flex w-full max-w-xs flex-col gap-3">
+                        <Button onClick={() => window.location.href = "/settings/profile"} className="w-full bg-orange-500 hover:bg-orange-600">Verify Phone Number</Button>
+                        <Button variant="ghost" onClick={() => setStep(2)} className="w-full text-muted-foreground mt-2">Back to Tables</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 text-center animate-in fade-in">
+                       <h2 className="text-xl font-bold mb-4">Verification Complete</h2>
+                       <Button onClick={() => setStep(3)} className="w-full max-w-xs">Proceed to Details</Button>
+                    </div>
+                  )}
                 </div>
               )}
 

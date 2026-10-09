@@ -4,7 +4,7 @@ import apiClient from "../lib/api";
  * 🔥 GET FULL AVAILABILITY SETTINGS
  */
 export const getAvailabilitySettings = async (restaurantId) => {
-  return await apiClient.get(`/availability/${restaurantId}`);
+  return await apiClient.get(`/settings/${restaurantId}`);
 };
 
 /**
@@ -12,7 +12,7 @@ export const getAvailabilitySettings = async (restaurantId) => {
  */
 export const updateSchedule = async (restaurantId, data) => {
   return await apiClient.patch(
-    `/availability/${restaurantId}/schedule`,
+    `/settings/${restaurantId}/schedule`,
     {
       openingHours: data,
     }
@@ -24,7 +24,7 @@ export const updateSchedule = async (restaurantId, data) => {
  */
 export const updateSlotConfig = async (restaurantId, data) => {
   return await apiClient.patch(
-    `/availability/${restaurantId}/slot-config`,
+    `/settings/${restaurantId}/slot-config`,
     data
   );
 };
@@ -34,7 +34,7 @@ export const updateSlotConfig = async (restaurantId, data) => {
  */
 export const addException = async (restaurantId, data) => {
   return await apiClient.post(
-    `/availability/${restaurantId}/special-days`,
+    `/settings/${restaurantId}/special-days`,
     data
   );
 };
@@ -44,7 +44,7 @@ export const addException = async (restaurantId, data) => {
  */
 export const deleteException = async (restaurantId, date) => {
   return await apiClient.delete(
-    `/availability/${restaurantId}/special-days/${date}`
+    `/settings/${restaurantId}/special-days/${date}`
   );
 };
 
@@ -53,7 +53,7 @@ export const deleteException = async (restaurantId, date) => {
  */
 export const updateBookingPolicies = async (restaurantId, data) => {
   return await apiClient.patch(
-    `/availability/${restaurantId}/booking-policies`,
+    `/settings/${restaurantId}/booking-policies`,
     data
   );
 };

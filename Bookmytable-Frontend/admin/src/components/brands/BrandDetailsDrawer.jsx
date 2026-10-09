@@ -163,7 +163,11 @@ const RestaurantsSection = ({ id }) => {
             <div key={idx} className="p-3 bg-muted/30 rounded-lg border border-border/50 flex justify-between items-center">
               <div>
                 <p className="text-sm font-medium">{r.branchName || "Unknown Branch"}</p>
-                <p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.address || "No address"}</p>
+                <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                  {typeof r.address === "object" && r.address !== null
+                    ? [r.address.addressLine1, r.address.city || r.city, r.address.state].filter(Boolean).join(", ") || "No address"
+                    : (r.address || r.city || "No address")}
+                </p>
               </div>
               <Badge variant={r.status === 'approved' ? 'success' : 'secondary'}>{r.status}</Badge>
             </div>

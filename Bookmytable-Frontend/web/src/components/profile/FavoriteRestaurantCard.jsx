@@ -42,11 +42,11 @@ export function FavoriteRestaurantCard({ restaurant, index = 0, onRemove }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08, duration: 0.4 }}
       whileHover={{ y: -4 }}
-      className="group"
+      className="group w-full h-full flex flex-col"
     >
-      <Card className="overflow-hidden rounded-lg bg-card shadow-card transition-shadow duration-300 group-hover:shadow-elevated">
+      <Card className="w-full h-full flex-1 flex flex-col overflow-hidden rounded-lg bg-card shadow-card transition-shadow duration-300 group-hover:shadow-elevated border border-border/40">
         {/* Image */}
-        <div className="relative h-48 overflow-hidden bg-muted">
+        <div className="relative h-48 w-full overflow-hidden bg-muted shrink-0">
           <img
             src={restaurant.coverImage || restaurant.image || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80"}
             alt={restaurant.name}
@@ -78,7 +78,7 @@ export function FavoriteRestaurantCard({ restaurant, index = 0, onRemove }) {
         </div>
 
         {/* Content */}
-        <CardContent className="p-4">
+        <CardContent className="p-4 flex-1 flex flex-col justify-between gap-3">
           <div className="mb-1 flex items-center justify-between">
             <h3 className="font-semibold text-card-foreground truncate pr-2">{restaurant.name}</h3>
             <div className="flex items-center gap-1 text-sm shrink-0">

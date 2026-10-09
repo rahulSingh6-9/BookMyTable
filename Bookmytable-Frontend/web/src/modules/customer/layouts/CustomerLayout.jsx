@@ -1,8 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
-  Home,
-  Compass,
   CalendarCheck,
   Heart,
   Wallet,
@@ -64,8 +62,6 @@ export function CustomerLayout() {
   const userAvatar = useMemo(() => user?.avatar || user?.profileImage || null, [user]);
 
   const navigationItems = [
-    { title: "Home", url: "/profile/home", icon: Home },
-    { title: "Discover", url: "/profile/discover", icon: Compass },
     { title: "My Bookings", url: "/profile/bookings", icon: CalendarCheck, badge: "2" },
     { title: "Favorites", url: "/profile/favorites", icon: Heart },
     { title: "Rewards & Wallet", url: "/profile/rewards", icon: Wallet, highlight: true },
@@ -387,9 +383,8 @@ export function CustomerLayout() {
       {/* MOBILE BOTTOM NAVIGATION BAR */}
       <div className="fixed bottom-0 left-0 right-0 h-16 border-t border-slate-100 bg-white/95 backdrop-blur-md flex items-center justify-around px-2 z-40 lg:hidden shadow-lg shadow-slate-200">
         {[
-          { title: "Home", url: "/profile/home", icon: Home },
-          { title: "Discover", url: "/profile/discover", icon: Compass },
           { title: "Bookings", url: "/profile/bookings", icon: CalendarCheck },
+          { title: "Favorites", url: "/profile/favorites", icon: Heart },
           { title: "Wallet", url: "/profile/rewards", icon: Wallet },
           { title: "Settings", url: "/profile/settings", icon: Settings },
         ].map((tab) => {

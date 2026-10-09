@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, AlertCircle, ChevronLeft, MapPin, Users, Layers, ShieldAlert, Clock, Calendar as CalendarIcon, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // Context & Services
 import { useCart } from "@/context/CartContext";
 import { getRestaurantDetails, getRestaurantMenu } from "@/services/discovery.service";
 import { getRestaurantAvailability } from "@/services/booking.service";
+import { socket, joinRestaurantRoom, leaveRestaurantRoom } from "@/services/socket";
 
 // Components
 import { RestaurantMenuTabs } from "@/components/restaurant/RestaurantMenuTabs";
@@ -18,11 +20,20 @@ import { RestaurantHero } from "@/components/restaurant/RestaurantHero";
 export default function RestaurantBooking() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
 
   const dateParam = searchParams.get("date");
   const timeParam = searchParams.get("time");
   const guestsParam = searchParams.get("guests") ? Number(searchParams.get("guests")) : 2;
+
+  // Demo slug boundary guard — redirect demo entries back to discover
+  useEffect(() => {
+    if (slug && slug.startsWith("demo-")) {
+      toast.info("Demo Restaurant — booking not available for demonstration entries.");
+      navigate("/discover", { replace: true });
+    }
+  }, [slug, navigate]);
 
   // 1. Fetch Restaurant Details
   const { data: detailsRes, isLoading: detailsLoading, error: detailsErr } = useQuery({
@@ -41,11 +52,35 @@ export default function RestaurantBooking() {
   });
 
   // 3. Fetch Availability
+  const restKey = restaurant?.slug || restaurant?.restaurantId || slug;
   const { data: availabilityRes, isLoading: availabilityLoading } = useQuery({
-    queryKey: ["availability", restaurant?.slug || restaurant?.restaurantId, dateParam, guestsParam],
-    queryFn: () => getRestaurantAvailability(restaurant?.slug || restaurant?.restaurantId, dateParam, guestsParam),
+    queryKey: ["availability", restKey, dateParam, guestsParam],
+    queryFn: () => getRestaurantAvailability(restKey, dateParam, guestsParam),
     enabled: !!restaurant && !!dateParam,
   });
+
+  // Real-time table updates via Socket.io
+  useEffect(() => {
+    const restId = restaurant?._id || restaurant?.restaurantId || restaurant?.id;
+    if (!restId) return;
+
+    joinRestaurantRoom(restId);
+
+    const handleAvailabilityChange = (evt) => {
+      if (String(evt.restaurantId) === String(restId)) {
+        queryClient.invalidateQueries({
+          queryKey: ["availability", restKey],
+        });
+      }
+    };
+
+    socket.on("table:availability_changed", handleAvailabilityChange);
+
+    return () => {
+      socket.off("table:availability_changed", handleAvailabilityChange);
+      leaveRestaurantRoom(restId);
+    };
+  }, [restaurant?._id, restaurant?.restaurantId, restaurant?.id, restKey, queryClient]);
 
   const { updateReservation, openCheckout, reservationDetails } = useCart();
 
@@ -144,7 +179,7 @@ export default function RestaurantBooking() {
   // Loading State
   if (detailsLoading || !dateParam || !timeParam) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center pt-16 bg-background">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground font-medium animate-pulse">Setting up your reservation...</p>
       </div>
@@ -153,7 +188,7 @@ export default function RestaurantBooking() {
 
   if (detailsErr || !restaurant) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center pt-16 bg-background px-4 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4 text-center">
         <AlertCircle className="h-12 w-12 text-destructive mb-4" />
         <h2 className="text-2xl font-bold text-foreground mb-2">Error</h2>
         <p className="text-muted-foreground mb-6">Could not load reservation details.</p>
@@ -171,7 +206,7 @@ export default function RestaurantBooking() {
       <div className="container mx-auto px-4 lg:px-8 mt-8">
         
         {/* STICKY TOP RESERVATION BAR */}
-        <div className="sticky top-16 z-30 max-w-7xl mx-auto bg-background/95 backdrop-blur-md border-b border-border/40 py-4 mb-8 shadow-sm px-2">
+        <div className="sticky top-0 z-30 max-w-7xl mx-auto bg-background/95 backdrop-blur-md border-b border-border/40 py-4 mb-8 shadow-sm px-2">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-bold text-foreground">
               <span className="flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-primary" /> {dateParam}</span>

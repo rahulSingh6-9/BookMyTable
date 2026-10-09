@@ -40,7 +40,7 @@ export default function Login() {
   }, [inviteToken]);
 
   const defaultFrom = "/profile";
-  const from = location.state?.from?.pathname || defaultFrom;
+  const from = searchParams.get("redirect") || location.state?.from?.pathname || defaultFrom;
 
   const handleLoginSuccess = async (userData) => {
     if (inviteToken && inviteDetails) {
@@ -59,7 +59,7 @@ export default function Login() {
 
         const perms = ROLE_PERMISSIONS[inviteDetails.role] || [];
         if (perms.includes("*") || perms.includes("MANAGE_BRANCH")) {
-          navigate("/owner/dashboard", { replace: true });
+          navigate("/brand", { replace: true });
         } else {
           navigate("/staff/dashboard", { replace: true });
         }
@@ -226,12 +226,6 @@ export default function Login() {
             <div className="relative flex justify-center"><span className="bg-card px-3 text-xs text-muted-foreground">or continue with</span></div>
           </div>
 
-          <div className="space-y-3">
-            <div ref={googleBtnRef} className="w-full flex justify-center" />
-            <Button variant="outline" type="button" className="w-full h-11 text-sm font-medium border-border flex items-center justify-center gap-2">
-              Continue with Apple
-            </Button>
-          </div>
         </form>
 
         <p className="mt-4 text-center text-sm text-muted-foreground">

@@ -1,0 +1,44 @@
+<USER_REQUEST>
+# BookMyTable — Global Barba.js Page Transitions (Smooth Bottom-to-Top)
+
+Implement a premium, cinematic **global page transition system using Barba.js** across the entire BookMyTable website.
+
+The transition direction must be **BOTTOM → TOP**, with exceptionally smooth motion and no visible flicker, lag, blank screens, or layout jumps.
+
+## 1. First, Inspect the Existing Architecture
+
+Before implementing anything, inspect the complete frontend architecture, including:
+
+- React application entry point and routing setup.
+- React Router configuration and nested layouts.
+- Main website and admin applications.
+- Header and footer layouts.
+- Existing GSAP animations and ScrollTriggers.
+- HeroCinematicCanvas and other canvas-based animations.
+- Existing route-level loading states and data fetching.
+- Authentication guards and protected routes.
+
+This project already uses React, React Router, and GSAP in multiple areas. Choose an integration approach that is genuinely compatible with the existing architecture.
+
+**Important:** Barba.js is primarily designed around DOM-container transitions and must not independently replace or duplicate React Router's route management. Do not introduce competing navigation systems.
+
+If integrating Barba.js directly would conflict with React's ownership of the DOM, implement a compatible adapter/orchestration layer or use Barba's transition lifecycle only where it can safely coexist with the existing routing system. Do not force an incompatible integration just to use the library.
+
+## 2. Desired Transition Animation
+
+Create a full-viewport transition overlay with a premium BookMyTable visual style.
+
+Use the existing BookMyTable primary red CSS variable/token. Do not introduce an unrelated color palette.
+
+### Exact animation sequence
+
+**Phase A — Cover the current page**
+- A solid red overlay starts below the viewport.
+- It moves upward from the bottom edge toward the top.
+- It progressively covers the entire viewport.
+- The motion must be smooth, continuous, and symmetrical in timing.
+- Avoid any abrupt acceleration, bounce,
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-10-09T18:20:18+05:30.
+</ADDITIONAL_METADATA>

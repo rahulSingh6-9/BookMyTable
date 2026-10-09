@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CalendarDays,
@@ -10,93 +11,56 @@ import {
   XCircle,
   MessageSquare,
   Sparkles,
-  ChevronRight,
   TrendingUp,
-  Ticket,
-  CalendarCheck
+  CalendarCheck,
+  Loader2,
+  Hash,
+  Receipt,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/common/EmptyState";
+import { getUserBookings, cancelBooking } from "@/services/booking.service";
 
 export default function CustomerBookings() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("upcoming");
 
-  // Booking details list
-  const [bookings, setBookings] = useState([
-    {
-      id: "BM-92813",
-      restaurantId: "1",
-      restaurantName: "Sakura Omakase",
-      cuisine: "Japanese",
-      date: "2026-05-18",
-      time: "7:00 PM",
-      guests: 2,
-      table: "Table 4 (Tatami)",
-      status: "confirmed",
-      price: "$120",
-      code: "BMT-SAK-492"
-    },
-    {
-      id: "BM-92412",
-      restaurantId: "2",
-      restaurantName: "Trattoria Bella",
-      cuisine: "Italian",
-      date: "2026-05-24",
-      time: "8:00 PM",
-      guests: 4,
-      table: "Table 11 (Terrace)",
-      status: "pending",
-      price: "$85",
-      code: "BMT-TRA-108"
-    },
-    {
-      id: "BM-81923",
-      restaurantId: "3",
-      restaurantName: "The Capital Grill",
-      cuisine: "Steakhouse",
-      date: "2026-05-02",
-      time: "7:30 PM",
-      guests: 2,
-      table: "Table 8 (Indoor)",
-      status: "completed",
-      price: "$195",
-      code: "BMT-CAP-992",
-      reviewed: false
-    },
-    {
-      id: "BM-81203",
-      restaurantId: "6",
-      restaurantName: "Siam Garden",
-      cuisine: "Thai",
-      date: "2026-04-12",
-      time: "6:00 PM",
-      guests: 3,
-      table: "Table 2 (Window)",
-      status: "cancelled",
-      price: "$60",
-      code: "BMT-SIA-204"
-    }
-  ]);
+  // Fetch real bookings from backend
+  const { data: bookingsRes, isLoading, error } = useQuery({
+    queryKey: ["user-bookings"],
+    queryFn: getUserBookings,
+  });
 
+  const bookings = bookingsRes?.data?.data || [];
+
+  // Cancel booking mutation
+  const cancelMutation = useMutation({
+    mutationFn: (id) => cancelBooking(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ["user-bookings"] });
+      toast.success("Reservation cancelled successfully.");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to cancel booking.");
+    },
+  });
+
+  const handleCancelBooking = (id) => {
+    cancelMutation.mutate(id);
+  };
+
+  // Review state (kept local since review API is out of scope)
   const [reviewingBooking, setReviewingBooking] = useState(null);
   const [reviewStars, setReviewStars] = useState(5);
   const [reviewText, setReviewText] = useState("");
-
-  const handleCancelBooking = (id, name) => {
-    setBookings(prev => 
-      prev.map(b => b.id === id ? { ...b, status: "cancelled" } : b)
-    );
-    toast.success(`Reservation at ${name} cancelled successfully.`);
-  };
 
   const handleOpenReview = (booking) => {
     setReviewingBooking(booking);
@@ -105,18 +69,32 @@ export default function CustomerBookings() {
   };
 
   const handleSubmitReview = () => {
-    setBookings(prev => 
-      prev.map(b => b.id === reviewingBooking.id ? { ...b, reviewed: true } : b)
-    );
     toast.success("Thank you for your rating! Review submitted successfully.");
     setReviewingBooking(null);
   };
 
-  // Filter lists based on state
+  // Filter lists based on status
   const upcomingList = useMemo(() => bookings.filter(b => b.status === "confirmed"), [bookings]);
-  const pendingList = useMemo(() => bookings.filter(b => b.status === "pending"), [bookings]);
+  const pendingList = useMemo(() => bookings.filter(b => ["pending", "payment_pending"].includes(b.status)), [bookings]);
   const completedList = useMemo(() => bookings.filter(b => b.status === "completed"), [bookings]);
-  const cancelledList = useMemo(() => bookings.filter(b => b.status === "cancelled"), [bookings]);
+  const cancelledList = useMemo(() => bookings.filter(b => ["cancelled", "expired", "payment_failed"].includes(b.status)), [bookings]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-destructive font-medium mb-4">Failed to load your bookings.</p>
+        <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["user-bookings"] })}>Retry</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 pb-12">
@@ -154,14 +132,15 @@ export default function CustomerBookings() {
               <div className="grid gap-6 md:grid-cols-2">
                 {upcomingList.map(b => (
                   <BookingItemCard 
-                    key={b.id} 
+                    key={b._id} 
                     booking={b} 
-                    onCancel={() => handleCancelBooking(b.id, b.restaurantName)} 
+                    onCancel={() => handleCancelBooking(b._id)}
+                    isCancelling={cancelMutation.isPending}
                   />
                 ))}
               </div>
             ) : (
-              <EmptyBookingsState onDiscover={() => navigate("/profile/discover")} />
+              <EmptyBookingsState onDiscover={() => navigate("/discover")} />
             )}
           </TabsContent>
 
@@ -170,16 +149,16 @@ export default function CustomerBookings() {
             {pendingList.length > 0 ? (
               <div className="grid gap-6 md:grid-cols-2">
                 {pendingList.map(b => (
-                  <BookingItemCard key={b.id} booking={b} isPending={true} />
+                  <BookingItemCard key={b._id} booking={b} isPending={true} />
                 ))}
               </div>
             ) : (
               <EmptyState
                 icon={CalendarDays}
                 title="No pending confirmations"
-                description="We notify you via email and push alert as soon as the merchant accepts."
-                actionLabel="Explore fine dining"
-                onAction={() => navigate("/profile/discover")}
+                description="All your bookings are confirmed or completed."
+                actionLabel="Explore restaurants"
+                onAction={() => navigate("/discover")}
               />
             )}
           </TabsContent>
@@ -190,7 +169,7 @@ export default function CustomerBookings() {
               <div className="grid gap-6 md:grid-cols-2">
                 {completedList.map(b => (
                   <BookingItemCard 
-                    key={b.id} 
+                    key={b._id} 
                     booking={b} 
                     isCompleted={true} 
                     onReview={() => handleOpenReview(b)}
@@ -203,7 +182,7 @@ export default function CustomerBookings() {
                 title="No completed visits yet"
                 description="Once you check in at the host desk, your status shifts automatically."
                 actionLabel="Book a dining slot"
-                onAction={() => navigate("/profile/discover")}
+                onAction={() => navigate("/discover")}
               />
             )}
           </TabsContent>
@@ -213,7 +192,7 @@ export default function CustomerBookings() {
             {cancelledList.length > 0 ? (
               <div className="grid gap-6 md:grid-cols-2">
                 {cancelledList.map(b => (
-                  <BookingItemCard key={b.id} booking={b} isCancelled={true} />
+                  <BookingItemCard key={b._id} booking={b} isCancelled={true} />
                 ))}
               </div>
             ) : (
@@ -222,7 +201,7 @@ export default function CustomerBookings() {
                 title="No cancelled bookings"
                 description="Everything runs smoothly! Clean history is good record keeping."
                 actionLabel="Discover gourmet spots"
-                onAction={() => navigate("/profile/discover")}
+                onAction={() => navigate("/discover")}
               />
             )}
           </TabsContent>
@@ -239,11 +218,10 @@ export default function CustomerBookings() {
               Rate your experience
             </DialogTitle>
             <DialogDescription className="text-slate-500 text-xs">
-              Tell us how was your meal at {reviewingBooking?.restaurantName}. Your feedback helps other gourmet foodies.
+              Tell us how was your meal at {reviewingBooking?.restaurantId?.name || "the restaurant"}. Your feedback helps other diners.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Rating stars selector */}
           <div className="flex flex-col items-center gap-3 py-4">
             <span className="text-xs font-bold text-slate-400">YOUR RATING SCORE</span>
             <div className="flex items-center gap-1.5">
@@ -301,7 +279,7 @@ function EmptyBookingsState({ onDiscover }) {
       </div>
       <div className="space-y-1 max-w-sm">
         <h3 className="text-sm font-extrabold text-slate-900">No active reservations</h3>
-        <p className="text-xs text-slate-500">Plan your next breakfast, lunch, or romantic dinner. Get instant confirm with host desks.</p>
+        <p className="text-xs text-slate-500">Plan your next breakfast, lunch, or romantic dinner. Get instant confirmation.</p>
       </div>
       <Button size="sm" className="bg-primary hover:bg-primary/95 text-white rounded-xl shadow-md shadow-primary/10" onClick={onDiscover}>
         Book a Table
@@ -310,8 +288,16 @@ function EmptyBookingsState({ onDiscover }) {
   );
 }
 
-/* HIGH-FIDELITY RESERVATION CARD MODULE */
-function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelled, onReview }) {
+/* REAL-DATA RESERVATION CARD */
+function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelled, onReview, isCancelling }) {
+  const restaurant = booking.restaurantId; // populated
+  const restaurantName = restaurant?.name || "Restaurant";
+  const restaurantSlug = restaurant?.slug || "";
+  const cuisine = restaurant?.cuisine?.[0] || "";
+  const tableNames = booking.tables?.length > 0
+    ? booking.tables.map(t => `${t.tableName} (${t.sectionLabel || "Main"})`).join(", ")
+    : booking.tableName || "Reserved";
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 12 }} 
@@ -321,23 +307,15 @@ function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelle
       <div className="space-y-3.5">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{booking.cuisine} cuisine</span>
-            <h3 className="font-extrabold text-slate-950 text-base">{booking.restaurantName}</h3>
+            {cuisine && <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{cuisine} cuisine</span>}
+            <h3 className="font-extrabold text-slate-950 text-base">{restaurantName}</h3>
           </div>
           
           {/* Status Badge */}
-          {isCancelled ? (
-            <Badge className="bg-slate-100 hover:bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg px-2.5 py-1">Cancelled</Badge>
-          ) : isPending ? (
-            <Badge className="bg-amber-50 hover:bg-amber-50 text-amber-600 text-[10px] font-bold border border-amber-100 rounded-lg px-2.5 py-1">Pending host approval</Badge>
-          ) : isCompleted ? (
-            <Badge className="bg-emerald-50 hover:bg-emerald-50 text-emerald-600 text-[10px] font-bold border border-emerald-100 rounded-lg px-2.5 py-1">Visited</Badge>
-          ) : (
-            <Badge className="bg-primary/10 hover:bg-primary/15 text-primary text-[10px] font-bold border border-primary/20 rounded-lg px-2.5 py-1">Confirmed</Badge>
-          )}
+          <StatusBadge status={booking.status} />
         </div>
 
-        {/* Dynamic Reservation properties */}
+        {/* Reservation properties */}
         <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-50 text-xs">
           <div className="space-y-0.5">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">DATE & TIME</span>
@@ -359,22 +337,26 @@ function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelle
           <div className="space-y-0.5">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">TABLE INFO</span>
             <span className="font-bold text-slate-700 flex items-center gap-1">
-              <CalendarDays className="h-3 w-3 text-slate-400" />
-              {booking.table}
+              <Hash className="h-3 w-3 text-slate-400" />
+              {tableNames}
             </span>
           </div>
         </div>
 
-        {/* Booking ID and Barcode Indicator */}
+        {/* Booking ID and Amount */}
         <div className="flex justify-between items-center text-xs">
           <div className="space-y-0.5">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">RESERVATION ID</span>
-            <span className="font-mono text-slate-600 text-[11px] font-semibold">{booking.id}</span>
+            <span className="font-mono text-slate-600 text-[11px] font-semibold">{booking._id?.slice(-8).toUpperCase()}</span>
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">PRE-PAID SECURE</span>
-            <span className="font-bold text-slate-800">{booking.price}</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              {booking.paymentStatus === "paid" ? "PRE-PAID SECURE" : "AMOUNT"}
+            </span>
+            <span className="font-bold text-slate-800">
+              {booking.grandTotal > 0 ? `₹${booking.grandTotal}` : "Free"}
+            </span>
           </div>
         </div>
       </div>
@@ -383,41 +365,6 @@ function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelle
       <div className="pt-2 flex flex-wrap gap-2">
         {!isCancelled && !isPending && !isCompleted && (
           <>
-            {/* View QR Code ticket trigger */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="flex-1 rounded-xl gap-1.5 border-slate-200 text-slate-600 font-semibold">
-                  <QrCode className="h-4 w-4" />
-                  View Ticket
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-xs bg-white text-center flex flex-col items-center p-6 gap-4">
-                <DialogHeader className="w-full flex items-center justify-center">
-                  <DialogTitle className="text-slate-900 font-extrabold text-base">QR Check-In Ticket</DialogTitle>
-                </DialogHeader>
-
-                <div className="bg-slate-50 border border-slate-100 rounded-3xl p-5 shadow-inner">
-                  <div className="h-44 w-44 bg-white rounded-2xl flex items-center justify-center border shadow-sm p-3 relative overflow-hidden group select-none">
-                    {/* Mock QR matrix lines */}
-                    <div className="w-full h-full border-4 border-dashed border-slate-900/10 flex flex-col items-center justify-center gap-2">
-                      <div className="w-8 h-8 border-4 border-slate-900 rounded"></div>
-                      <div className="w-16 h-2 bg-slate-900 rounded"></div>
-                      <div className="w-10 h-10 border-4 border-slate-900 rounded-sm"></div>
-                      <div className="w-12 h-2 bg-slate-900 rounded"></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <h4 className="font-extrabold text-slate-900 text-sm">{booking.restaurantName}</h4>
-                  <p className="text-xs text-slate-500">{booking.date} • {booking.time}</p>
-                  <p className="font-mono text-[10px] font-semibold text-primary uppercase tracking-wider pt-2">CODE: {booking.code}</p>
-                </div>
-
-                <p className="text-[10px] text-slate-400 leading-snug">Present this QR code to the host desk at host stand to instantly check-in and seat your table.</p>
-              </DialogContent>
-            </Dialog>
-
             {/* Cancel booking prompt */}
             <Dialog>
               <DialogTrigger asChild>
@@ -430,10 +377,19 @@ function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelle
                 <DialogHeader>
                   <DialogTitle className="text-slate-950 font-extrabold">Cancel Reservation?</DialogTitle>
                 </DialogHeader>
-                <p className="text-slate-500 text-xs py-2 leading-relaxed">Are you sure you want to cancel your table at {booking.restaurantName}? This pre-paid transaction will be refunded inside your BookMyTable wallet balance instantly.</p>
+                <p className="text-slate-500 text-xs py-2 leading-relaxed">Are you sure you want to cancel your table at {restaurantName}?</p>
                 <DialogFooter className="gap-2 sm:gap-0">
                   <Button variant="ghost" size="sm" className="rounded-xl">Keep Booking</Button>
-                  <Button variant="destructive" size="sm" className="rounded-xl" onClick={onCancel}>Confirm Cancellation</Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    className="rounded-xl" 
+                    disabled={isCancelling}
+                    onClick={onCancel}
+                  >
+                    {isCancelling ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                    Confirm Cancellation
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -444,18 +400,17 @@ function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelle
           <Button 
             size="sm" 
             variant="outline" 
-            disabled={booking.reviewed}
             onClick={onReview}
             className="w-full rounded-xl gap-1.5 border-slate-200 text-slate-600 font-bold hover:border-primary/30 hover:bg-primary/5 hover:text-primary transition"
           >
             <MessageSquare className="h-4 w-4" />
-            {booking.reviewed ? "Feedback Submitted" : "Rate & Review Restaurant"}
+            Rate & Review Restaurant
           </Button>
         )}
 
-        {isCancelled && (
+        {isCancelled && restaurantSlug && (
           <Button asChild size="sm" variant="outline" className="w-full rounded-xl gap-1.5 border-slate-200 text-slate-600 font-bold">
-            <Link to={`/restaurant/${booking.restaurant?.slug || booking.restaurantId}`}>
+            <Link to={`/restaurant/${restaurantSlug}`}>
               <TrendingUp className="h-4 w-4" />
               Rebook Table
             </Link>
@@ -464,10 +419,40 @@ function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelle
 
         {isPending && (
           <Button size="sm" variant="outline" disabled className="w-full rounded-xl border-slate-100 text-slate-400 font-semibold">
-            Waiting for Host response...
+            Awaiting payment completion...
           </Button>
         )}
       </div>
     </motion.div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const styles = {
+    confirmed: "bg-primary/10 hover:bg-primary/15 text-primary border border-primary/20",
+    completed: "bg-emerald-50 hover:bg-emerald-50 text-emerald-600 border border-emerald-100",
+    cancelled: "bg-slate-100 hover:bg-slate-100 text-slate-600",
+    expired: "bg-slate-100 hover:bg-slate-100 text-slate-500",
+    pending: "bg-amber-50 hover:bg-amber-50 text-amber-600 border border-amber-100",
+    payment_pending: "bg-amber-50 hover:bg-amber-50 text-amber-600 border border-amber-100",
+    payment_failed: "bg-red-50 hover:bg-red-50 text-red-600 border border-red-100",
+    no_show: "bg-red-50 hover:bg-red-50 text-red-500 border border-red-100",
+  };
+
+  const labels = {
+    confirmed: "Confirmed",
+    completed: "Visited",
+    cancelled: "Cancelled",
+    expired: "Expired",
+    pending: "Pending",
+    payment_pending: "Awaiting Payment",
+    payment_failed: "Payment Failed",
+    no_show: "No Show",
+  };
+
+  return (
+    <Badge className={`text-[10px] font-bold rounded-lg px-2.5 py-1 ${styles[status] || styles.pending}`}>
+      {labels[status] || status}
+    </Badge>
   );
 }

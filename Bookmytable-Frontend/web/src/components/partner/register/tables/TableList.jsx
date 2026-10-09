@@ -39,42 +39,65 @@ export function TableList({ tables, onUpdate, onRemove, onDuplicate }) {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           {filteredTables.map((table) => (
-            <div key={table.id} className="flex items-center justify-between p-4 rounded-2xl border border-border bg-card shadow-sm group hover:border-primary/50 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-black text-sm border border-primary/20 shrink-0">
-                  {table.tableCode}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                     <Users className="h-3 w-3 text-muted-foreground" />
-                     <span className="text-sm font-bold text-foreground">{table.capacity} Seats</span>
+            <div 
+              key={table.id} 
+              className="p-3.5 sm:p-4 rounded-2xl border border-border bg-card shadow-sm hover:border-primary/40 hover:shadow-md transition-all flex flex-col justify-between gap-3 group"
+            >
+              <div className="flex items-start justify-between gap-2.5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-11 w-11 bg-primary/10 text-primary rounded-xl flex items-center justify-center font-black text-sm border border-primary/20 shrink-0">
+                    {table.tableCode}
                   </div>
-                  <Badge variant="outline" className="text-[10px] uppercase font-bold px-2 py-0 h-5 mt-1 border-border bg-muted/50">
-                    {table.type}
-                  </Badge>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span>{table.capacity} Seats</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Badge variant="outline" className="text-[10px] uppercase font-bold px-2 py-0 h-5 border-border bg-muted/50 shrink-0">
+                        {table.type?.replace("_dining", "") || table.type}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {table.price > 0 && (
+                    <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+                      ₹{table.price}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-0.5">
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => onDuplicate(table)}
+                      className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                      title="Duplicate"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => onRemove(table.id)}
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                      title="Remove"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => onDuplicate(table)}
-                  className="h-6 w-6 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                  title="Duplicate"
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => onRemove(table.id)}
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  title="Remove"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+
+              <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
+                <span className="font-medium truncate">
+                  {table.floorLabel || table.floor || "Ground Floor"} • {table.sectionLabel || table.section || "Couple Zone"}
+                </span>
               </div>
             </div>
           ))}

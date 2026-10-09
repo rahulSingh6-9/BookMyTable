@@ -5,6 +5,7 @@ import { invitationService } from "../services/invitation.service";
 import api from "../lib/api";
 import { useAdminAuth } from "../context/AuthContext";
 import { toast } from "sonner";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 const AdminAcceptInvite = () => {
   const [searchParams] = useSearchParams();
@@ -155,11 +156,8 @@ const AdminAcceptInvite = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-            <Shield className="w-6 h-6" />
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">BookMyTable</h1>
+        <div className="flex items-center justify-center mb-8">
+          <BrandLogo className="h-14 w-auto max-w-[180px] rounded" />
         </div>
 
         <div className="text-center mb-8">

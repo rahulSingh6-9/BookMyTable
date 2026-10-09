@@ -14,7 +14,7 @@ export function CheckoutDrawer({ restaurant }) {
   } = useCart();
 
   const [checkoutStep, setCheckoutStep] = useState("review"); // 'review' | 'payment' | 'processing' | 'success'
-  const [paymentMethod, setPaymentMethod] = useState("pay_at_restaurant");
+  const [paymentMethod, setPaymentMethod] = useState("upi");
   const [bookingId, setBookingId] = useState(null);
 
   const { date, time, guests, tableId, tableType } = reservationDetails;
@@ -176,14 +176,6 @@ export function CheckoutDrawer({ restaurant }) {
               <div>
                 <h4 className="text-sm font-bold text-foreground mb-3 uppercase tracking-wider">Select Payment Method</h4>
                 <div className="grid gap-3">
-                  <button onClick={() => setPaymentMethod("pay_at_restaurant")} className={cn("flex items-center gap-4 p-4 rounded-xl border text-left transition-all", paymentMethod === "pay_at_restaurant" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border bg-card hover:border-primary/30")}>
-                    <div className={cn("p-2.5 rounded-full shrink-0", paymentMethod === "pay_at_restaurant" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}><Receipt className="h-5 w-5" /></div>
-                    <div>
-                      <div className="font-bold text-foreground">Pay at Restaurant</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">Settle entire bill after dining</div>
-                    </div>
-                  </button>
-
                   <button onClick={() => setPaymentMethod("upi")} className={cn("flex items-center gap-4 p-4 rounded-xl border text-left transition-all", paymentMethod === "upi" ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border bg-card hover:border-primary/30")}>
                     <div className={cn("p-2.5 rounded-full shrink-0", paymentMethod === "upi" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}><Wallet className="h-5 w-5" /></div>
                     <div>

@@ -44,6 +44,7 @@ import NotFound from "./pages/NotFound";
 import PartnerWithUs from "./pages/PartnerWithUs";
 import { InfoLayout } from "@/components/layout/InfoLayout";
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { StandaloneLayout } from "@/components/layout/StandaloneLayout";
 import { ProfileLayout } from "@/components/layout/ProfileLayout";
 import ProfileBookings from "@/pages/profile/Bookings";
 import ProfileFavorites from "@/pages/profile/Favorites";
@@ -66,10 +67,13 @@ import VerifyBusinessEmail from "./pages/VerifyBusinessEmail";
 import StaffListPage from "./pages/staff/StaffListPage";
 import OwnerLogsPage from "./pages/logs/OwnerLogsPage";
 import NotAuthorized from "./pages/NotAuthorized";
+import GsapRestaurantIntro from "./pages/GsapRestaurantIntro";
 
 
 import ProtectedRoute from "@/routes/ProtectedRoute";
 import PermissionProtectedRoute from "@/routes/PermissionProtectedRoute";
+import ScrollToTop from "@/components/ScrollToTop";
+import { BarbaPageTransition } from "@/components/animation/BarbaPageTransition";
 
 
 const App = () => (
@@ -78,7 +82,17 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-      <Routes>
+      <ScrollToTop />
+      <BarbaPageTransition>
+        {(renderLocation) => (
+          <Routes location={renderLocation}>
+
+        {/* 🍽️ STANDALONE RESTAURANT EXPERIENCES (NO HEADER / FOOTER) */}
+        <Route element={<StandaloneLayout />}>
+          <Route path="/restaurant/:slug" element={<RestaurantDetail />} />
+          <Route path="/restaurant/:slug/book" element={<RestaurantBooking />} />
+          <Route path="/restaurant/:slug/checkout" element={<RestaurantCheckout />} />
+        </Route>
 
         {/* 🌍 PUBLIC ROUTES */}
         <Route element={<PublicLayout />}>
@@ -96,9 +110,6 @@ const App = () => (
                 </ProtectedRoute>} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/search" element={<RestaurantSearch />} />
-          <Route path="/restaurant/:slug" element={<RestaurantDetail />} />
-          <Route path="/restaurant/:slug/book" element={<RestaurantBooking />} />
-          <Route path="/restaurant/:slug/checkout" element={<RestaurantCheckout />} />
 
           {/* 🔥 Booking needs login */}
           <Route
@@ -214,6 +225,8 @@ const App = () => (
         <Route path="/branch/:branchId/*" element={
           <Navigate to="/discover" replace />
         } />
+        <Route path="/owner" element={<Navigate to="/brand" replace />} />
+        <Route path="/owner/*" element={<Navigate to="/brand" replace />} />
 
 
 
@@ -221,10 +234,15 @@ const App = () => (
         {/* 🔐 Access Denied */}
         <Route path="/not-authorized" element={<NotAuthorized />} />
 
+        {/* 🎬 CINEMATIC ANIMATION EXPERIMENT (Isolated, no layout) */}
+        <Route path="/gsap-restaurant-intro" element={<GsapRestaurantIntro />} />
+
         {/* ❌ 404 */}
         <Route path="*" element={<NotFound />} />
 
-      </Routes>
+          </Routes>
+        )}
+      </BarbaPageTransition>
       </BrowserRouter>
     </TooltipProvider>
   </CartProvider>

@@ -14,6 +14,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useLocationStore } from "@/store/useLocationStore";
 import { getHomepageSections, searchRestaurants, getCities } from "@/services/discovery.service";
+import { DiscoverCinematicHero } from "@/components/discover/DiscoverCinematicHero";
+import { DiscoverCinematicStory } from "@/components/discover/DiscoverCinematicStory";
+import { dummyRestaurants } from "@/lib/dummyRestaurants";
 
 // Static cuisine filters since there's no dedicated /cuisines API
 const CUISINE_FILTERS = [
@@ -103,8 +106,66 @@ export default function Discover() {
   // We can filter searchResults locally by rating/price to fulfill UI requirements since backend doesn't support it yet
   const filteredSearchResults = searchResults.filter(r => r.averageRating >= minRating);
 
+  // Pad search results with demo restaurants when real results are few
+  const augmentedSearchResults = (() => {
+    if (!isSearchActive) return [];
+    // Filter demo restaurants to match active filters
+    let demoFiltered = dummyRestaurants;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      demoFiltered = demoFiltered.filter(r =>
+        r.name.toLowerCase().includes(q) ||
+        (r.cuisine || "").toLowerCase().includes(q) ||
+        (Array.isArray(r.cuisines) && r.cuisines.some(c => c.toLowerCase().includes(q))) ||
+        (r.city || "").toLowerCase().includes(q)
+      );
+    }
+    if (activeCuisine !== "All") {
+      const q = activeCuisine.toLowerCase();
+      demoFiltered = demoFiltered.filter(r =>
+        (r.cuisine || "").toLowerCase() === q ||
+        (Array.isArray(r.cuisines) && r.cuisines.some(c => c.toLowerCase() === q))
+      );
+    }
+    if (selectedCity !== "All") {
+      demoFiltered = demoFiltered.filter(r => (r.city || "").toLowerCase() === selectedCity.toLowerCase());
+    }
+    demoFiltered = demoFiltered.filter(r => (r.averageRating || r.rating || 0) >= minRating);
+    // Combine: real first, then demo
+    const realIds = new Set(filteredSearchResults.map(r => r.restaurantId || r._id));
+    return [...filteredSearchResults, ...demoFiltered.slice(0, Math.max(12, 24 - filteredSearchResults.length))];
+  })();
+
+  // Pad each homepage section with demo restaurants
+  const augmentedSections = sections.map(section => ({
+    ...section,
+    items: (() => {
+      const real = section.items || [];
+      const usedDemoIds = new Set();
+      const demo = dummyRestaurants.filter(d => {
+        if (usedDemoIds.has(d.id)) return false;
+        usedDemoIds.add(d.id);
+        return true;
+      }).slice(0, Math.max(6, 12 - real.length));
+      return [...real, ...demo];
+    })()
+  }));
+
+  // If no real sections yet and data is loaded, create a fallback "Featured" section from demo data
+  const displaySections = augmentedSections.length > 0
+    ? augmentedSections
+    : (sectionsLoading ? [] : [{
+        id: "demo-featured",
+        title: "Featured Restaurants",
+        description: "Discover top dining experiences near you",
+        items: dummyRestaurants.slice(0, 12)
+      }]);
+
   return (
-    <div className="min-h-screen pt-16">
+    <div className="min-h-screen">
+      {/* 🌟 Full-Screen Edge-to-Edge Cinematic Hero */}
+      <DiscoverCinematicHero />
+
       <div className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-8 lg:px-8">
           <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 text-2xl font-bold text-foreground sm:text-3xl">
@@ -234,7 +295,7 @@ export default function Discover() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 lg:px-8">
+      <div className="container mx-auto px-4 pt-8 pb-2 lg:px-8">
         
         {/* Loading State */}
         {(sectionsLoading && !isSearchActive) || (searchLoading && isSearchActive) ? (
@@ -247,17 +308,17 @@ export default function Discover() {
           /* Search Results View */
           <>
             <div className="mb-8 text-sm text-muted-foreground">
-              {filteredSearchResults.length} restaurant{filteredSearchResults.length !== 1 ? "s" : ""} found
+              {augmentedSearchResults.length} restaurant{augmentedSearchResults.length !== 1 ? "s" : ""} found
             </div>
-            {filteredSearchResults.length === 0 ? (
+            {augmentedSearchResults.length === 0 ? (
               <div className="py-20 text-center border-2 border-dashed border-border/50 rounded-3xl bg-card">
                 <p className="text-lg font-medium text-foreground">No restaurants found</p>
                 <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredSearchResults.map((restaurant, i) => (
-                  <RestaurantCard key={restaurant.restaurantId || restaurant._id} restaurant={restaurant} index={i} />
+                {augmentedSearchResults.map((restaurant, i) => (
+                  <RestaurantCard key={restaurant.restaurantId || restaurant._id || restaurant.id} restaurant={restaurant} index={i} />
                 ))}
               </div>
             )}
@@ -265,13 +326,13 @@ export default function Discover() {
         ) : (
           /* Homepage Sections View (Default) */
           <div className="flex flex-col gap-12">
-            {sections.length === 0 ? (
+            {displaySections.length === 0 ? (
               <div className="py-20 text-center border-2 border-dashed border-border/50 rounded-3xl bg-card">
                 <p className="text-lg font-medium text-foreground">No restaurants nearby</p>
                 <p className="text-sm text-muted-foreground">Try changing your location or use the search bar</p>
               </div>
             ) : (
-              sections.map((section) => (
+              displaySections.map((section) => (
                 <section key={section.id} className="flex flex-col gap-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -286,7 +347,7 @@ export default function Discover() {
                   {/* Horizontal Scroll Layout (Exact same as Homepage) */}
                   <div className="flex overflow-x-auto gap-6 pb-6 pt-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 lg:-mx-8 lg:px-8">
                     {section.items.map((restaurant, i) => (
-                      <div key={restaurant.restaurantId || restaurant._id} className="min-w-[85vw] sm:min-w-[300px] max-w-[320px] shrink-0 snap-start">
+                      <div key={restaurant.restaurantId || restaurant._id || restaurant.id} className="w-[85vw] sm:w-[300px] shrink-0 snap-start flex flex-col">
                         <RestaurantCard restaurant={restaurant} index={i} />
                       </div>
                     ))}
@@ -297,6 +358,10 @@ export default function Discover() {
           </div>
         )}
       </div>
+
+      {/* 🌟 New Cinematic Scroll Section added after existing restaurant cards */}
+      <DiscoverCinematicStory />
+      
     </div>
   );
 }

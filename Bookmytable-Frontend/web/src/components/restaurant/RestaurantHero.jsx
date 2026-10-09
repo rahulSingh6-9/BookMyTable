@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, Heart, Share2, Star, MapPin, Phone, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,8 @@ import { useEffect, useState, Fragment } from "react";
 import { LightboxCarousel } from "./LightboxCarousel";
 
 export function RestaurantHero({ restaurant }) {
+  const navigate = useNavigate();
+
   // Compute Open/Closed status for the badge
   const todayStr = new Date().toISOString().split("T")[0];
   const DAYS_OF_WEEK = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -63,14 +65,17 @@ export function RestaurantHero({ restaurant }) {
         </div>
 
         {/* Top Nav Actions */}
-      <div className="absolute top-20 left-4 z-10">
-        <Link to="/search">
-          <Button variant="ghost" size="icon" className="bg-background/20 backdrop-blur-md text-white hover:bg-background/40 border border-white/20">
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-        </Link>
+      <div className="absolute top-4 left-4 z-10">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate(-1)}
+          className="bg-background/20 backdrop-blur-md text-white hover:bg-background/40 border border-white/20"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
       </div>
-      <div className="absolute top-20 right-4 z-10 flex gap-2">
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
         <Button 
           variant="ghost" 
           size="icon" 

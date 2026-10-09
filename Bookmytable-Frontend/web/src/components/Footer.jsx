@@ -3,7 +3,7 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 
 function Footer() {
   return (
-    <footer className="border-t bg-background pt-16 pb-8 border-border/40 px-6 sm:px-12 mt-20">
+    <footer className="border-t bg-background pt-16 pb-8 border-border/40 px-6 sm:px-12">
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-8 grid-cols-2 lg:grid-cols-5">
           <div className="col-span-2 lg:col-span-1">

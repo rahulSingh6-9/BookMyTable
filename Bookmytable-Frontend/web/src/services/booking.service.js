@@ -5,7 +5,23 @@ import apiClient from "../lib/api.js";
 // ──────────────────────────────────────────────
 
 /**
- * Create a new booking.
+ * Initiate an atomic table hold and create Razorpay payment order.
+ * @param {{ restaurantId, tableId?, tables?, date, time, guests, specialRequests?, cartItems?, paymentMethod? }} data
+ */
+export function initiateBookingHold(data) {
+  return apiClient.post("/booking/hold", data);
+}
+
+/**
+ * Release an active table hold (e.g. if user dismisses checkout).
+ * @param {string} bookingId
+ */
+export function releaseBookingHold(bookingId) {
+  return apiClient.post("/booking/release-hold", { bookingId });
+}
+
+/**
+ * Create a new booking (legacy / direct).
  * @param {{ restaurantId, tableId, date, time, guests, specialRequest? }} data
  */
 export function createBooking(data) {
@@ -14,12 +30,13 @@ export function createBooking(data) {
 
 /**
  * Get available slots for a restaurant on a specific date.
- * @param {string} restaurantId
+ * @param {string} branchSlug
  * @param {string} date
  * @param {number} guests
+ * @param {string} tableType
  */
 export function getRestaurantAvailability(branchSlug, date, guests, tableType) {
-  return apiClient.get(`/booking/public/availability/${branchSlug}`, { params: { date, guests, tableType } });
+  return apiClient.get(`/availability/${branchSlug}`, { params: { date, guests, tableType } });
 }
 
 /**
@@ -40,13 +57,14 @@ export function getBookingById(id) {
 /**
  * Cancel a booking.
  * @param {string} id
+ * @param {string} reason
  */
-export function cancelBooking(id) {
-  return apiClient.patch(`/bookings/${id}/cancel`);
+export function cancelBooking(id, reason = "") {
+  return apiClient.patch(`/bookings/${id}/cancel`, { reason });
 }
 
 /**
- * Get all bookings for a restaurant (owner/admin).
+ * Get all bookings for a restaurant (owner/staff/admin).
  * @param {string} restaurantId
  * @param {object} params - optional filters (date, status, etc.)
  */
@@ -55,7 +73,7 @@ export function getRestaurantBookings(restaurantId, params = {}) {
 }
 
 /**
- * Update booking status (owner/admin).
+ * Update booking status (owner/staff/admin).
  * @param {string} id
  * @param {string} status
  */

@@ -10,6 +10,14 @@ export const useFavoritesStore = create((set, get) => ({
   initialize: async () => {
     // Only initialize once to avoid redundant API calls
     if (get().isInitialized) return;
+
+    // Guest users don't have remote favorites; avoid sending unauthenticated 401 requests
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      set({ favoriteIds: [], isInitialized: true });
+      return;
+    }
+
     try {
       const res = await getFavorites();
       let favsData = [];
@@ -18,16 +26,34 @@ export const useFavoritesStore = create((set, get) => ({
       } else if (Array.isArray(res.data)) {
         favsData = res.data;
       }
+      const ids = [];
+      favsData.forEach((f) => {
+        if (f._id) ids.push(String(f._id));
+        if (f.restaurantId) ids.push(String(f.restaurantId));
+        if (f.id) ids.push(String(f.id));
+        if (f.discoveryId) ids.push(String(f.discoveryId));
+      });
       set({ 
-        favoriteIds: favsData.map((f) => f._id || f.id || f.restaurantId),
+        favoriteIds: [...new Set(ids)],
         isInitialized: true
       });
     } catch (error) {
       console.error("Failed to load favorites", error);
+      set({ isInitialized: true });
     }
   },
 
+  reset: () => {
+    set({ favoriteIds: [], pendingIds: [], isInitialized: false });
+  },
+
   toggleFavorite: async (id, name = "Restaurant") => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      toast.error("Please log in to save favorites");
+      return;
+    }
+
     if (get().pendingIds.includes(id)) return;
     
     set({ pendingIds: [...get().pendingIds, id] });
@@ -48,7 +74,11 @@ export const useFavoritesStore = create((set, get) => ({
       // Optimistic add
       set({ favoriteIds: [...get().favoriteIds, id] });
       try {
-        await apiAddFavorite(id);
+        const res = await apiAddFavorite(id);
+        if (res?.data?.restaurantId) {
+          const canonicalId = String(res.data.restaurantId);
+          set({ favoriteIds: [...new Set([...get().favoriteIds, canonicalId])] });
+        }
         toast.success(`Added ${name} to favorites`);
       } catch (err) {
         // Rollback

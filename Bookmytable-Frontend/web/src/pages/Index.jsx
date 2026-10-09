@@ -1,44 +1,14 @@
-import { useEffect } from "react";
-import { motion } from "framer-motion";
-import { ArrowRight, Utensils, Clock, Shield, TrendingUp } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { SmartSearch } from "@/components/SmartSearch";
-import { RestaurantCard } from "@/components/RestaurantCard";
-import heroImage from "@/assets/hero-restaurant.jpg";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import HeroCinematicCanvas from "@/components/HeroCinematicCanvas";
+import BookMyTableStorySection from "@/components/BookMyTableStorySection";
+import Table3DSection from "@/components/Table3DSection";
 import { useLocationStore } from "@/store/useLocationStore";
 import { getHomepageSections } from "@/services/discovery.service";
 
-const stats = [
-  { label: "Restaurants", value: "2,500+" },
-  { label: "Happy Diners", value: "150K+" },
-  { label: "Bookings Made", value: "1M+" },
-  { label: "Cities", value: "45" }
-];
-
-const features = [
-  {
-    icon: Clock,
-    title: "15-Second Booking",
-    description: "Find and book your table in seconds, not minutes. Our smart search understands what you want."
-  },
-  {
-    icon: Utensils,
-    title: "Curated Selection",
-    description: "Every restaurant is vetted for quality. Discover hidden gems and local favorites."
-  },
-  {
-    icon: Shield,
-    title: "Instant Confirmation",
-    description: "No more phone calls or waiting. Get instant booking confirmation with real-time availability."
-  },
-  {
-    icon: TrendingUp,
-    title: "For Restaurant Owners",
-    description: "Powerful dashboard to manage tables, track analytics, and grow your business."
-  }
-];
+gsap.registerPlugin(ScrollTrigger);
 
 function Index() {
   const { location, autoDetectLocation } = useLocationStore();
@@ -49,172 +19,119 @@ function Index() {
     }
   }, [location, autoDetectLocation]);
 
-  const { data: response, isLoading } = useQuery({
+  const { data: response } = useQuery({
     queryKey: ["homepage-sections", location.city, location.area, location.lat, location.lng],
-    queryFn: () => getHomepageSections({ city: location.city, area: location.area, lat: location.lat, lng: location.lng }),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryFn: () =>
+      getHomepageSections({
+        city: location.city,
+        area: location.area,
+        lat: location.lat,
+        lng: location.lng,
+      }),
+    staleTime: 5 * 60 * 1000,
   });
 
+  const heroRef = useRef(null);
+  const storyWrapperRef = useRef(null);
+  const table3dWrapperRef = useRef(null);
+
   const sections = response?.data?.data || [];
+  const featuredRestaurants = sections
+    .flatMap((s) => s.items || [])
+    .filter(Boolean)
+    .slice(0, 3);
 
-  return <div className="min-h-screen">
-      {/* Hero */}
-      <section className="relative overflow-hidden pt-16">
-        <div className="absolute inset-0">
-          <img
-            src={heroImage}
-            alt="Restaurant ambiance"
-            className="h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-foreground/80 via-foreground/60 to-foreground/30" />
-        </div>
+  // ─── Scroll-over transition: BookMyTableStorySection → Cinematic3DTable ───
+  //
+  // SEQUENCE:
+  //   1. HeroCinematicCanvas (pinned 0 → 500vh, pin spacer 600vh total)
+  //   2. BookMyTableStorySection (starts at 600vh, natural document flow, independent animation)
+  //   3. TRANSITION:
+  //      - 0 to 60vh: BookMyTableStorySection pins at "top top" for full viewing & hold.
+  //        Content and primary red stroke complete naturally; Table3DSection is held off-screen below.
+  //      - 60vh to 160vh: Table3DSection (zIndex: 20, marginTop: -100vh) physically rises upward
+  //        from below the viewport, cleanly covering/overlapping the pinned Story section underneath.
+  //   4. Cinematic3DTable: When Table3D reaches top of viewport (160vh), Story pin releases,
+  //      and Table3DSection's own ScrollTrigger (start: "top top") takes over seamlessly.
+  //
+  useEffect(() => {
+    const storyEl = storyWrapperRef.current;
+    if (!storyEl) return;
 
-        <div className="relative container mx-auto px-4 py-24 lg:px-8 lg:py-36">
-          <div className="max-w-2xl">
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="mb-4 text-4xl font-bold text-primary-foreground sm:text-5xl lg:text-6xl"
-              style={{ letterSpacing: "-0.03em" }}
-            >
-              Tables found,
-              <br />
-              <span className="text-primary">not searched.</span>
-            </motion.h1>
+    // Pin BookMyTableStorySection from "top top" for 160vh of scroll distance.
+    // pinSpacing: true — GSAP inserts a spacer div to keep the document flow
+    // intact so that Table3DSection (which follows in the DOM) stays at its
+    // correct position relative to the viewport during the pin.
+    const transitionST = ScrollTrigger.create({
+      trigger: storyEl,
+      start: "top top",
+      end: "+=160%",
+      pin: true,
+      pinSpacing: true,
+      anticipatePin: 1,
+      invalidateOnRefresh: true,
+    });
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15, duration: 0.5 }}
-              className="mb-8 max-w-lg text-lg text-primary-foreground/70"
-            >
-              Discover and book the perfect table in seconds. Real-time availability, instant confirmation, zero hassle.
-            </motion.p>
+    const timer = setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 200);
 
-            <div className="max-w-xl">
-              <SmartSearch />
-            </div>
+    const onResize = () => {
+      ScrollTrigger.refresh();
+    };
+    window.addEventListener("resize", onResize);
 
-            {/* Stats */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="mt-12 flex flex-wrap gap-8"
-            >
-              {stats.map((stat) => <div key={stat.label}>
-                  <div className="text-2xl font-bold text-primary-foreground">{stat.value}</div>
-                  <div className="text-sm text-primary-foreground/50">{stat.label}</div>
-                </div>)}
-            </motion.div>
-          </div>
-        </div>
+    return () => {
+      transitionST.kill();
+      clearTimeout(timer);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [featuredRestaurants]);
+
+  return (
+    <div className="min-h-screen">
+      {/*
+        1. HERO — z-index: 1
+        GSAP (inside HeroCinematicCanvas) pins this element for the
+        scroll range 0 → 500vh, creating a 600vh pin spacer in the doc flow.
+        During the pin, the section is position:fixed at the top.
+        After the pin, it restores to position:relative at its natural doc position.
+      */}
+      <section
+        ref={heroRef}
+        data-hero
+        className="relative overflow-hidden w-full"
+        style={{ height: "100vh", zIndex: 1 }}
+      >
+        <HeroCinematicCanvas triggerRef={heroRef} restaurants={featuredRestaurants} />
       </section>
 
-      {/* Featured Categorized Sections */}
-      <section className="py-16 lg:py-24 space-y-16 overflow-hidden min-h-[500px]">
-        {isLoading ? (
-          <div className="container mx-auto px-4 lg:px-8 text-center text-muted-foreground">
-            <div className="animate-pulse flex flex-col space-y-4">
-              <div className="h-8 bg-muted w-1/4 rounded"></div>
-              <div className="flex gap-4 overflow-hidden">
-                <div className="h-64 bg-muted min-w-[300px] rounded-lg"></div>
-                <div className="h-64 bg-muted min-w-[300px] rounded-lg"></div>
-                <div className="h-64 bg-muted min-w-[300px] rounded-lg"></div>
-              </div>
-            </div>
-          </div>
-        ) : sections.length > 0 ? (
-          sections.map((section) => (
-            <div key={section.id} className="container mx-auto px-4 lg:px-8">
-              <div className="mb-8 flex items-end justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground sm:text-3xl">{section.title}</h2>
-                  <p className="mt-1 text-muted-foreground">{section.description}</p>
-                </div>
-                <Link to={`/search?collection=${section.id}`}>
-                  <Button variant="ghost" className="hidden gap-1 sm:inline-flex">
-                    Explore All <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
-
-              {/* Horizontal Scroll Layout */}
-              <div className="flex overflow-x-auto gap-6 pb-6 pt-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 lg:-mx-8 lg:px-8">
-                {section.items.map((restaurant, i) => (
-                  <div key={restaurant.restaurantId || restaurant._id} className="min-w-[85vw] sm:min-w-[300px] max-w-[320px] shrink-0 snap-start">
-                    <RestaurantCard restaurant={restaurant} index={i} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="container mx-auto px-4 lg:px-8 text-center py-12">
-            <h3 className="text-xl font-medium text-foreground">No restaurants found in this area.</h3>
-            <p className="text-muted-foreground mt-2">Try searching a different location or check back later!</p>
-          </div>
-        )}
+      {/*
+        2. BOOKMYTABLE EDITORIAL STORY SECTION — Independent section
+        In natural document flow immediately after HeroCinematicCanvas.
+        Has its own independent ScrollTrigger animation (blur reveal & primary red stroke).
+        Pins at 'top top' for a 60vh viewing hold, then acts as the base layer
+        underneath the rising Table3DSection.
+      */}
+      <section ref={storyWrapperRef} className="relative z-10 w-full min-h-screen">
+        <BookMyTableStorySection />
       </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="bg-secondary/50 py-16 lg:py-24">
-        <div className="container mx-auto px-4 lg:px-8">
-          <div className="mb-12 text-center">
-            <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Why BookMyTable?</h2>
-            <p className="mt-2 text-muted-foreground">Built for speed, designed for delight</p>
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map((feature, i) => <motion.div
-              key={feature.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="rounded-lg bg-card p-6 shadow-card"
-            >
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
-                  <feature.icon className="h-5 w-5 text-primary" />
-                </div>
-                <h3 className="mb-2 font-semibold text-card-foreground">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground">{feature.description}</p>
-              </motion.div>)}
-          </div>
-        </div>
+      {/*
+        3. CINEMATIC 3D TABLE SECTION
+        Physically rises upward from below to overlap and cover BookMyTableStorySection
+        (marginTop: -100vh). When Table3D reaches the top of the viewport (top top),
+        the Story pin releases, and Table3D's own internal ScrollTrigger takes over seamlessly.
+      */}
+      <section
+        ref={table3dWrapperRef}
+        className="relative z-20 shadow-[0_-30px_70px_rgba(0,0,0,0.7)]"
+        style={{ marginTop: "-100vh", marginBottom: "-100vh", willChange: "transform" }}
+      >
+        <Table3DSection />
       </section>
-
-      {/* CTA */}
-      <section className="container mx-auto px-4 py-16 text-center lg:px-8 lg:py-24">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          className="rounded-2xl bg-foreground px-8 py-16"
-        >
-          <h2 className="mb-4 text-2xl font-bold text-primary-foreground sm:text-3xl">
-            Ready to find your table?
-          </h2>
-          <p className="mb-8 text-primary-foreground/60">
-            Join 150,000+ diners who book smarter, not harder.
-          </p>
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link to="/search">
-              <Button size="lg" className="gap-2">
-                Start Exploring <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link to="/partner-with-us">
-              <Button size="lg" variant="outline" className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10">
-                For Restaurant Owners
-              </Button>
-            </Link>
-          </div>
-        </motion.div>
-      </section>
-    </div>;
+    </div>
+  );
 }
-export {
-  Index as default
-};
+
+export { Index as default };
