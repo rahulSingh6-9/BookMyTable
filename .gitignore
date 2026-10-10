@@ -11,9 +11,11 @@ lerna-debug.log*
 node_modules/
 
 # ───── Environment Files ─────
-.env
-.env.local
-*.local
+# Ignore all .env files to protect secrets (all modes/stages)
+.env*
+# But allow .env.example template files to be tracked
+!.env.example
+.env.example
 
 # ───── Build Outputs ─────
 dist/
