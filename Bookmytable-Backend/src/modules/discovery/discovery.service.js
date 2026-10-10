@@ -7,17 +7,26 @@ import Table from "../../models/table.model.js";
 
 export const getHomepageSectionsData = async ({ city, area, lat, lng }) => {
   const baseQuery = { status: "approved", isActive: true, isDeleted: false };
-  if (city) baseQuery.city = new RegExp(`^${city}$`, "i");
-  if (area) baseQuery.area = new RegExp(`^${area}$`, "i");
+  if (city && city.trim()) baseQuery.city = new RegExp(`^${city.trim()}$`, "i");
+  if (area && area.trim()) baseQuery.area = new RegExp(`^${area.trim()}$`, "i");
 
   let geoQuery = null;
-  if (lat && lng) {
+  const parsedLat = parseFloat(lat);
+  const parsedLng = parseFloat(lng);
+  if (
+    !isNaN(parsedLat) &&
+    !isNaN(parsedLng) &&
+    parsedLat >= -90 &&
+    parsedLat <= 90 &&
+    parsedLng >= -180 &&
+    parsedLng <= 180
+  ) {
     geoQuery = {
       location: {
         $near: {
           $geometry: {
             type: "Point",
-            coordinates: [parseFloat(lng), parseFloat(lat)],
+            coordinates: [parsedLng, parsedLat],
           },
           $maxDistance: 15000, // 15km
         },

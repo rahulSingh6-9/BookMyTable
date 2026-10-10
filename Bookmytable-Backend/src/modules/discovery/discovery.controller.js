@@ -2,19 +2,19 @@ import * as DiscoveryService from "./discovery.service.js";
 
 // @route   GET /api/v1/discovery/homepage-sections
 // @desc    Get aggregated sections for homepage
-export const getHomepageSections = async (req, res) => {
+export const getHomepageSections = async (req, res, next) => {
   try {
     const sections = await DiscoveryService.getHomepageSectionsData(req.query);
     res.status(200).json({ success: true, data: sections });
   } catch (error) {
-    console.error("Discovery getHomepageSections Error:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    console.error("❌ [Discovery getHomepageSections Error]:", error.message || error);
+    next(error);
   }
 };
 
 // @route   GET /api/v1/discovery/search
 // @desc    Search restaurants by text, area, cuisine, city
-export const searchRestaurants = async (req, res) => {
+export const searchRestaurants = async (req, res, next) => {
   try {
     const data = await DiscoveryService.searchRestaurantsData(req.query);
     res.status(200).json({
@@ -27,20 +27,20 @@ export const searchRestaurants = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Discovery searchRestaurants Error:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    console.error("❌ [Discovery searchRestaurants Error]:", error.message || error);
+    next(error);
   }
 };
 
 // @route   GET /api/v1/discovery/cities
 // @desc    Get a list of distinct cities where active restaurants exist
-export const getCities = async (req, res) => {
+export const getCities = async (req, res, next) => {
   try {
     const cities = await DiscoveryService.getCitiesData();
     res.status(200).json({ success: true, data: cities });
   } catch (error) {
-    console.error("Discovery getCities Error:", error);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    console.error("❌ [Discovery getCities Error]:", error.message || error);
+    next(error);
   }
 };
 
