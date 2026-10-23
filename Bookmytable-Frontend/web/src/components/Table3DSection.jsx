@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, Suspense, lazy } from "react";
+import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Link } from "react-router-dom";
@@ -12,10 +12,9 @@ import {
   CheckCircle2 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Table3DViewer from "@/components/Table3DViewer";
 
 gsap.registerPlugin(ScrollTrigger);
-
-const Table3DViewer = lazy(() => import("@/components/Table3DViewer"));
 
 export default function Table3DSection() {
   const sectionRef = useRef(null);
@@ -33,108 +32,105 @@ export default function Table3DSection() {
     const section = sectionRef.current;
     if (!section) return;
 
-    // Check reduced motion
-    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (prefersReduced) {
-      if (s1Ref.current) gsap.set(s1Ref.current, { autoAlpha: 1 });
-      if (s2Ref.current) gsap.set(s2Ref.current, { autoAlpha: 0 });
-      if (s3Ref.current) gsap.set(s3Ref.current, { autoAlpha: 0 });
-      if (s4Ref.current) gsap.set(s4Ref.current, { autoAlpha: 0 });
-      return;
-    }
+    const ctx = gsap.context(() => {
+      // Check reduced motion
+      const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (prefersReduced) {
+        if (s1Ref.current) gsap.set(s1Ref.current, { autoAlpha: 1 });
+        if (s2Ref.current) gsap.set(s2Ref.current, { autoAlpha: 0 });
+        if (s3Ref.current) gsap.set(s3Ref.current, { autoAlpha: 0 });
+        if (s4Ref.current) gsap.set(s4Ref.current, { autoAlpha: 0 });
+        return;
+      }
 
-    // Set initial text states
-    if (s1Ref.current) gsap.set(s1Ref.current, { autoAlpha: 1, y: 0 });
-    if (s2Ref.current) gsap.set(s2Ref.current, { autoAlpha: 0, y: 26 });
-    if (s3Ref.current) gsap.set(s3Ref.current, { autoAlpha: 0, y: 26 });
-    if (s4Ref.current) gsap.set(s4Ref.current, { autoAlpha: 0, y: 26 });
+      // Set initial text states
+      if (s1Ref.current) gsap.set(s1Ref.current, { autoAlpha: 1, y: 0 });
+      if (s2Ref.current) gsap.set(s2Ref.current, { autoAlpha: 0, y: 26 });
+      if (s3Ref.current) gsap.set(s3Ref.current, { autoAlpha: 0, y: 26 });
+      if (s4Ref.current) gsap.set(s4Ref.current, { autoAlpha: 0, y: 26 });
 
-    // Single unified Master Timeline with ScrollTrigger pinned stage
-    const master = gsap.timeline({
-      scrollTrigger: {
-        trigger: section,
-        start: "top top",
-        end: "+=400%",
-        pin: true,
-        scrub: 0.9,
-        anticipatePin: 1,
-        invalidateOnRefresh: true,
-        onUpdate(self) {
-          const p = self.progress;
-          scrollProgressRef.current = p;
+      // Single unified Master Timeline with ScrollTrigger pinned stage
+      const master = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: "top top",
+          end: "+=400%",
+          pin: true,
+          scrub: 0.9,
+          anticipatePin: 1,
+          invalidateOnRefresh: true,
+          onUpdate(self) {
+            const p = self.progress;
+            scrollProgressRef.current = p;
 
-          // Update HUD progress line
-          if (progressBarRef.current) {
-            progressBarRef.current.style.width = `${(p * 100).toFixed(1)}%`;
-          }
+            // Update HUD progress line
+            if (progressBarRef.current) {
+              progressBarRef.current.style.width = `${(p * 100).toFixed(1)}%`;
+            }
 
-          // Active story tracker (0 to 3)
-          let idx = 0;
-          if (p >= 0.76) idx = 3;
-          else if (p >= 0.50) idx = 2;
-          else if (p >= 0.24) idx = 1;
-          setActiveStoryIndex(idx);
+            // Active story tracker (0 to 3)
+            let idx = 0;
+            if (p >= 0.76) idx = 3;
+            else if (p >= 0.50) idx = 2;
+            else if (p >= 0.24) idx = 1;
+            setActiveStoryIndex(idx);
+          },
         },
-      },
-    });
+      });
 
-    // Anchor: defines normalized duration of 1.0
-    master.to({}, { duration: 1 }, 0);
+      // Anchor: defines normalized duration of 1.0
+      master.to({}, { duration: 1 }, 0);
 
-    // ── STORY 01: THE DINING EXPERIENCE (0.00 – 0.24) ──
-    // Starts visible at 0.00, holds until 0.17, exits upward
-    if (s1Ref.current) {
-      master.to(
-        s1Ref.current,
-        { autoAlpha: 0, y: -24, ease: "power1.in", duration: 0.07 },
-        0.17
-      );
-    }
+      // ── STORY 01: THE DINING EXPERIENCE (0.00 – 0.24) ──
+      if (s1Ref.current) {
+        master.to(
+          s1Ref.current,
+          { autoAlpha: 0, y: -24, ease: "power1.in", duration: 0.07 },
+          0.17
+        );
+      }
 
-    // ── STORY 02: ATMOSPHERE & PROXIMITY (0.26 – 0.50) ──
-    // Enters 0.26 – 0.33, holds until 0.43, exits upward
-    if (s2Ref.current) {
-      master.fromTo(
-        s2Ref.current,
-        { autoAlpha: 0, y: 26 },
-        { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.07 },
-        0.26
-      ).to(
-        s2Ref.current,
-        { autoAlpha: 0, y: -24, ease: "power1.in", duration: 0.07 },
-        0.43
-      );
-    }
+      // ── STORY 02: ATMOSPHERE & PROXIMITY (0.26 – 0.50) ──
+      if (s2Ref.current) {
+        master.fromTo(
+          s2Ref.current,
+          { autoAlpha: 0, y: 26 },
+          { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.07 },
+          0.26
+        ).to(
+          s2Ref.current,
+          { autoAlpha: 0, y: -24, ease: "power1.in", duration: 0.07 },
+          0.43
+        );
+      }
 
-    // ── STORY 03: YOUR TABLE (0.52 – 0.76) ──
-    // Enters 0.52 – 0.59, holds until 0.69, exits upward
-    if (s3Ref.current) {
-      master.fromTo(
-        s3Ref.current,
-        { autoAlpha: 0, y: 26 },
-        { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.07 },
-        0.52
-      ).to(
-        s3Ref.current,
-        { autoAlpha: 0, y: -24, ease: "power1.in", duration: 0.07 },
-        0.69
-      );
-    }
+      // ── STORY 03: YOUR TABLE (0.52 – 0.76) ──
+      if (s3Ref.current) {
+        master.fromTo(
+          s3Ref.current,
+          { autoAlpha: 0, y: 26 },
+          { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.07 },
+          0.52
+        ).to(
+          s3Ref.current,
+          { autoAlpha: 0, y: -24, ease: "power1.in", duration: 0.07 },
+          0.69
+        );
+      }
 
-    // ── STORY 04: BOOK WITH CONFIDENCE (0.78 – 1.00) ──
-    // Enters 0.78 – 0.86, holds through end of scroll
-    if (s4Ref.current) {
-      master.fromTo(
-        s4Ref.current,
-        { autoAlpha: 0, y: 26 },
-        { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.08 },
-        0.78
-      );
-    }
+      // ── STORY 04: BOOK WITH CONFIDENCE (0.78 – 1.00) ──
+      if (s4Ref.current) {
+        master.fromTo(
+          s4Ref.current,
+          { autoAlpha: 0, y: 26 },
+          { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.08 },
+          0.78
+        );
+      }
+    }, section);
 
     return () => {
-      master.scrollTrigger?.kill();
-      master.kill();
+      ctx.revert();
     };
   }, []);
 
@@ -168,15 +164,7 @@ export default function Table3DSection() {
     >
       {/* ── PERSISTENT 3D DINING ENVIRONMENT CANVAS (STAGE) ── */}
       <div className="absolute inset-0 z-0">
-        <Suspense
-          fallback={
-            <div className="w-full h-full flex items-center justify-center bg-[#0a0806]">
-              <div className="w-12 h-12 rounded-full border-2 border-[#c8a46e]/20 border-t-[#c8a46e] animate-spin" />
-            </div>
-          }
-        >
-          <Table3DViewer scrollProgressRef={scrollProgressRef} />
-        </Suspense>
+        <Table3DViewer scrollProgressRef={scrollProgressRef} />
       </div>
 
 

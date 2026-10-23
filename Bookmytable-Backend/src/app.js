@@ -12,6 +12,21 @@ const app = express();
 // Trust proxy for secure headers behind Vercel / reverse proxy
 app.set("trust proxy", 1);
 
+// URL normalization: restore path if incoming request was rewritten to entrypoint by edge proxy
+app.use((req, res, next) => {
+  const urlPath = req.url.split("?")[0];
+  if (urlPath === "/server.js" || urlPath === "/index.js" || urlPath === "/app.js") {
+    const originalPath = req.headers["x-matched-path"] || req.headers["x-invoke-path"] || req.headers["x-now-route-matches"];
+    if (originalPath) {
+      const queryIdx = req.url.indexOf("?");
+      const query = queryIdx !== -1 ? req.url.slice(queryIdx) : "";
+      req.url = originalPath + query;
+      req.originalUrl = req.url;
+    }
+  }
+  next();
+});
+
 // CORS Configuration
 const allowedOrigins = [
   "http://localhost:3000",

@@ -243,6 +243,16 @@ export default function Table3DViewer({ scrollProgressRef }) {
     };
     window.addEventListener("pointermove", onPointerMove, { passive: true });
 
+    // IntersectionObserver to pause heavy WebGL rendering when section is offscreen
+    let isVisible = true;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+      },
+      { rootMargin: "300px 0px 300px 0px" }
+    );
+    observer.observe(container);
+
     // 8. Dynamic Animation Loop with GSAP Scroll Lerp
     const currentCamPos = new THREE.Vector3(...initialWp.pos);
     const currentLookAt = new THREE.Vector3(...initialWp.target);
@@ -251,6 +261,9 @@ export default function Table3DViewer({ scrollProgressRef }) {
     function animate() {
       if (isDisposed) return;
       animFrameIdRef.current = requestAnimationFrame(animate);
+
+      // Skip render calculations when offscreen
+      if (!isVisible) return;
 
       // Read live scroll progress from parent GSAP ScrollTrigger
       const p = scrollProgressRef?.current ?? 0;
@@ -298,9 +311,8 @@ export default function Table3DViewer({ scrollProgressRef }) {
     // 9. Resize Observer
     const handleResize = () => {
       if (!container || !camera || !renderer) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      if (w === 0 || h === 0) return;
+      const w = container.clientWidth || window.innerWidth;
+      const h = container.clientHeight || window.innerHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -313,6 +325,7 @@ export default function Table3DViewer({ scrollProgressRef }) {
 
     return () => {
       isDisposed = true;
+      observer.disconnect();
       resizeObserver.disconnect();
       window.removeEventListener("pointermove", onPointerMove);
       if (animFrameIdRef.current) {

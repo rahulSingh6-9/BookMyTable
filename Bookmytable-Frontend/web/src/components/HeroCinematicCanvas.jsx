@@ -51,62 +51,70 @@ function HeroRestaurantStream({ restaurants, isActive }) {
     let lastTime = performance.now();
 
     function loop(time) {
-      animId = requestAnimationFrame(loop);
+      if (!isActive) return;
+
       const dt = Math.min((time - lastTime) / 1000, 0.1);
       lastTime = time;
 
-      if (!isActive || isHoveredRef.current) return;
+      if (!isHoveredRef.current) {
+        const container = containerRef.current;
+        const W = container ? container.clientWidth : window.innerWidth;
+        const pool = poolRef.current;
+        const cards = cardsRef.current;
 
-      const container = containerRef.current;
-      const W = container ? container.clientWidth : window.innerWidth;
-      const pool = poolRef.current;
-      const cards = cardsRef.current;
+        for (let i = 0; i < POOL_SIZE; i++) {
+          const item = pool[i];
+          const elem = cards[i];
+          if (!elem) continue;
 
-      for (let i = 0; i < POOL_SIZE; i++) {
-        const item = pool[i];
-        const elem = cards[i];
-        if (!elem) continue;
+          item.x -= STREAM_SPEED * dt;
 
-        item.x -= STREAM_SPEED * dt;
+          // When a card moves beyond left boundary, recycle to right
+          if (item.x < -PITCH - 40) {
+            let maxX = -Infinity;
+            for (let j = 0; j < POOL_SIZE; j++) {
+              if (j !== i && pool[j].x > maxX) {
+                maxX = pool[j].x;
+              }
+            }
+            item.x = maxX + PITCH;
+            item.rIndex = dataPtrRef.current % Math.max(1, restaurants.length);
+            dataPtrRef.current++;
 
-        // When a card moves beyond left boundary, recycle to right
-        if (item.x < -PITCH - 40) {
-          let maxX = -Infinity;
-          for (let j = 0; j < POOL_SIZE; j++) {
-            if (j !== i && pool[j].x > maxX) {
-              maxX = pool[j].x;
+            // Update card DOM in place
+            const r = restaurants[item.rIndex];
+            if (r) {
+              const img = elem.querySelector(".stream-card-img");
+              if (img && (r.coverImage || r.image)) img.src = r.coverImage || r.image;
+              const title = elem.querySelector(".stream-card-title");
+              if (title) title.textContent = r.name || "Curated Dining";
+              const meta = elem.querySelector(".stream-card-meta");
+              if (meta) meta.textContent = `${r.city || "Mumbai"} · ${r.cuisine || "Fine Dining"}`;
+              const rating = elem.querySelector(".stream-card-rating");
+              if (rating) rating.textContent = r.averageRating?.toFixed(1) || r.rating || "4.8";
+              const price = elem.querySelector(".stream-card-price");
+              if (price) price.textContent = r.priceRange || "$$$";
+              const link = elem.querySelector(".stream-card-link");
+              if (link) link.href = `/restaurant/${r.slug || r.restaurantId || r.id}`;
             }
           }
-          item.x = maxX + PITCH;
-          item.rIndex = dataPtrRef.current % Math.max(1, restaurants.length);
-          dataPtrRef.current++;
 
-          // Update card DOM in place
-          const r = restaurants[item.rIndex];
-          if (r) {
-            const img = elem.querySelector(".stream-card-img");
-            if (img && (r.coverImage || r.image)) img.src = r.coverImage || r.image;
-            const title = elem.querySelector(".stream-card-title");
-            if (title) title.textContent = r.name || "Curated Dining";
-            const meta = elem.querySelector(".stream-card-meta");
-            if (meta) meta.textContent = `${r.city || "Mumbai"} · ${r.cuisine || "Fine Dining"}`;
-            const rating = elem.querySelector(".stream-card-rating");
-            if (rating) rating.textContent = r.averageRating?.toFixed(1) || r.rating || "4.8";
-            const price = elem.querySelector(".stream-card-price");
-            if (price) price.textContent = r.priceRange || "$$$";
-            const link = elem.querySelector(".stream-card-link");
-            if (link) link.href = `/restaurant/${r.slug || r.restaurantId || r.id}`;
-          }
+          elem.style.transform = `translate3d(${item.x}px, 0px, 0)`;
+          elem.style.opacity = "1";
         }
-
-        // Full opacity throughout horizontal journey — zero right/left edge fading
-        elem.style.transform = `translate3d(${item.x}px, 0px, 0)`;
-        elem.style.opacity = "1";
       }
+
+      animId = requestAnimationFrame(loop);
     }
 
-    animId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animId);
+    if (isActive) {
+      lastTime = performance.now();
+      animId = requestAnimationFrame(loop);
+    }
+
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+    };
   }, [isActive, restaurants]);
 
   return (
@@ -166,6 +174,16 @@ function HeroRestaurantStream({ restaurants, isActive }) {
   );
 }
 
+function BrandName() {
+  return (
+    <span className="inline-block tracking-normal">
+      <span style={{ color: "#ffffff" }}>Book</span>
+      <span style={{ color: "hsl(var(--primary))" }}>My</span>
+      <span style={{ color: "#ffffff" }}>Table</span>
+    </span>
+  );
+}
+
 /**
  * HeroCinematicCanvas
  *
@@ -205,6 +223,7 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
       targetFrame:  0,
       lastPainted:  -1,
       rafId:        null,
+      isAnimating:  false,
     };
 
     // ── Canvas sizing ─────────────────────────────────────────────────────────
@@ -255,21 +274,28 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
       s.lastPainted = idx;
     }
 
-    // ── RAF lerp loop ─────────────────────────────────────────────────────────
-    function startRaf() {
-      function loop() {
+    // ── On-demand RAF lerp loop (Pauses when stationary) ──────────────────────
+    function requestFrameUpdate() {
+      if (!s.isAnimating) {
+        s.isAnimating = true;
         s.rafId = requestAnimationFrame(loop);
-        const diff = s.targetFrame - s.currentFrame;
-        s.currentFrame = Math.abs(diff) < SNAP_THRESHOLD
-          ? s.targetFrame
-          : s.currentFrame + diff * LERP_FACTOR;
-        const rounded = Math.round(s.currentFrame);
-        if (rounded !== s.lastPainted) paintFrame(rounded);
       }
-      loop();
     }
 
-    // ── Image preloader ───────────────────────────────────────────────────────
+    function loop() {
+      const diff = s.targetFrame - s.currentFrame;
+      if (Math.abs(diff) < SNAP_THRESHOLD) {
+        s.currentFrame = s.targetFrame;
+        s.isAnimating = false;
+      } else {
+        s.currentFrame += diff * LERP_FACTOR;
+        s.rafId = requestAnimationFrame(loop);
+      }
+      const rounded = Math.round(s.currentFrame);
+      if (rounded !== s.lastPainted) paintFrame(rounded);
+    }
+
+    // ── Bounded Progressive Image Preloader ────────────────────────────────────
     let loadAborted = false;
 
     function loadOne(i) {
@@ -279,35 +305,47 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
         const img = new Image();
         img.decoding = "async";
         img.onload = () => {
-          const finish = () => {
-            if (!loadAborted) { imgCache[i] = img; loadState[i] = 2; }
-            resolve();
-          };
-          typeof img.decode === "function"
-            ? img.decode().then(finish).catch(finish)
-            : finish();
+          if (!loadAborted) {
+            imgCache[i] = img;
+            loadState[i] = 2;
+          }
+          resolve();
         };
-        img.onerror = () => { loadState[i] = 0; resolve(); };
+        img.onerror = () => {
+          loadState[i] = 0;
+          resolve();
+        };
         img.src = frameSrc(i);
         imgCache[i] = img;
       });
     }
 
     async function preload() {
-      // Phase 1: first 5 frames sequential for instantaneous first paint
-      for (let i = 0; i < Math.min(5, FRAME_COUNT) && !loadAborted; i++) {
+      // Phase 1: first 10 frames sequential for immediate first paint
+      for (let i = 0; i < Math.min(10, FRAME_COUNT) && !loadAborted; i++) {
         await loadOne(i);
         if (i === 0) paintFrame(0);
       }
-      // Phase 2: next 25 in parallel
-      if (!loadAborted) {
-        await Promise.all(Array.from({ length: 25 }, (_, k) => loadOne(5 + k)));
+
+      // Phase 2: key frames (every 3rd frame) in small batches of 6 for rapid initial scroll coverage
+      const keyFrames = [];
+      for (let i = 10; i < FRAME_COUNT; i += 3) {
+        keyFrames.push(i);
       }
-      // Phase 3: remainder in batches of 30
-      for (let b = 30; b < FRAME_COUNT && !loadAborted; b += 30) {
-        await Promise.all(
-          Array.from({ length: Math.min(30, FRAME_COUNT - b) }, (_, k) => loadOne(b + k))
-        );
+      for (let b = 0; b < keyFrames.length && !loadAborted; b += 6) {
+        const batch = keyFrames.slice(b, b + 6);
+        await Promise.all(batch.map((i) => loadOne(i)));
+        await new Promise((r) => setTimeout(r, 20));
+      }
+
+      // Phase 3: remaining missing frames in small idle batches
+      for (let i = 0; i < FRAME_COUNT && !loadAborted; i++) {
+        if (loadState[i] === 0) {
+          await loadOne(i);
+          if (i % 6 === 0) {
+            await new Promise((r) => setTimeout(r, 30));
+          }
+        }
       }
     }
 
@@ -324,7 +362,7 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
 
     // Boot canvas
     sizeCanvas();
-    startRaf();
+    paintFrame(0);
     preload();
 
     if (prefersReduced) {
@@ -336,25 +374,20 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
       if (cardsContainerRef.current) gsap.set(cardsContainerRef.current, { autoAlpha: 1, y: 0 });
       return () => {
         loadAborted = true;
-        cancelAnimationFrame(s.rafId);
+        if (s.rafId) cancelAnimationFrame(s.rafId);
         clearTimeout(resizeTimer);
         window.removeEventListener("resize", onResize);
       };
     }
 
     // ── Initial setup of text states ─────────────────────────────────────────
-    // State 1 starts fully visible by default
     if (s1Ref.current) gsap.set(s1Ref.current, { autoAlpha: 1, y: 0 });
-    // States 2, 3, 4 start hidden below
     if (s2Ref.current) gsap.set(s2Ref.current, { autoAlpha: 0, y: 26 });
     if (s3Ref.current) gsap.set(s3Ref.current, { autoAlpha: 0, y: 26 });
     if (s4Ref.current) gsap.set(s4Ref.current, { autoAlpha: 0, y: 26 });
     if (cardsContainerRef.current) gsap.set(cardsContainerRef.current, { autoAlpha: 0, y: 25 });
 
-    let hasRevealedCards = false;
-
     // ── SINGLE MASTER GSAP TIMELINE + SCROLLTRIGGER ──────────────────────────
-    // Controls both the camera frame progress and the 4 text states seamlessly.
     const master = gsap.timeline({
       scrollTrigger: {
         trigger:             targetSection,
@@ -365,30 +398,12 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
         anticipatePin:       1,
         invalidateOnRefresh: true,
         onUpdate(self) {
-          // Camera frames advance during 0.00 – 0.58, then clamp to final frame for cards & transition
           const cinematicProgress = Math.max(0, Math.min(1, self.progress / 0.58));
           s.targetFrame = Math.round(cinematicProgress * (FRAME_COUNT - 1));
-          // Nav stays dark until nav actually leaves HeroCinematicCanvas
-          const isComplete = self.progress >= 1.0;
+          requestFrameUpdate();
 
-          // ── One-Time Card Reveal (Unscrubbed) ──────────────────────────────────
-          // When scroll reaches trigger point (0.58), play a smooth reveal tween ONCE.
-          // Cards reach opacity: 1 and stay there permanently — not continuously scrubbed by scroll.
-          if (self.progress >= 0.58) {
-            setIsStreamActive(true);
-            if (!hasRevealedCards) {
-              hasRevealedCards = true;
-              if (cardsContainerRef.current) {
-                gsap.to(cardsContainerRef.current, {
-                  autoAlpha: 1,
-                  y: 0,
-                  duration: 0.8,
-                  ease: "power2.out",
-                  overwrite: "auto",
-                });
-              }
-            }
-          }
+          const isComplete = self.progress >= 1.0;
+          setIsStreamActive(self.progress >= 0.58);
 
           window.dispatchEvent(
             new CustomEvent("cinematic-scroll-progress", {
@@ -397,6 +412,7 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
           );
         },
         onLeave() {
+          loadAborted = true;
           setIsStreamActive(false);
           window.dispatchEvent(
             new CustomEvent("cinematic-scroll-progress", {
@@ -406,6 +422,10 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
         },
         onEnterBack() {
           setIsStreamActive(true);
+          if (loadAborted) {
+            loadAborted = false;
+            preload();
+          }
           window.dispatchEvent(
             new CustomEvent("cinematic-scroll-progress", {
               detail: { isComplete: false, progress: 0.95 },
@@ -419,8 +439,6 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
     master.to({}, { duration: 1 }, 0);
 
     // ── STATE 1: CENTER / INTRODUCTION ───────────────────────────────────────
-    // 0.00 – 0.12: holds fully visible
-    // 0.12 – 0.17: fades & moves up gracefully
     if (s1Ref.current) {
       master.to(
         s1Ref.current,
@@ -430,9 +448,6 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
     }
 
     // ── STATE 2: LOWER-LEFT / DISCOVER ───────────────────────────────────────
-    // 0.18 – 0.23: enters from bottom
-    // 0.23 – 0.29: holds visible
-    // 0.29 – 0.34: exits upward
     if (s2Ref.current) {
       master.fromTo(
         s2Ref.current,
@@ -447,9 +462,6 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
     }
 
     // ── STATE 3: LOWER-LEFT / CHOOSE ─────────────────────────────────────────
-    // 0.35 – 0.40: enters from bottom
-    // 0.40 – 0.46: holds visible
-    // 0.46 – 0.51: exits upward
     if (s3Ref.current) {
       master.fromTo(
         s3Ref.current,
@@ -464,9 +476,6 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
     }
 
     // ── STATE 4: LOWER-RIGHT / BOOK & CTA ────────────────────────────────────
-    // 0.51 – 0.55: enters from bottom
-    // 0.55 – 0.57: holds visible
-    // 0.57 – 0.60: exits upward as restaurant card stream emerges
     if (s4Ref.current) {
       master.fromTo(
         s4Ref.current,
@@ -480,12 +489,23 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
       );
     }
 
+    // ── FINAL MOMENT: FEATURED DISCOVERIES & STREAM (0.58 – 1.00) ────────────
+    // Fully reversible with scroll: reveals at 0.58 on scroll down, disappears on reverse scroll up
+    if (cardsContainerRef.current) {
+      master.fromTo(
+        cardsContainerRef.current,
+        { autoAlpha: 0, y: 25 },
+        { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.06 },
+        0.58
+      );
+    }
+
     return () => {
       loadAborted = true;
       if (cardsContainerRef.current) gsap.killTweensOf(cardsContainerRef.current);
       master.scrollTrigger?.kill();
       master.kill();
-      cancelAnimationFrame(s.rafId);
+      if (s.rafId) cancelAnimationFrame(s.rafId);
       clearTimeout(resizeTimer);
       window.removeEventListener("resize", onResize);
     };
@@ -503,7 +523,7 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
         />
         <div className="absolute inset-0 flex items-center justify-center text-center p-6 bg-black/40">
           <div>
-            <span style={eyStyle}>BookMyTable</span>
+            <span style={eyStyle}><BrandName /></span>
             <h1 style={{ ...headStyle, fontSize: "clamp(34px, 5vw, 68px)" }}>
               Discover your next <em style={{ fontStyle: "italic" }}>dining experience</em>
             </h1>
@@ -521,11 +541,12 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
     display:       "block",
     fontFamily:    "'Public Sans', system-ui, -apple-system, sans-serif",
     fontSize:      "clamp(10px, 1.05vw, 12px)",
-    fontWeight:    500,
+    fontWeight:    600,
     letterSpacing: "0.28em",
     textTransform: "uppercase",
-    color:         "#c8a46e", // Warm brass/gold from reference image
+    color:         "#e8ca98", // Luminous warm champagne-gold with clear accessible contrast
     marginBottom:  "clamp(10px, 1.5vh, 18px)",
+    textShadow:    "0 1px 8px rgba(0,0,0,0.75)",
   };
 
   const headStyle = {
@@ -601,7 +622,7 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
               marginBottom: "5vh",
             }}
           >
-            <span style={eyStyle}>BookMyTable</span>
+            <span style={eyStyle}><BrandName /></span>
             <h1 style={{ ...headStyle, fontSize: lgHead }}>
               Discover your next<br />
               <em style={{ fontStyle: "italic" }}>dining experience</em>
@@ -693,7 +714,10 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
         >
           {/* Header */}
           <div className="text-center mb-8 px-4">
-            <span style={eyStyle}>BookMyTable &nbsp;·&nbsp; Featured Discoveries</span>
+            <span style={eyStyle}>
+              <BrandName />
+              <span style={{ color: "#e8ca98" }}>&nbsp;·&nbsp;Featured Discoveries</span>
+            </span>
             <h3
               style={{
                 ...headStyle,

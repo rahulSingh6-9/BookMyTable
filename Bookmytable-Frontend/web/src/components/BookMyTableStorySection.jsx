@@ -85,7 +85,7 @@ function WavyReserveButton() {
 
     if (prefersReducedMotion) return;
 
-    // Lightweight continuous GSAP ticker for liquid wave motion
+    // Continuous lightweight GSAP ticker for liquid wave motion (idle and hover)
     const onTick = () => {
       stateRef.current.phase += 0.04;
       const { t, phase } = stateRef.current;
@@ -96,9 +96,19 @@ function WavyReserveButton() {
 
     gsap.ticker.add(onTick);
 
+    const btn = buttonRef.current;
+    if (btn) {
+      btn.addEventListener("pointerenter", handleMouseEnter);
+      btn.addEventListener("pointerleave", handleMouseLeave);
+    }
+
     return () => {
       gsap.ticker.remove(onTick);
       if (hoverTlRef.current) hoverTlRef.current.kill();
+      if (btn) {
+        btn.removeEventListener("pointerenter", handleMouseEnter);
+        btn.removeEventListener("pointerleave", handleMouseLeave);
+      }
     };
   }, []);
 
@@ -113,6 +123,13 @@ function WavyReserveButton() {
 
     if (hoverTlRef.current) hoverTlRef.current.kill();
 
+    gsap.to([textRef.current, iconRef.current], {
+      color: "#FFFFFF",
+      duration: 0.55,
+      ease: "power2.inOut",
+      overwrite: "auto",
+    });
+
     const proxy = { t: stateRef.current.t };
     hoverTlRef.current = gsap.to(proxy, {
       t: 1,
@@ -120,12 +137,6 @@ function WavyReserveButton() {
       ease: "power2.inOut",
       onUpdate: () => {
         stateRef.current.t = proxy.t;
-        // Transition text & icon color from dark (#18181B) to white (#FFFFFF) in sync with fill
-        const whiteRatio = proxy.t;
-        const grayVal = Math.round(24 + (255 - 24) * whiteRatio);
-        const rgbColor = `rgb(${grayVal}, ${grayVal}, ${grayVal})`;
-        if (textRef.current) textRef.current.style.color = rgbColor;
-        if (iconRef.current) iconRef.current.style.color = rgbColor;
       },
     });
   };
@@ -141,6 +152,13 @@ function WavyReserveButton() {
 
     if (hoverTlRef.current) hoverTlRef.current.kill();
 
+    gsap.to([textRef.current, iconRef.current], {
+      color: "#18181B",
+      duration: 0.5,
+      ease: "power2.inOut",
+      overwrite: "auto",
+    });
+
     const proxy = { t: stateRef.current.t };
     hoverTlRef.current = gsap.to(proxy, {
       t: 0,
@@ -148,11 +166,6 @@ function WavyReserveButton() {
       ease: "power2.inOut",
       onUpdate: () => {
         stateRef.current.t = proxy.t;
-        const whiteRatio = proxy.t;
-        const grayVal = Math.round(24 + (255 - 24) * whiteRatio);
-        const rgbColor = `rgb(${grayVal}, ${grayVal}, ${grayVal})`;
-        if (textRef.current) textRef.current.style.color = rgbColor;
-        if (iconRef.current) iconRef.current.style.color = rgbColor;
       },
     });
   };
@@ -186,14 +199,14 @@ function WavyReserveButton() {
         {/* Text + icon sit above wave with z-index: 1 */}
         <span
           ref={textRef}
-          className="relative font-bold tracking-tight transition-colors"
+          className="relative font-bold tracking-tight"
           style={{ zIndex: 1, color: "#18181B" }}
         >
           Reserve a table
         </span>
         <span
           ref={iconRef}
-          className="relative inline-flex items-center transition-colors"
+          className="relative inline-flex items-center"
           style={{ zIndex: 1, color: "#18181B" }}
         >
           <ArrowRight className="w-4 h-4" />

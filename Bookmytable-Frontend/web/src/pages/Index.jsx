@@ -45,58 +45,42 @@ function Index() {
   //
   // SEQUENCE:
   //   1. HeroCinematicCanvas (pinned 0 → 500vh, pin spacer 600vh total)
-  //   2. BookMyTableStorySection (starts at 600vh, natural document flow, independent animation)
+  //   2. BookMyTableStorySection (starts at 600vh, natural document flow)
   //   3. TRANSITION:
-  //      - 0 to 60vh: BookMyTableStorySection pins at "top top" for full viewing & hold.
-  //        Content and primary red stroke complete naturally; Table3DSection is held off-screen below.
-  //      - 60vh to 160vh: Table3DSection (zIndex: 20, marginTop: -100vh) physically rises upward
-  //        from below the viewport, cleanly covering/overlapping the pinned Story section underneath.
-  //   4. Cinematic3DTable: When Table3D reaches top of viewport (160vh), Story pin releases,
-  //      and Table3DSection's own ScrollTrigger (start: "top top") takes over seamlessly.
+  //      - storyEl pins at "top top" for 100vh with pinSpacing: false.
+  //      - Table3DSection (zIndex: 20) naturally scrolls upward from below to overlap
+  //        and cover storyEl completely.
+  //   4. Cinematic3DTable: When Table3D reaches top of viewport (700vh total scroll),
+  //      storyEl pin releases, and Table3DSection's own ScrollTrigger takes over seamlessly.
   //
   useEffect(() => {
     const storyEl = storyWrapperRef.current;
     if (!storyEl) return;
 
-    // Pin BookMyTableStorySection from "top top" for 160vh of scroll distance.
-    // pinSpacing: true — GSAP inserts a spacer div to keep the document flow
-    // intact so that Table3DSection (which follows in the DOM) stays at its
-    // correct position relative to the viewport during the pin.
     const transitionST = ScrollTrigger.create({
       trigger: storyEl,
       start: "top top",
-      end: "+=160%",
+      end: "+=100%",
       pin: true,
-      pinSpacing: true,
+      pinSpacing: false,
       anticipatePin: 1,
       invalidateOnRefresh: true,
     });
 
-    const timer = setTimeout(() => {
-      ScrollTrigger.refresh();
-    }, 200);
-
     const onResize = () => {
       ScrollTrigger.refresh();
     };
-    window.addEventListener("resize", onResize);
+    window.addEventListener("resize", onResize, { passive: true });
 
     return () => {
       transitionST.kill();
-      clearTimeout(timer);
       window.removeEventListener("resize", onResize);
     };
-  }, [featuredRestaurants]);
+  }, []);
 
   return (
     <div className="min-h-screen">
-      {/*
-        1. HERO — z-index: 1
-        GSAP (inside HeroCinematicCanvas) pins this element for the
-        scroll range 0 → 500vh, creating a 600vh pin spacer in the doc flow.
-        During the pin, the section is position:fixed at the top.
-        After the pin, it restores to position:relative at its natural doc position.
-      */}
+      {/* 1. HERO */}
       <section
         ref={heroRef}
         data-hero
@@ -106,30 +90,20 @@ function Index() {
         <HeroCinematicCanvas triggerRef={heroRef} restaurants={featuredRestaurants} />
       </section>
 
-      {/*
-        2. BOOKMYTABLE EDITORIAL STORY SECTION — Independent section
-        In natural document flow immediately after HeroCinematicCanvas.
-        Has its own independent ScrollTrigger animation (blur reveal & primary red stroke).
-        Pins at 'top top' for a 60vh viewing hold, then acts as the base layer
-        underneath the rising Table3DSection.
-      */}
+      {/* 2. BOOKMYTABLE EDITORIAL STORY SECTION */}
       <section ref={storyWrapperRef} className="relative z-10 w-full min-h-screen">
         <BookMyTableStorySection />
       </section>
 
+      {/* 3. CINEMATIC 3D TABLE SECTION */}
       {/*
-        3. CINEMATIC 3D TABLE SECTION
-        Physically rises upward from below to overlap and cover BookMyTableStorySection
-        (marginTop: -100vh). When Table3D reaches the top of the viewport (top top),
-        the Story pin releases, and Table3D's own internal ScrollTrigger takes over seamlessly.
-      */}
       <section
         ref={table3dWrapperRef}
         className="relative z-20 shadow-[0_-30px_70px_rgba(0,0,0,0.7)]"
-        style={{ marginTop: "-100vh", marginBottom: "-100vh", willChange: "transform" }}
       >
         <Table3DSection />
       </section>
+      */}
     </div>
   );
 }
