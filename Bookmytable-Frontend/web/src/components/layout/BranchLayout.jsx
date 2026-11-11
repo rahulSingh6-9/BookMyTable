@@ -1,15 +1,21 @@
+import { useRef } from "react";
 import { Outlet } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { BranchSidebar } from "@/components/layout/BranchSidebar";
-import { Navbar } from "@/components/Navbar";
+import { useBranchScrollReveal } from "@/hooks/useBranchScrollReveal";
 
 export function BranchLayout() {
+  const mainRef = useRef(null);
+  useBranchScrollReveal(mainRef);
+
   return (
-    <>
-      <Navbar />
-      <DashboardLayout sidebar={<BranchSidebar />} showFooter={false}>
-        <Outlet />
-      </DashboardLayout>
-    </>
+    <DashboardLayout 
+      sidebar={<BranchSidebar />} 
+      showFooter={false} 
+      showNavbarPadding={false}
+      mainRef={mainRef}
+    >
+      <Outlet />
+    </DashboardLayout>
   );
 }

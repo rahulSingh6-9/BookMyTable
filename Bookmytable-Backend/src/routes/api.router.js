@@ -24,6 +24,7 @@ import staffRoutes from "../modules/staff/staff.routes.js";
 import aiRoutes from "../modules/ai/routes/ai.routes.js";
 import paymentRoutes from "../modules/payments/payment.routes.js";
 import adminRoutes from "../modules/admin/index.routes.js";
+import reviewRoutes from "../modules/review/review.routes.js";
 
 // Specific public controllers
 import { validateInviteController, acceptInviteController } from "../modules/staff/staff.controller.js";
@@ -69,6 +70,7 @@ router.use("/memberships", membershipRoutes);
 router.use("/booking", bookingRoutes);
 router.use("/bookings", bookingRoutes);
 router.use("/payments", paymentRoutes);
+router.use("/reviews", reviewRoutes);
 router.use("/restaurants/subscriptions", subscriptionRoutes);
 router.use("/subscriptions", subscriptionRoutes);
 router.use("/restaurants", restaurantRoutes);

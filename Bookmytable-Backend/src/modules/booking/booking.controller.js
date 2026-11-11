@@ -7,6 +7,8 @@ import {
   getRestaurantBookingsService,
   updateBookingStatusService,
   createReservation,
+  getBookingQRService,
+  verifyAndCheckInBookingService,
 } from "./booking.service.js";
 
 /**
@@ -207,6 +209,85 @@ export const createBooking = async (req, res) => {
       success: false,
       code: error.code,
       message: error.message || "Internal server error",
+    });
+  }
+};
+
+/**
+ * GET /api/booking/:id/qr
+ * Retrieves QR code details for a confirmed booking (Customer)
+ */
+export const getBookingQR = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        code: "AUTHENTICATION_REQUIRED",
+        message: "Please login to view booking QR code.",
+      });
+    }
+
+    const qrDetails = await getBookingQRService(id, userId);
+
+    return res.status(200).json({
+      success: true,
+      data: qrDetails,
+    });
+  } catch (error) {
+    const status = error.statusCode || 400;
+    return res.status(status).json({
+      success: false,
+      code: error.code || "QR_FETCH_FAILED",
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * POST /api/booking/check-in/verify
+ * Validates scanned QR token, verifies branch authorization and records check-in (Staff)
+ */
+export const verifyCheckIn = async (req, res) => {
+  try {
+    const staffUserId = req.user?.id;
+    const { token } = req.body;
+
+    if (!staffUserId) {
+      return res.status(401).json({
+        success: false,
+        code: "AUTHENTICATION_REQUIRED",
+        message: "Staff authentication required.",
+      });
+    }
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        code: "TOKEN_REQUIRED",
+        message: "QR code token is required.",
+      });
+    }
+
+    const verificationResult = await verifyAndCheckInBookingService({
+      token,
+      staffUserId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Booking Successfully Verified",
+      data: verificationResult,
+    });
+  } catch (error) {
+    const status = error.statusCode || 400;
+    return res.status(status).json({
+      success: false,
+      code: error.code || "CHECKIN_FAILED",
+      message: error.message,
+      data: error.data || undefined,
     });
   }
 };

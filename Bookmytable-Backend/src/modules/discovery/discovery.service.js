@@ -321,6 +321,7 @@ export const syncRestaurantToDiscovery = async (restaurantId) => {
       tags: restaurant.tags || raw.tags || [],
       averageRating: restaurant.averageRating ?? raw.averageRating ?? 0,
       totalReviews: restaurant.totalReviews ?? raw.totalReviews ?? 0,
+      ratingBreakdown: restaurant.ratingBreakdown || raw.ratingBreakdown || { food: 0, ambience: 0, service: 0 },
       logo: restaurant.logo || raw.logo || "",
       coverImage: restaurant.coverImage || raw.coverImage || (raw.images && raw.images[0]) || "",
       phone: restaurant.contact?.primaryPhone?.number || raw.contactInfo?.primaryPhone?.number || restaurant.phone || raw.phone || "",

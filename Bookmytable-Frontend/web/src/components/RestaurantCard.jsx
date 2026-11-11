@@ -1,3 +1,4 @@
+import { socket } from "@/services/socket";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -9,10 +10,35 @@ import { DemoRestaurantModal } from "@/components/common/DemoRestaurantModal";
 import { useUserLocation, calculateDistance } from "@/hooks/useUserLocation";
 
 
-function RestaurantCard({ restaurant, index = 0 }) {
+function RestaurantCard({ restaurant, index = 0, disableInitialAnimation = false }) {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
   const { favoriteIds, toggleFavorite, initialize } = useFavoritesStore();
   const { location: userLocation } = useUserLocation();
+  const [liveRating, setLiveRating] = useState(restaurant.averageRating ?? 0);
+  const [liveReviews, setLiveReviews] = useState(restaurant.totalReviews ?? restaurant.reviewCount ?? 0);
+
+  useEffect(() => {
+    setLiveRating(restaurant.averageRating ?? 0);
+    setLiveReviews(restaurant.totalReviews ?? restaurant.reviewCount ?? 0);
+  }, [restaurant.averageRating, restaurant.totalReviews, restaurant.reviewCount]);
+
+  useEffect(() => {
+    const targetId = String(restaurant.restaurantId || restaurant._id || restaurant.id);
+    const handleRatingUpdate = (payload) => {
+      if (payload?.restaurantId && String(payload.restaurantId) === targetId) {
+        setLiveRating(payload.averageRating);
+        setLiveReviews(payload.totalReviews);
+      }
+    };
+
+    socket.on("restaurant_rating_updated", handleRatingUpdate);
+    socket.on("discovery_rating_updated", handleRatingUpdate);
+
+    return () => {
+      socket.off("restaurant_rating_updated", handleRatingUpdate);
+      socket.off("discovery_rating_updated", handleRatingUpdate);
+    };
+  }, [restaurant._id, restaurant.restaurantId, restaurant.id]);
 
   useEffect(() => {
     initialize();
@@ -67,9 +93,9 @@ function RestaurantCard({ restaurant, index = 0 }) {
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.08, duration: 0.4 }}
+        initial={disableInitialAnimation ? false : { opacity: 0, y: 20 }}
+        animate={disableInitialAnimation ? undefined : { opacity: 1, y: 0 }}
+        transition={disableInitialAnimation ? undefined : { delay: index * 0.08, duration: 0.4 }}
         whileHover={{ y: -4 }}
         className="group w-full h-full flex flex-col"
       >
@@ -80,7 +106,7 @@ function RestaurantCard({ restaurant, index = 0 }) {
         >
           <div className="w-full h-full flex-1 flex flex-col overflow-hidden rounded-lg bg-card shadow-card transition-shadow duration-300 group-hover:shadow-elevated border border-border/40">
             {/* Image */}
-            <div className="relative h-48 w-full overflow-hidden bg-muted shrink-0">
+            <div className="relative h-28 sm:h-48 w-full overflow-hidden bg-muted shrink-0">
               <img
                 src={restaurant.coverImage || restaurant.image || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80"}
                 alt={restaurant.name}
@@ -116,15 +142,27 @@ function RestaurantCard({ restaurant, index = 0 }) {
             </div>
 
             {/* Content */}
-            <div className="p-4 flex-1 flex flex-col justify-between gap-3">
+            <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between gap-2 sm:gap-3">
               <div>
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <h3 className="font-semibold text-card-foreground truncate">{restaurant.name}</h3>
-                  <div className="flex items-center gap-1 text-sm shrink-0">
-                    <Star className="h-3.5 w-3.5 fill-primary text-primary" />
-                    <span className="font-medium text-card-foreground">{restaurant.averageRating?.toFixed ? restaurant.averageRating.toFixed(1) : restaurant.averageRating || restaurant.rating || "New"}</span>
-                    <span className="text-muted-foreground">({restaurant.totalReviews || restaurant.reviewCount || 0})</span>
-                  </div>
+                  {liveReviews > 0 && liveRating > 0 ? (
+                    <div className="flex items-center gap-1 text-sm shrink-0">
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+                      <span className="font-bold text-card-foreground font-mono">
+                        {Number(liveRating).toFixed(1)}
+                      </span>
+                      <span className="text-muted-foreground text-xs font-medium">
+                        ({liveReviews})
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 text-xs shrink-0">
+                      <span className="bg-secondary text-muted-foreground px-1.5 py-0.5 rounded text-[11px] font-semibold">
+                        New
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <p className="text-sm text-muted-foreground truncate">
@@ -132,7 +170,7 @@ function RestaurantCard({ restaurant, index = 0 }) {
                 </p>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-1.5 sm:space-y-2.5">
                 <div className="flex items-center justify-between text-xs text-muted-foreground gap-2">
                   <div className="flex items-center gap-1 truncate min-w-0">
                     <MapPin className="h-3 w-3 shrink-0" />
@@ -148,8 +186,8 @@ function RestaurantCard({ restaurant, index = 0 }) {
                   )}
                 </div>
 
-                {/* Available time slots */}
-                <div className="flex flex-wrap gap-1.5 h-6 overflow-hidden">
+                {/* Available time slots — hidden on mobile to keep card compact */}
+                <div className="hidden sm:flex flex-wrap gap-1.5 h-6 overflow-hidden">
                   {restaurant.availableSlots?.slice(0, 3).map((slot) => (
                     <span
                       key={slot}

@@ -120,7 +120,7 @@ export function BrandSidebar() {
   const basePath = `/brand/${activeBrandSlug}`;
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="pt-0">
       <SidebarHeader className={cn(
         "border-b border-border py-2 transition-all",
         collapsed ? "flex flex-col items-center justify-center gap-3 px-2" : "px-3 flex flex-col gap-2"

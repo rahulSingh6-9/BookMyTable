@@ -1,4 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 import { motion } from "framer-motion";
 import { Search, SlidersHorizontal, MapPin, Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +28,8 @@ const CUISINE_FILTERS = [
 ];
 
 export default function Discover() {
+  const pageContainerRef = useRef(null);
+  const cardsContainerRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
   
   // Extract initial state from URL or default
@@ -161,18 +167,127 @@ export default function Discover() {
         items: dummyRestaurants.slice(0, 12)
       }]);
 
+  // GSAP ScrollTrigger Fade-Up Animations for Find Restaurants through Restaurant Sections
+  useLayoutEffect(() => {
+    const container = pageContainerRef.current;
+    if (!container) return;
+
+    const ctx = gsap.context(() => {
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      // Reusable helper to animate elements smoothly when their individual viewport trigger is reached
+      const animateFadeUp = (el, options = {}) => {
+        if (!el) return;
+        const {
+          y = 70,
+          duration = 1.2,
+          delay = 0,
+          start = "top 85%",
+        } = options;
+
+        if (prefersReducedMotion) {
+          gsap.set(el, { opacity: 1, y: 0 });
+          return;
+        }
+
+        gsap.set(el, { opacity: 0, y });
+
+        gsap.to(el, {
+          scrollTrigger: {
+            trigger: el,
+            start,
+            once: true,
+            invalidateOnRefresh: true,
+          },
+          opacity: 1,
+          y: 0,
+          duration,
+          delay,
+          ease: "power3.out",
+          clearProps: "transform",
+        });
+      };
+
+      // 1. "Find Restaurants" Header, Search Bar Controls & Cuisine Filter Pills
+      const findHeading = container.querySelector(".discover-find-heading");
+      const searchControls = container.querySelector(".discover-search-controls");
+      const cuisinePills = container.querySelector(".discover-cuisine-pills");
+
+      if (findHeading) animateFadeUp(findHeading, { start: "top 85%" });
+      if (searchControls) animateFadeUp(searchControls, { delay: 0.1, start: "top 85%" });
+      if (cuisinePills) animateFadeUp(cuisinePills, { delay: 0.15, start: "top 85%" });
+
+      // 2. Sections, Search Results & Cards (when loaded)
+      const isLoading = (sectionsLoading && !isSearchActive) || (searchLoading && isSearchActive);
+      if (!isLoading) {
+        // Individual Section Headers in Default Homepage Sections View
+        const sectionHeaders = container.querySelectorAll(".discover-section-header");
+        sectionHeaders.forEach((header) => {
+          const title = header.querySelector(".discover-section-title");
+          const desc = header.querySelector(".discover-section-desc");
+          const btn = header.querySelector(".discover-section-btn");
+
+          if (title) animateFadeUp(title, { start: "top 85%" });
+          if (desc) animateFadeUp(desc, { delay: 0.1, start: "top 85%" });
+          if (btn) animateFadeUp(btn, { delay: 0.16, start: "top 85%" });
+        });
+
+        // Search count or empty states in search view
+        const searchCount = container.querySelector(".discover-search-count");
+        if (searchCount) animateFadeUp(searchCount, { start: "top 85%" });
+
+        const emptyStates = container.querySelectorAll(".discover-empty-state");
+        emptyStates.forEach((empty) => animateFadeUp(empty, { start: "top 85%" }));
+
+        // Restaurant cards batch reveal (existing)
+        const cards = container.querySelectorAll(".discover-card");
+        if (cards && cards.length > 0) {
+          if (prefersReducedMotion) {
+            gsap.set(cards, { opacity: 1, y: 0 });
+          } else {
+            gsap.set(cards, { opacity: 0, y: 80 });
+
+            ScrollTrigger.batch(cards, {
+              start: "top 90%",
+              once: true,
+              onEnter: (batch) => {
+                gsap.to(batch, {
+                  opacity: 1,
+                  y: 0,
+                  duration: 1.3,
+                  ease: "power3.out",
+                  stagger: 0.14,
+                  overwrite: "auto",
+                  onComplete: function () {
+                    gsap.set(this.targets(), { clearProps: "transform" });
+                  },
+                });
+              },
+            });
+          }
+        }
+      }
+
+      ScrollTrigger.refresh();
+    }, container);
+
+    return () => {
+      ctx.revert();
+    };
+  }, [augmentedSearchResults, displaySections, isSearchActive, sectionsLoading, searchLoading]);
+
   return (
-    <div className="min-h-screen">
+    <div ref={pageContainerRef} className="min-h-screen">
       {/* 🌟 Full-Screen Edge-to-Edge Cinematic Hero */}
       <DiscoverCinematicHero />
 
       <div className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-8 lg:px-8">
-          <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 text-2xl font-bold text-foreground sm:text-3xl">
+          <h1 className="discover-find-heading mb-6 text-2xl font-bold text-foreground sm:text-3xl">
             Find Restaurants
-          </motion.h1>
+          </h1>
 
-          <div className="mb-6 flex gap-3">
+          <div className="discover-search-controls mb-6 flex gap-3">
             <div className="flex-1">
               <SearchBar value={search} onChange={setSearch} placeholder="Search restaurants, cuisines, or locations..." />
             </div>
@@ -281,7 +396,7 @@ export default function Discover() {
             </Popover>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="discover-cuisine-pills flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {CUISINE_FILTERS.map((c) => (
               <button
                 key={c}
@@ -295,7 +410,7 @@ export default function Discover() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 pt-8 pb-2 lg:px-8">
+      <div ref={cardsContainerRef} className="container mx-auto px-4 pt-8 pb-2 lg:px-8">
         
         {/* Loading State */}
         {(sectionsLoading && !isSearchActive) || (searchLoading && isSearchActive) ? (
@@ -307,18 +422,20 @@ export default function Discover() {
         ) : isSearchActive ? (
           /* Search Results View */
           <>
-            <div className="mb-8 text-sm text-muted-foreground">
+            <div className="discover-search-count mb-8 text-sm text-muted-foreground">
               {augmentedSearchResults.length} restaurant{augmentedSearchResults.length !== 1 ? "s" : ""} found
             </div>
             {augmentedSearchResults.length === 0 ? (
-              <div className="py-20 text-center border-2 border-dashed border-border/50 rounded-3xl bg-card">
+              <div className="discover-empty-state py-20 text-center border-2 border-dashed border-border/50 rounded-3xl bg-card">
                 <p className="text-lg font-medium text-foreground">No restaurants found</p>
                 <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                 {augmentedSearchResults.map((restaurant, i) => (
-                  <RestaurantCard key={restaurant.restaurantId || restaurant._id || restaurant.id} restaurant={restaurant} index={i} />
+                  <div key={restaurant.restaurantId || restaurant._id || restaurant.id} className="discover-card h-full">
+                    <RestaurantCard restaurant={restaurant} index={i} disableInitialAnimation />
+                  </div>
                 ))}
               </div>
             )}
@@ -327,28 +444,28 @@ export default function Discover() {
           /* Homepage Sections View (Default) */
           <div className="flex flex-col gap-12">
             {displaySections.length === 0 ? (
-              <div className="py-20 text-center border-2 border-dashed border-border/50 rounded-3xl bg-card">
+              <div className="discover-empty-state py-20 text-center border-2 border-dashed border-border/50 rounded-3xl bg-card">
                 <p className="text-lg font-medium text-foreground">No restaurants nearby</p>
                 <p className="text-sm text-muted-foreground">Try changing your location or use the search bar</p>
               </div>
             ) : (
               displaySections.map((section) => (
                 <section key={section.id} className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between">
+                  <div className="discover-section-header flex items-center justify-between">
                     <div>
-                      <h2 className="text-2xl font-bold tracking-tight text-foreground">{section.title}</h2>
-                      <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
+                      <h2 className="discover-section-title text-2xl font-bold tracking-tight text-foreground">{section.title}</h2>
+                      <p className="discover-section-desc text-sm text-muted-foreground mt-1">{section.description}</p>
                     </div>
-                    <Button variant="ghost" size="sm" className="hidden sm:inline-flex text-muted-foreground hover:text-foreground" onClick={() => setSearchParams({ collection: section.id })}>
+                    <Button variant="ghost" size="sm" className="discover-section-btn hidden sm:inline-flex text-muted-foreground hover:text-foreground" onClick={() => setSearchParams({ collection: section.id })}>
                       View All
                     </Button>
                   </div>
                   
                   {/* Horizontal Scroll Layout (Exact same as Homepage) */}
-                  <div className="flex overflow-x-auto gap-6 pb-6 pt-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 lg:-mx-8 lg:px-8">
+                  <div className="flex overflow-x-auto gap-3 sm:gap-6 pb-6 pt-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4 lg:-mx-8 lg:px-8">
                     {section.items.map((restaurant, i) => (
-                      <div key={restaurant.restaurantId || restaurant._id || restaurant.id} className="w-[85vw] sm:w-[300px] shrink-0 snap-start flex flex-col">
-                        <RestaurantCard restaurant={restaurant} index={i} />
+                      <div key={restaurant.restaurantId || restaurant._id || restaurant.id} className="discover-card w-[160px] sm:w-[280px] shrink-0 snap-start flex flex-col">
+                        <RestaurantCard restaurant={restaurant} index={i} disableInitialAnimation />
                       </div>
                     ))}
                   </div>

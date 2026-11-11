@@ -1,12 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Outlet } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { BrandSidebar } from "@/components/layout/BrandSidebar";
-import { Navbar } from "@/components/Navbar";
 import { useBranch } from "@/context/BranchContext";
+import { useBranchScrollReveal } from "@/hooks/useBranchScrollReveal";
 
 export function BrandLayout() {
   const { switchBranch } = useBranch();
+  const mainRef = useRef(null);
+  useBranchScrollReveal(mainRef);
 
   useEffect(() => {
     // When in Brand Panel, clear any active branch context
@@ -14,11 +16,13 @@ export function BrandLayout() {
   }, []);
 
   return (
-    <>
-      <Navbar />
-      <DashboardLayout sidebar={<BrandSidebar />} showFooter={false}>
-        <Outlet />
-      </DashboardLayout>
-    </>
+    <DashboardLayout 
+      sidebar={<BrandSidebar />} 
+      showFooter={false} 
+      showNavbarPadding={false}
+      mainRef={mainRef}
+    >
+      <Outlet />
+    </DashboardLayout>
   );
 }

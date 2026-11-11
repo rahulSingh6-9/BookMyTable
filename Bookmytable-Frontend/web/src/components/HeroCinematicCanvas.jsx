@@ -28,10 +28,21 @@ const loadState = new Array(FRAME_COUNT).fill(0); // 0=idle, 1=loading, 2=ready
 
 // ─── Continuous Looping Restaurant Card Stream ────────────────────────────────
 const POOL_SIZE = 7;
-const CARD_WIDTH = 210;
-const CARD_GAP = 20;
-const PITCH = CARD_WIDTH + CARD_GAP; // 230px
+const DESKTOP_CARD_WIDTH = 210;
+const DESKTOP_CARD_GAP = 20;
+const MOBILE_CARD_WIDTH = 160;
+const MOBILE_CARD_GAP = 14;
 const STREAM_SPEED = 60; // px/sec
+
+function getStreamDimensions() {
+  if (typeof window === "undefined") {
+    return { isMobile: false, cardWidth: DESKTOP_CARD_WIDTH, cardGap: DESKTOP_CARD_GAP, pitch: DESKTOP_CARD_WIDTH + DESKTOP_CARD_GAP };
+  }
+  const isMobile = window.innerWidth < 640;
+  const cardWidth = isMobile ? MOBILE_CARD_WIDTH : DESKTOP_CARD_WIDTH;
+  const cardGap = isMobile ? MOBILE_CARD_GAP : DESKTOP_CARD_GAP;
+  return { isMobile, cardWidth, cardGap, pitch: cardWidth + cardGap };
+}
 
 function HeroRestaurantStream({ restaurants, isActive }) {
   const containerRef = useRef(null);
@@ -39,12 +50,31 @@ function HeroRestaurantStream({ restaurants, isActive }) {
   const isHoveredRef = useRef(false);
   const dataPtrRef = useRef(POOL_SIZE);
 
+  const [dims, setDims] = useState(getStreamDimensions);
+  const dimsRef = useRef(dims);
+  dimsRef.current = dims;
+
   const poolRef = useRef(
     Array.from({ length: POOL_SIZE }, (_, i) => ({
-      x: i * PITCH,
+      x: i * dims.pitch,
       rIndex: i % Math.max(1, restaurants.length),
     }))
   );
+
+  useEffect(() => {
+    const handleResize = () => {
+      const next = getStreamDimensions();
+      if (next.isMobile !== dimsRef.current.isMobile) {
+        setDims(next);
+        poolRef.current.forEach((item, i) => {
+          item.x = i * next.pitch;
+        });
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     let animId = null;
@@ -57,10 +87,9 @@ function HeroRestaurantStream({ restaurants, isActive }) {
       lastTime = time;
 
       if (!isHoveredRef.current) {
-        const container = containerRef.current;
-        const W = container ? container.clientWidth : window.innerWidth;
         const pool = poolRef.current;
         const cards = cardsRef.current;
+        const currentPitch = dimsRef.current.pitch;
 
         for (let i = 0; i < POOL_SIZE; i++) {
           const item = pool[i];
@@ -70,14 +99,14 @@ function HeroRestaurantStream({ restaurants, isActive }) {
           item.x -= STREAM_SPEED * dt;
 
           // When a card moves beyond left boundary, recycle to right
-          if (item.x < -PITCH - 40) {
+          if (item.x < -currentPitch - 40) {
             let maxX = -Infinity;
             for (let j = 0; j < POOL_SIZE; j++) {
               if (j !== i && pool[j].x > maxX) {
                 maxX = pool[j].x;
               }
             }
-            item.x = maxX + PITCH;
+            item.x = maxX + currentPitch;
             item.rIndex = dataPtrRef.current % Math.max(1, restaurants.length);
             dataPtrRef.current++;
 
@@ -91,7 +120,7 @@ function HeroRestaurantStream({ restaurants, isActive }) {
               const meta = elem.querySelector(".stream-card-meta");
               if (meta) meta.textContent = `${r.city || "Mumbai"} · ${r.cuisine || "Fine Dining"}`;
               const rating = elem.querySelector(".stream-card-rating");
-              if (rating) rating.textContent = r.averageRating?.toFixed(1) || r.rating || "4.8";
+              if (rating) rating.textContent = r.totalReviews > 0 && r.averageRating ? Number(r.averageRating).toFixed(1) : (r.rating || "New");
               const price = elem.querySelector(".stream-card-price");
               if (price) price.textContent = r.priceRange || "$$$";
               const link = elem.querySelector(".stream-card-link");
@@ -120,7 +149,7 @@ function HeroRestaurantStream({ restaurants, isActive }) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-[155px] overflow-hidden select-none pointer-events-auto"
+      className="relative w-full h-[132px] sm:h-[155px] overflow-hidden select-none pointer-events-auto"
       onMouseEnter={() => { isHoveredRef.current = true; }}
       onMouseLeave={() => { isHoveredRef.current = false; }}
     >
@@ -134,7 +163,7 @@ function HeroRestaurantStream({ restaurants, isActive }) {
               position: "absolute",
               left: 0,
               top: 0,
-              width: `${CARD_WIDTH}px`,
+              width: `${dims.cardWidth}px`,
               willChange: "transform, opacity",
             }}
           >
@@ -142,26 +171,26 @@ function HeroRestaurantStream({ restaurants, isActive }) {
               href={`/restaurant/${r.slug || r.restaurantId || r.id}`}
               className="stream-card-link block group rounded-xl overflow-hidden bg-white backdrop-blur-md border border-[#c8a46e]/30 hover:border-[#c8a46e] shadow-lg hover:shadow-[0_8px_25px_rgba(200,164,110,0.3)] transition-all duration-300"
             >
-              <div className="relative h-20 sm:h-24 w-full overflow-hidden bg-neutral-200">
+              <div className="relative h-16 sm:h-24 w-full overflow-hidden bg-neutral-200">
                 <img
                   src={r.coverImage || r.image}
                   alt={r.name}
                   className="stream-card-img w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
                 />
-                <div className="stream-card-price absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-white/80 backdrop-blur-sm text-[10px] font-medium text-[#c8a46e]">
+                <div className="stream-card-price absolute top-1 sm:top-1.5 left-1 sm:left-1.5 px-1 sm:px-1.5 py-0.5 rounded bg-white/80 backdrop-blur-sm text-[9px] sm:text-[10px] font-medium text-[#c8a46e]">
                   {r.priceRange || "$$$"}
                 </div>
-                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-white/80 backdrop-blur-sm text-[10px] font-medium text-neutral-800 flex items-center gap-0.5">
+                <div className="absolute top-1 sm:top-1.5 right-1 sm:right-1.5 px-1 sm:px-1.5 py-0.5 rounded bg-white/80 backdrop-blur-sm text-[9px] sm:text-[10px] font-medium text-neutral-800 flex items-center gap-0.5">
                   <Star className="w-2.5 h-2.5 fill-[#c8a46e] text-[#c8a46e]" />
-                  <span className="stream-card-rating">{r.averageRating?.toFixed(1) || r.rating || "4.8"}</span>
+                  <span className="stream-card-rating">{r.totalReviews > 0 && r.averageRating ? Number(r.averageRating).toFixed(1) : (r.rating || "New")}</span>
                 </div>
               </div>
-              <div className="p-2.5 text-left">
-                <h4 className="stream-card-title text-xs font-semibold text-neutral-900 truncate group-hover:text-[#c8a46e] transition-colors">
+              <div className="p-2 sm:p-2.5 text-left">
+                <h4 className="stream-card-title text-[11px] sm:text-xs font-semibold text-neutral-900 truncate group-hover:text-[#c8a46e] transition-colors">
                   {r.name}
                 </h4>
-                <div className="flex items-center gap-1 text-[10px] text-neutral-500 truncate mt-0.5">
+                <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-neutral-500 truncate mt-0.5">
                   <MapPin className="w-2.5 h-2.5 shrink-0 text-[#c8a46e]" />
                   <span className="stream-card-meta truncate">{r.city || "Mumbai"} · {r.cuisine || "Fine Dining"}</span>
                 </div>
@@ -194,6 +223,9 @@ function BrandName() {
 export default function HeroCinematicCanvas({ triggerRef, restaurants: propRestaurants }) {
   const canvasRef = useRef(null);
   const s1Ref = useRef(null);
+  const s1BadgeRef = useRef(null);
+  const s1HeadRef = useRef(null);
+  const s1DescRef = useRef(null);
   const s2Ref = useRef(null);
   const s3Ref = useRef(null);
   const s4Ref = useRef(null);
@@ -387,6 +419,73 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
     if (s4Ref.current) gsap.set(s4Ref.current, { autoAlpha: 0, y: 26 });
     if (cardsContainerRef.current) gsap.set(cardsContainerRef.current, { autoAlpha: 0, y: 25 });
 
+    // ── Viewport Reveal Animation for Hero Introduction Text ─────────────────
+    const s1Elements = [s1BadgeRef.current, s1HeadRef.current, s1DescRef.current].filter(Boolean);
+    const s1Triggers = [];
+
+    if (!prefersReduced && s1Elements.length > 0) {
+      gsap.set(s1Elements, { opacity: 0, y: 60 });
+
+      // 1. Badge / Eyebrow ("BOOK MY TABLE")
+      if (s1BadgeRef.current) {
+        const tween = gsap.to(s1BadgeRef.current, {
+          scrollTrigger: {
+            trigger: s1BadgeRef.current,
+            start: "top 85%",
+            once: true,
+            invalidateOnRefresh: true,
+          },
+          opacity: 1,
+          y: 0,
+          duration: 1.0,
+          delay: 0.15,
+          ease: "power3.out",
+          clearProps: "transform",
+        });
+        if (tween.scrollTrigger) s1Triggers.push(tween.scrollTrigger);
+      }
+
+      // 2. Main Heading ("Discover your next dining experience")
+      if (s1HeadRef.current) {
+        const tween = gsap.to(s1HeadRef.current, {
+          scrollTrigger: {
+            trigger: s1HeadRef.current,
+            start: "top 85%",
+            once: true,
+            invalidateOnRefresh: true,
+          },
+          opacity: 1,
+          y: 0,
+          duration: 1.2,
+          delay: 0.28,
+          ease: "power3.out",
+          clearProps: "transform",
+        });
+        if (tween.scrollTrigger) s1Triggers.push(tween.scrollTrigger);
+      }
+
+      // 3. Supporting Description ("Every great meal begins...")
+      if (s1DescRef.current) {
+        const tween = gsap.to(s1DescRef.current, {
+          scrollTrigger: {
+            trigger: s1DescRef.current,
+            start: "top 85%",
+            once: true,
+            invalidateOnRefresh: true,
+          },
+          opacity: 1,
+          y: 0,
+          duration: 1.2,
+          delay: 0.42,
+          ease: "power3.out",
+          clearProps: "transform",
+        });
+        if (tween.scrollTrigger) s1Triggers.push(tween.scrollTrigger);
+      }
+    } else if (s1Elements.length > 0) {
+      gsap.set(s1Elements, { opacity: 1, y: 0 });
+    }
+
     // ── SINGLE MASTER GSAP TIMELINE + SCROLLTRIGGER ──────────────────────────
     const master = gsap.timeline({
       scrollTrigger: {
@@ -502,7 +601,11 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
 
     return () => {
       loadAborted = true;
+      s1Triggers.forEach((st) => st?.kill());
       if (cardsContainerRef.current) gsap.killTweensOf(cardsContainerRef.current);
+      if (s1BadgeRef.current) gsap.killTweensOf(s1BadgeRef.current);
+      if (s1HeadRef.current) gsap.killTweensOf(s1HeadRef.current);
+      if (s1DescRef.current) gsap.killTweensOf(s1DescRef.current);
       master.scrollTrigger?.kill();
       master.kill();
       if (s.rafId) cancelAnimationFrame(s.rafId);
@@ -622,12 +725,13 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
               marginBottom: "5vh",
             }}
           >
-            <span style={eyStyle}><BrandName /></span>
-            <h1 style={{ ...headStyle, fontSize: lgHead }}>
+            <span ref={s1BadgeRef} style={eyStyle}><BrandName /></span>
+            <h1 ref={s1HeadRef} style={{ ...headStyle, fontSize: lgHead }}>
               Discover your next<br />
               <em style={{ fontStyle: "italic" }}>dining experience</em>
             </h1>
             <p
+              ref={s1DescRef}
               style={{
                 ...bodyStyle,
                 maxWidth: "42ch",
@@ -713,7 +817,7 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
           className="absolute inset-x-0 bottom-2 sm:bottom-4 md:bottom-6 z-20 flex flex-col items-center justify-end pointer-events-auto overflow-hidden"
         >
           {/* Header */}
-          <div className="text-center mb-8 px-4">
+          <div className="text-center mb-4 sm:mb-8 px-4">
             <span style={eyStyle}>
               <BrandName />
               <span style={{ color: "#e8ca98" }}>&nbsp;·&nbsp;Featured Discoveries</span>

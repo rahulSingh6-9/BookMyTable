@@ -59,28 +59,83 @@ export default function RestaurantBooking() {
     enabled: !!restaurant && !!dateParam,
   });
 
-  // Real-time table updates via Socket.io
+  // Real-time table availability updates via Socket.io
   useEffect(() => {
-    const restId = restaurant?._id || restaurant?.restaurantId || restaurant?.id;
-    if (!restId) return;
+    // Canonical branch ID (restaurant.restaurantId) is the authoritative backend ID
+    const canonicalBranchId = restaurant?.restaurantId || restaurant?._id || restaurant?.id;
+    if (!canonicalBranchId) return;
 
-    joinRestaurantRoom(restId);
+    // Join room using canonical Branch ID, Discovery ID, and Slug to cover all emission routes
+    joinRestaurantRoom(canonicalBranchId);
+    if (restaurant?.slug) {
+      joinRestaurantRoom(restaurant.slug);
+    }
+    if (restaurant?._id && String(restaurant._id) !== String(canonicalBranchId)) {
+      joinRestaurantRoom(restaurant._id);
+    }
 
     const handleAvailabilityChange = (evt) => {
-      if (String(evt.restaurantId) === String(restId)) {
+      const isTargetRestaurant =
+        !evt.restaurantId ||
+        String(evt.restaurantId) === String(canonicalBranchId) ||
+        String(evt.restaurantId) === String(restaurant?.restaurantId) ||
+        String(evt.restaurantId) === String(restaurant?._id) ||
+        String(evt.restaurantId) === String(restaurant?.slug);
+
+      if (isTargetRestaurant) {
+        console.log("⚡ [RealTime Sync] Table availability changed event received:", evt);
+
+        // Invalidate availability queries immediately to trigger fresh server fetch
         queryClient.invalidateQueries({
-          queryKey: ["availability", restKey],
+          queryKey: ["availability"],
         });
+
+        // If another guest holds or books a table that User B currently has selected, deselect it immediately!
+        if (evt.status && evt.status !== "available" && Array.isArray(evt.tableIds)) {
+          setSelectedTableIds((prevSelected) => {
+            const affectedSelected = prevSelected.filter((id) =>
+              evt.tableIds.map(String).includes(String(id))
+            );
+
+            if (affectedSelected.length > 0) {
+              toast.warning("Table status updated", {
+                description: "A table you selected was just reserved by another guest.",
+              });
+              return prevSelected.filter(
+                (id) => !evt.tableIds.map(String).includes(String(id))
+              );
+            }
+            return prevSelected;
+          });
+        }
       }
     };
 
     socket.on("table:availability_changed", handleAvailabilityChange);
 
+    // On reconnect, refresh availability to catch any missed updates during disconnect
+    const handleReconnect = () => {
+      console.log("🔄 [RealTime Sync] Socket reconnected; refreshing table availability...");
+      queryClient.invalidateQueries({ queryKey: ["availability"] });
+    };
+    socket.on("connect", handleReconnect);
+
     return () => {
       socket.off("table:availability_changed", handleAvailabilityChange);
-      leaveRestaurantRoom(restId);
+      socket.off("connect", handleReconnect);
+      leaveRestaurantRoom(canonicalBranchId);
+      if (restaurant?.slug) leaveRestaurantRoom(restaurant.slug);
+      if (restaurant?._id && String(restaurant._id) !== String(canonicalBranchId)) {
+        leaveRestaurantRoom(restaurant._id);
+      }
     };
-  }, [restaurant?._id, restaurant?.restaurantId, restaurant?.id, restKey, queryClient]);
+  }, [
+    restaurant?.restaurantId,
+    restaurant?._id,
+    restaurant?.id,
+    restaurant?.slug,
+    queryClient,
+  ]);
 
   const { updateReservation, openCheckout, reservationDetails } = useCart();
 

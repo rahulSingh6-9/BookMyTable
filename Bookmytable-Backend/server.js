@@ -69,8 +69,12 @@ async function startServer() {
   }
 }
 
-// Start server
+// Start server (for local development & standalone environments)
 startServer();
 
-// Export app for Vercel Serverless Function runtime
-export default app;
+// Export request handler for Vercel Serverless Function runtime.
+// Emitting request to server ensures Socket.IO intercepts /socket.io/ handshakes
+// while all other routes fall through seamlessly to the Express app.
+export default function handler(req, res) {
+  server.emit("request", req, res);
+}

@@ -21,10 +21,29 @@ export function BarbaPageTransition({ children }) {
 
   // Synchronous route change detection during render phase
   if (location.pathname !== prevPathnameRef.current) {
+    const isInternalCustomerNav =
+      prevPathnameRef.current?.startsWith("/profile") &&
+      location.pathname.startsWith("/profile");
+
+    const isInternalBrandNav =
+      prevPathnameRef.current?.startsWith("/brand") &&
+      location.pathname.startsWith("/brand");
+
+    const shouldSkipTransition = isInternalCustomerNav || isInternalBrandNav;
+
     prevPathnameRef.current = location.pathname;
-    setOutgoingLocation(displayLocation); // Retain previous route location for background
-    setDisplayLocation(location);         // Set new route location for incoming layer
-    setIsTransitioning(true);
+
+    if (shouldSkipTransition) {
+      // Sub-route navigation within persistent dashboard layouts:
+      // Update display location directly without full-screen 100vh page slide or killing active triggers
+      setDisplayLocation(location);
+      setOutgoingLocation(null);
+      setIsTransitioning(false);
+    } else {
+      setOutgoingLocation(displayLocation); // Retain previous route location for background
+      setDisplayLocation(location);         // Set new route location for incoming layer
+      setIsTransitioning(true);
+    }
   }
 
   // Initialize Barba.js core lifecycle hooks

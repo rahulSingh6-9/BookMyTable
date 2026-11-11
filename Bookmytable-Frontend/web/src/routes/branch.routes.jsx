@@ -13,6 +13,8 @@ import DedicatedLayoutEditor from "@/pages/operations/DedicatedLayoutEditor";
 import OwnerAvailabilitySchedule from "@/pages/operations/OwnerAvailabilitySchedule";
 import PricingManagement from "@/pages/operations/PricingManagement";
 import ManageReservations from "@/pages/ManageReservations";
+import BranchCheckIn from "@/pages/brand/BranchCheckIn";
+import BranchReviews from "@/pages/brand/BranchReviews";
 import OwnerBookingPolicies from "@/pages/settings/OwnerBookingPolicies";
 import OwnerNotificationsSettings from "@/pages/settings/OwnerNotificationsSettings";
 import OwnerPaymentsSettings from "@/pages/settings/OwnerPaymentsSettings";
@@ -57,6 +59,20 @@ export const branchRoutes = (
 
     {/* Reservations */}
     <Route path="reservations" element={<PermissionProtectedRoute permission="MANAGE_BOOKINGS"><ManageReservations /></PermissionProtectedRoute>} />
+
+    {/* Check-in */}
+    <Route path="check-in" element={
+      <PermissionProtectedRoute permission="MANAGE_BOOKINGS">
+        <BranchCheckIn />
+      </PermissionProtectedRoute>
+    } />
+
+    {/* Reviews & Ratings */}
+    <Route path="reviews" element={
+      <PermissionProtectedRoute permission="MANAGE_BOOKINGS">
+        <BranchReviews />
+      </PermissionProtectedRoute>
+    } />
     
     {/* Branch Settings */}
     <Route path="settings">

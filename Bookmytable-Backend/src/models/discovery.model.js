@@ -67,6 +67,11 @@ const discoveryRestaurantSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    ratingBreakdown: {
+      food: { type: Number, default: 0 },
+      ambience: { type: Number, default: 0 },
+      service: { type: Number, default: 0 },
+    },
 
     logo: String,
     coverImage: String,

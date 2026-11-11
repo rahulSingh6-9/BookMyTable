@@ -237,6 +237,7 @@ const App = () => (
         {/* 🎬 CINEMATIC ANIMATION EXPERIMENT (Isolated, no layout) */}
         <Route path="/gsap-restaurant-intro" element={<GsapRestaurantIntro />} />
 
+
         {/* ❌ 404 */}
         <Route path="*" element={<NotFound />} />
 

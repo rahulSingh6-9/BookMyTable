@@ -1,5 +1,7 @@
+import { reconcilePayment } from "../payments/payment.service.js";
 import mongoose from "mongoose";
 import axios from "axios";
+import crypto from "crypto";
 import Booking from "../../models/booking.model.js";
 import Payment from "../../models/payment.model.js";
 import TableLock from "../../models/tableLock.model.js";
@@ -8,6 +10,7 @@ import RestaurantSettings from "../../models/restaurantSettings.model.js";
 import Table from "../../models/table.model.js";
 import User from "../../models/user.model.js";
 import DiscoveryRestaurant from "../../models/discovery.model.js";
+import BranchMembership from "../../models/branchmemberships.model.js";
 import { env } from "../../config/env.js";
 import {
   emitTableAvailabilityChanged,
@@ -478,122 +481,11 @@ export const releaseBookingHold = async (bookingId, userId) => {
 /**
  * 3. CONFIRM BOOKING AFTER PAYMENT VERIFICATION (Idempotent)
  */
-export const confirmBookingPayment = async ({
-  bookingId,
-  razorpayOrderId,
-  razorpayPaymentId,
-  razorpaySignature,
-  paymentMethod = "razorpay",
-}) => {
-  const query = bookingId
-    ? { _id: bookingId }
-    : { razorpayOrderId };
-
-  const booking = await Booking.findOne(query);
-  if (!booking) {
-    const err = new Error("Booking not found for payment confirmation.");
-    err.code = "BOOKING_NOT_FOUND";
-    err.statusCode = 404;
-    throw err;
-  }
-
-  // IDEMPOTENCY CHECK: If already confirmed, safely return without duplicating actions
-  if (booking.status === "confirmed" && booking.paymentStatus === "paid") {
-    console.log(`ℹ️ [Idempotent] Booking ${booking._id} is already confirmed.`);
-    return {
-      success: true,
-      alreadyConfirmed: true,
-      booking,
-    };
-  }
-
-  // Ensure hold hasn't expired
-  const now = new Date();
-  if (booking.holdExpiresAt && booking.holdExpiresAt < now && booking.status !== "confirmed") {
-    // If webhook captured payment just after expiry window, allow confirmation to avoid customer money loss
-    console.warn(`⚠️ Confirming payment for booking ${booking._id} where hold expired, capturing safely.`);
-  }
-
-  // Update Booking
-  booking.status = "confirmed";
-  booking.paymentStatus = "paid";
-  booking.paymentMethod = paymentMethod;
-  if (razorpayPaymentId) booking.razorpayPaymentId = razorpayPaymentId;
-  if (razorpaySignature) booking.razorpaySignature = razorpaySignature;
-  await booking.save();
-
-  // Update Payment record
-  await Payment.findOneAndUpdate(
-    { razorpayOrderId: booking.razorpayOrderId || razorpayOrderId },
-    {
-      status: "paid",
-      paidAt: new Date(),
-      razorpayPaymentId,
-      razorpaySignature,
-    }
-  );
-
-  // Convert TableLock to converted
-  await TableLock.updateMany({ booking: booking._id }, { status: "converted" });
-
-  // Fetch restaurant and user details for email confirmation
-  const branch = await RestaurantBranch.findById(booking.restaurantId).lean();
-  const customer = await User.findById(booking.userId).lean();
-
-  // Increment reservation usage for restaurant plan
-  if (branch) {
-    try {
-      await incrementReservationUsage(branch.brandId, branch._id);
-    } catch (e) {
-      console.error("Failed to increment usage", e.message);
-    }
-  }
-
-  // IDEMPOTENT EMAIL CONFIRMATION: Send confirmation email exactly once
-  if (!booking.emailSent && (customer?.email || booking.email)) {
-    const recipientEmail = customer?.email || booking.email;
-    const recipientName = customer?.name || "Valued Guest";
-
-    try {
-      await notificationService.sendBookingConfirmation({
-        ...booking.toObject(),
-        customerEmail: recipientEmail,
-        customerName: recipientName,
-        restaurantName: branch?.name || "BookMyTable Restaurant",
-        branchLocation: branch?.address?.city || branch?.address?.street || "",
-      });
-
-      booking.emailSent = true;
-      booking.emailSentAt = new Date();
-      await booking.save();
-      console.log(`📧 [Confirmation] Email sent for booking ${booking._id} to ${recipientEmail}`);
-    } catch (emailErr) {
-      // Failure to send email must NOT cancel or roll back a paid booking!
-      console.error(`❌ [Email Error] Non-blocking email delivery failure for booking ${booking._id}:`, emailErr.message);
-    }
-  }
-
-  // Emit Real-Time Socket Updates
-  const tableIds = booking.tables?.length > 0 ? booking.tables.map(t => t.tableId) : [booking.tableId];
-
-  emitTableAvailabilityChanged({
-    restaurantId: booking.restaurantId,
-    date: booking.date,
-    time: booking.time,
-    tableIds,
-    status: "booked",
+export const confirmBookingPayment = async (params) => {
+  return reconcilePayment({
+    ...params,
+    source: "booking_service",
   });
-
-  emitBookingConfirmed({
-    restaurantId: booking.restaurantId,
-    userId: booking.userId,
-    booking,
-  });
-
-  return {
-    success: true,
-    booking,
-  };
 };
 
 /**
@@ -603,7 +495,12 @@ export const getUserBookingsService = async (userId) => {
   return Booking.find({ userId })
     .populate({
       path: "restaurantId",
-      select: "name slug images address cuisine contactPhone operatingHours",
+      model: "RestaurantBranch",
+      select: "branchName slug images address cuisines contactPhone openingHours",
+    })
+    .populate({
+      path: "review",
+      select: "overallRating ratings review status createdAt",
     })
     .sort({ createdAt: -1 })
     .lean();
@@ -616,7 +513,8 @@ export const getBookingByIdService = async (bookingId, userId, userRoles = []) =
   const booking = await Booking.findById(bookingId)
     .populate({
       path: "restaurantId",
-      select: "name slug images address cuisine contactPhone",
+      model: "RestaurantBranch",
+      select: "branchName slug images address cuisines contactPhone",
     })
     .populate({
       path: "userId",
@@ -735,7 +633,7 @@ export const getRestaurantBookingsService = async (restaurantId, query = {}) => 
  * 8. UPDATE BOOKING STATUS (Staff/Admin)
  */
 export const updateBookingStatusService = async (bookingId, status) => {
-  const validStatuses = ["confirmed", "completed", "cancelled", "no_show"];
+  const validStatuses = ["confirmed", "checked_in", "completed", "cancelled", "no_show"];
   if (!validStatuses.includes(status)) {
     const err = new Error(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
     err.statusCode = 400;
@@ -773,4 +671,380 @@ export const createReservation = async (userId, data) => {
     return confirmResult.booking;
   }
   return Booking.findById(result.bookingId);
+};
+
+/**
+ * Helper: Computes the UTC timestamp for a scheduled booking given date (YYYY-MM-DD),
+ * time (HH:mm), and restaurant IANA timezone (e.g. "Asia/Kolkata").
+ */
+export const getScheduledEpoch = (dateStr, timeStr, timeZone = "Asia/Kolkata") => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [hh, mm] = timeStr.split(":").map(Number);
+
+  const tentativeUtc = new Date(Date.UTC(y, m - 1, d, hh, mm, 0));
+
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hour12: false,
+    });
+
+    const parts = Object.fromEntries(
+      formatter.formatToParts(tentativeUtc).map((p) => [p.type, p.value])
+    );
+    const tzYear = Number(parts.year);
+    const tzMonth = Number(parts.month);
+    const tzDay = Number(parts.day);
+    let tzHour = Number(parts.hour);
+    if (tzHour === 24) tzHour = 0;
+    const tzMin = Number(parts.minute);
+
+    const tzTimeUtc = Date.UTC(tzYear, tzMonth - 1, tzDay, tzHour, tzMin, 0);
+    const offsetMs = tzTimeUtc - tentativeUtc.getTime();
+
+    return new Date(tentativeUtc.getTime() - offsetMs);
+  } catch (e) {
+    console.warn(`Timezone calculation fallback for timezone: ${timeZone}`, e);
+    return new Date(`${dateStr}T${timeStr}:00+05:30`);
+  }
+};
+
+/**
+ * Helper: Generates a cryptographically secure random token and SHA-256 hash
+ */
+export const generateBookingQRTokenData = () => {
+  const rawToken = "BMT_" + crypto.randomBytes(32).toString("base64url");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  return {
+    rawToken,
+    tokenHash,
+    generatedAt: new Date(),
+  };
+};
+
+/**
+ * 10. GET BOOKING QR DETAILS (Customer)
+ * Retrieves or generates secure QR token for a confirmed booking
+ */
+export const getBookingQRService = async (bookingId, userId) => {
+  const booking = await Booking.findById(bookingId)
+    .populate({
+      path: "restaurantId",
+      select: "name slug address timezone contactPhone operatingHours images",
+    })
+    .populate({
+      path: "userId",
+      select: "name email phone",
+    });
+
+  if (!booking) {
+    const err = new Error("Booking not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Ownership verification
+  const isOwner = String(booking.userId?._id || booking.userId) === String(userId);
+  if (!isOwner) {
+    const err = new Error("You are not authorized to access this booking's QR code");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // State eligibility check
+  const ineligibleStatuses = ["pending", "payment_pending", "cancelled", "expired", "payment_failed", "no_show"];
+  if (ineligibleStatuses.includes(booking.status)) {
+    const err = new Error(
+      `QR code is not available for bookings with status: ${booking.status}. Only confirmed bookings can generate check-in QR codes.`
+    );
+    err.statusCode = 400;
+    err.code = "INELIGIBLE_STATUS";
+    throw err;
+  }
+
+  // Ensure QR token exists
+  let rawToken = booking.qrCode?.token;
+  if (!rawToken || !booking.qrCode?.tokenHash) {
+    const tokenData = generateBookingQRTokenData();
+    booking.qrCode = {
+      token: tokenData.rawToken,
+      tokenHash: tokenData.tokenHash,
+      status: booking.status === "checked_in" ? "used" : "valid",
+      generatedAt: tokenData.generatedAt,
+    };
+    await booking.save();
+    rawToken = tokenData.rawToken;
+  }
+
+  // Time window calculations with restaurant timezone
+  const restaurant = booking.restaurantId;
+  const timeZone = restaurant?.timezone || "Asia/Kolkata";
+  const scheduledTime = getScheduledEpoch(booking.date, booking.time, timeZone);
+  const checkInOpensAt = new Date(scheduledTime.getTime() - 30 * 60 * 1000); // 30 mins before
+  const checkInClosesAt = new Date(scheduledTime.getTime() + 60 * 60 * 1000); // 60 mins after
+  const now = new Date();
+
+  let checkInState = "AVAILABLE";
+  if (booking.status === "checked_in" || booking.qrCode?.status === "used") {
+    checkInState = "CHECKED_IN";
+  } else if (booking.status === "cancelled") {
+    checkInState = "CANCELLED";
+  } else if (now < checkInOpensAt) {
+    checkInState = "NOT_STARTED";
+  } else if (now > checkInClosesAt) {
+    checkInState = "EXPIRED";
+  }
+
+  return {
+    bookingId: booking._id,
+    token: rawToken,
+    qrData: rawToken,
+    restaurantName: restaurant?.name || "Restaurant",
+    restaurantSlug: restaurant?.slug || "",
+    branchLocation: restaurant?.address?.city || restaurant?.address?.street || "",
+    date: booking.date,
+    time: booking.time,
+    guests: booking.guests,
+    tableNames: booking.tables?.length > 0
+      ? booking.tables.map(t => `${t.tableName}${t.sectionLabel ? ` (${t.sectionLabel})` : ""}`).join(", ")
+      : booking.tableName || "Reserved",
+    status: booking.status,
+    checkInState,
+    checkInOpensAt: checkInOpensAt.toISOString(),
+    checkInClosesAt: checkInClosesAt.toISOString(),
+    scheduledTime: scheduledTime.toISOString(),
+    checkedInAt: booking.qrCode?.checkedInAt,
+  };
+};
+
+/**
+ * 11. VERIFY QR AND CHECK IN BOOKING (Staff / Restaurant Branch)
+ * Validates token against SHA-256 hash, enforces staff branch authorization,
+ * validates time window, and atomically marks booking checked in.
+ */
+export const verifyAndCheckInBookingService = async ({ token, staffUserId }) => {
+  if (!token || typeof token !== "string") {
+    const err = new Error("Invalid QR code token provided.");
+    err.statusCode = 400;
+    err.code = "INVALID_TOKEN";
+    throw err;
+  }
+
+  // 1. Authorize staff member and derive authorized branches
+  const staffUser = await User.findById(staffUserId).select("name email roles").lean();
+  if (!staffUser) {
+    const err = new Error("Staff member not found or unauthenticated.");
+    err.statusCode = 401;
+    err.code = "UNAUTHORIZED_STAFF";
+    throw err;
+  }
+
+  const globalRoles = staffUser.roles || [];
+  const isGlobalAdmin = globalRoles.some((r) =>
+    ["admin", "super_admin", "SUPER_ADMIN", "PLATFORM_ADMIN"].includes(r)
+  );
+
+  let authorizedBranchIds = [];
+  if (!isGlobalAdmin) {
+    const memberships = await BranchMembership.find({
+      user: staffUserId,
+      status: "active",
+    }).select("branch role permissions").lean();
+
+    if (!memberships || memberships.length === 0) {
+      const err = new Error("Unauthorized: You are not an active staff member of any restaurant branch.");
+      err.statusCode = 403;
+      err.code = "NO_BRANCH_MEMBERSHIP";
+      throw err;
+    }
+
+    authorizedBranchIds = memberships.map((m) => String(m.branch));
+  }
+
+  // 2. Hash token with SHA-256 for instant indexed lookup
+  const tokenHash = crypto.createHash("sha256").update(token.trim()).digest("hex");
+
+  // 3. Locate associated booking
+  const booking = await Booking.findOne({ "qrCode.tokenHash": tokenHash })
+    .populate({
+      path: "restaurantId",
+      select: "name slug address timezone contactPhone",
+    })
+    .populate({
+      path: "userId",
+      select: "name email phone",
+    });
+
+  if (!booking) {
+    const err = new Error("Invalid QR code. No reservation found matching this code.");
+    err.statusCode = 404;
+    err.code = "BOOKING_NOT_FOUND";
+    throw err;
+  }
+
+  // 4. Branch-Level Security: Verify staff belongs to the booking's branch
+  const bookingBranchId = String(booking.restaurantId?._id || booking.restaurantId);
+  if (!isGlobalAdmin && !authorizedBranchIds.includes(bookingBranchId)) {
+    const err = new Error(
+      "Branch Mismatch: This reservation belongs to another restaurant or branch and cannot be checked in here."
+    );
+    err.statusCode = 403;
+    err.code = "BRANCH_MISMATCH";
+    throw err;
+  }
+
+  // 5. Booking Status & Invalidation checks
+  if (booking.status === "cancelled") {
+    const err = new Error("This booking has been cancelled and cannot be checked in.");
+    err.statusCode = 400;
+    err.code = "BOOKING_CANCELLED";
+    throw err;
+  }
+
+  if (booking.status === "no_show") {
+    const err = new Error("This booking was marked as No Show and cannot be checked in.");
+    err.statusCode = 400;
+    err.code = "BOOKING_NO_SHOW";
+    throw err;
+  }
+
+  if (booking.status === "payment_pending" || booking.paymentStatus === "pending") {
+    const err = new Error("Payment is pending for this reservation. Only fully confirmed bookings can check in.");
+    err.statusCode = 400;
+    err.code = "PAYMENT_PENDING";
+    throw err;
+  }
+
+  if (booking.status === "payment_failed" || booking.paymentStatus === "failed") {
+    const err = new Error("Payment failed for this reservation. Check-in cannot proceed.");
+    err.statusCode = 400;
+    err.code = "PAYMENT_FAILED";
+    throw err;
+  }
+
+  // 6. Duplicate Scan Protection (Already Checked In)
+  if (booking.status === "checked_in" || booking.qrCode?.status === "used") {
+    const err = new Error("Already checked in. This booking has already been verified.");
+    err.statusCode = 409;
+    err.code = "ALREADY_CHECKED_IN";
+    err.data = {
+      bookingId: booking._id,
+      customerName: booking.userId?.name || "Valued Guest",
+      restaurantName: booking.restaurantId?.name,
+      checkedInAt: booking.qrCode?.checkedInAt,
+    };
+    throw err;
+  }
+
+  if (booking.status !== "confirmed") {
+    const err = new Error(`Booking is not eligible for check-in (current status: ${booking.status}).`);
+    err.statusCode = 400;
+    err.code = "INELIGIBLE_STATUS";
+    throw err;
+  }
+
+  // 7. Check-in Time Window and Timezone Handling
+  const restaurant = booking.restaurantId;
+  const timeZone = restaurant?.timezone || "Asia/Kolkata";
+  const scheduledTime = getScheduledEpoch(booking.date, booking.time, timeZone);
+  const checkInOpensAt = new Date(scheduledTime.getTime() - 30 * 60 * 1000);
+  const checkInClosesAt = new Date(scheduledTime.getTime() + 60 * 60 * 1000);
+  const now = new Date();
+
+  // Format local display time for clear messages
+  const formatTz = (dt) => {
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        hour: "numeric",
+        minute: "numeric",
+        hour12: true,
+      }).format(dt);
+    } catch (e) {
+      return dt.toLocaleTimeString();
+    }
+  };
+
+  if (now < checkInOpensAt) {
+    const err = new Error(
+      `Check-in not yet available. Check-in opens 30 minutes before the scheduled time (at ${formatTz(checkInOpensAt)}).`
+    );
+    err.statusCode = 400;
+    err.code = "PREMATURE_CHECKIN";
+    err.data = {
+      bookingId: booking._id,
+      scheduledTime: formatTz(scheduledTime),
+      opensAt: formatTz(checkInOpensAt),
+    };
+    throw err;
+  }
+
+  if (now > checkInClosesAt) {
+    // Invalidate QR status
+    await Booking.updateOne({ _id: booking._id }, { $set: { "qrCode.status": "expired" } });
+    const err = new Error(
+      `Check-in window expired. Check-in was valid until ${formatTz(checkInClosesAt)} (60 minutes past reservation time).`
+    );
+    err.statusCode = 400;
+    err.code = "QR_EXPIRED";
+    err.data = {
+      bookingId: booking._id,
+      scheduledTime: formatTz(scheduledTime),
+      closedAt: formatTz(checkInClosesAt),
+    };
+    throw err;
+  }
+
+  // 8. Atomic Database Update (Prevents race conditions / concurrent scans)
+  const updatedBooking = await Booking.findOneAndUpdate(
+    {
+      _id: booking._id,
+      status: "confirmed",
+      "qrCode.status": "valid",
+    },
+    {
+      $set: {
+        status: "checked_in",
+        "qrCode.status": "used",
+        "qrCode.checkedInAt": now,
+        "qrCode.checkedInBy": staffUserId,
+      },
+    },
+    { new: true }
+  )
+    .populate("userId", "name email phone")
+    .populate("restaurantId", "name slug address timezone");
+
+  if (!updatedBooking) {
+    const err = new Error("Already checked in. This booking has already been verified.");
+    err.statusCode = 409;
+    err.code = "ALREADY_CHECKED_IN";
+    throw err;
+  }
+
+  const tableNames = updatedBooking.tables?.length > 0
+    ? updatedBooking.tables.map((t) => `${t.tableName}${t.sectionLabel ? ` (${t.sectionLabel})` : ""}`).join(", ")
+    : updatedBooking.tableName || "Reserved Table";
+
+  return {
+    bookingId: updatedBooking._id,
+    customerName: updatedBooking.userId?.name || "Valued Guest",
+    customerEmail: updatedBooking.userId?.email,
+    customerPhone: updatedBooking.userId?.phone,
+    restaurantName: updatedBooking.restaurantId?.name || "Restaurant",
+    branchLocation: updatedBooking.restaurantId?.address?.city || updatedBooking.restaurantId?.address?.street || "",
+    date: updatedBooking.date,
+    time: updatedBooking.time,
+    guests: updatedBooking.guests,
+    tableNames,
+    checkedInAt: now,
+    checkedInBy: staffUser.name || "Staff Member",
+    status: "checked_in",
+  };
 };

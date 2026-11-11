@@ -416,6 +416,18 @@ const restaurantSchema = new mongoose.Schema(
       min: 0,
     },
 
+    totalRatingSum: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    ratingBreakdown: {
+      food: { type: Number, default: 0, min: 0, max: 5 },
+      ambience: { type: Number, default: 0, min: 0, max: 5 },
+      service: { type: Number, default: 0, min: 0, max: 5 },
+    },
+
     /**
      * =====================================================
      * MENU STATS (CQRS PROJECTION)

@@ -102,10 +102,7 @@ export default function CustomerActivity() {
             {activities.map((act, index) => {
               const EventIcon = act.icon;
               return (
-                <motion.div 
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                <div 
                   key={act.id} 
                   className="flex flex-col sm:flex-row gap-4 items-start relative group"
                 >
@@ -131,7 +128,7 @@ export default function CustomerActivity() {
 
                     <p className="text-xs text-slate-600 leading-relaxed font-medium">{act.desc}</p>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>

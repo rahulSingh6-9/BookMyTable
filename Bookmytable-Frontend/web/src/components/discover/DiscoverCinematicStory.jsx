@@ -138,14 +138,47 @@ export function DiscoverCinematicStory() {
         borderRadius: "20px",
       });
 
-      // ── Text Initial State: 100% VISIBLE FROM FRAME 0 ─────────────────────
-      // "Every table has a story..." is the primary visual entry point of the section.
-      // It is fully visible on the bright cream background as the user reaches it,
-      // creating ZERO blank empty space after the restaurant cards.
-      gsap.set(textRef.current, {
-        opacity: 1,
-        y: 0,
+      // ── Text Viewport Fade-Up: Heading through Subtitle ("Taste the unexpected") ─
+      const textElements = [headingRef.current, subtitleRef.current].filter(Boolean);
+      gsap.set(textElements, {
+        opacity: 0,
+        y: 70,
       });
+
+      // Viewport reveal for Heading ("Every table has a story")
+      if (headingRef.current) {
+        gsap.to(headingRef.current, {
+          scrollTrigger: {
+            trigger: headingRef.current,
+            start: "top 85%",
+            once: true,
+            invalidateOnRefresh: true,
+          },
+          opacity: 1,
+          y: 0,
+          duration: 1.2,
+          ease: "power3.out",
+          clearProps: "transform",
+        });
+      }
+
+      // Viewport reveal for Subtitle ("Discover moments worth sharing. Taste the unexpected.")
+      if (subtitleRef.current) {
+        gsap.to(subtitleRef.current, {
+          scrollTrigger: {
+            trigger: subtitleRef.current,
+            start: "top 85%",
+            once: true,
+            invalidateOnRefresh: true,
+          },
+          opacity: 1,
+          y: 0,
+          duration: 1.2,
+          delay: 0.15,
+          ease: "power3.out",
+          clearProps: "transform",
+        });
+      }
 
       // ── Master Scroll Timeline (pinned, scrub) ───────────────────────────
       const tl = gsap.timeline({

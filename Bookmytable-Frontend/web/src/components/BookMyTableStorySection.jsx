@@ -221,127 +221,244 @@ function WavyReserveButton() {
 export default function BookMyTableStorySection() {
   const sectionRef = useRef(null);
   const imageWrapperRef = useRef(null);
-  const textContentRef = useRef(null);
-  const pathRef = useRef(null);
+  const headingRef = useRef(null);
+  const paragraphRef = useRef(null);
+  const supportingRef = useRef(null);
+  const buttonWrapperRef = useRef(null);
+  const desktopPathRef = useRef(null);
+  const mobilePathRef = useRef(null);
 
   useEffect(() => {
     const section = sectionRef.current;
-    const path = pathRef.current;
+    const dPath = desktopPathRef.current;
+    const mPath = mobilePathRef.current;
     const imageWrapper = imageWrapperRef.current;
-    const textContent = textContentRef.current;
+    const heading = headingRef.current;
+    const paragraph = paragraphRef.current;
+    const supporting = supportingRef.current;
+    const buttonWrapper = buttonWrapperRef.current;
 
-    if (!section || !path) return;
+    if (!section) return;
+
+    let refreshTimer = null;
 
     const ctx = gsap.context(() => {
       const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      // Calculate path length for stroke-dasharray
-      const rawLength = path.getTotalLength() || 2500;
-      const pathLength = Math.ceil(Math.max(rawLength, 2500));
-      // Full path length for dash and gap; buffer ensures not even a subpixel cap is visible at 0%
-      const dash = pathLength;
-      const gap = pathLength + 50;
-      const initialOffset = pathLength + 10;
+      // Helper: setup stroke dash animation on a path element
+      const initPath = (path) => {
+        if (!path) return null;
+        let pathLength = 2500;
+        try {
+          const l = path.getTotalLength();
+          if (l && l > 0) pathLength = Math.ceil(l);
+        } catch (e) {
+          pathLength = 2500;
+        }
+        return { dash: pathLength, gap: pathLength + 50, offset: pathLength + 10 };
+      };
+
+      const animatedElements = [
+        imageWrapper,
+        heading,
+        paragraph,
+        supporting,
+        buttonWrapper,
+      ].filter(Boolean);
 
       if (prefersReduced) {
-        gsap.set(path, { strokeDasharray: "none", strokeDashoffset: 0 });
-        if (imageWrapper) gsap.set(imageWrapper, { opacity: 1, filter: "blur(0px)", scale: 1 });
-        if (textContent) gsap.set(textContent, { opacity: 1, filter: "blur(0px)", y: 0 });
+        [dPath, mPath].forEach((p) => {
+          if (p) gsap.set(p, { strokeDasharray: "none", strokeDashoffset: 0 });
+        });
+        gsap.set(animatedElements, { opacity: 1, y: 0 });
         return;
       }
 
-      // Initial state: Exactly 0% progress (entire stroke 100% hidden)
-      gsap.set(path, {
-        strokeDasharray: `${dash} ${gap}`,
-        strokeDashoffset: initialOffset,
+      // Initial state: start with opacity: 0 and y: 60
+      gsap.set(animatedElements, { opacity: 0, y: 60 });
+
+      // Initialise both stroke paths as completely hidden
+      [dPath, mPath].forEach((p) => {
+        if (!p) return;
+        const v = initPath(p);
+        if (v) {
+          gsap.set(p, {
+            strokeDasharray: `${v.dash} ${v.gap}`,
+            strokeDashoffset: v.offset,
+          });
+        }
       });
 
-      if (imageWrapper) {
-        gsap.set(imageWrapper, {
-          opacity: 0,
-          filter: "blur(14px)",
-          scale: 0.98,
-        });
-      }
+      // ── INDEPENDENT ASYNCHRONOUS STROKE ANIMATION ─────────────────────────
+      const activePaths = [dPath, mPath].filter(Boolean);
+      let strokeHasAnimated = false;
 
-      if (textContent) {
-        gsap.set(textContent, {
-          opacity: 0,
-          filter: "blur(10px)",
-          y: 20,
-        });
-      }
+      const startStrokeAnimation = () => {
+        if (strokeHasAnimated || !activePaths.length) return;
+        strokeHasAnimated = true;
 
-      // Master coordinated timeline triggered on viewport entry
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: section,
-          start: "top 68%",
-          once: true, // Line stays drawn permanently, no rewind or loop
-        },
-      });
-
-      // 1. Image subtle blur -> sharp reveal
-      if (imageWrapper) {
-        tl.to(
-          imageWrapper,
-          {
-            opacity: 1,
-            filter: "blur(0px)",
-            scale: 1,
-            duration: 1.25,
-            ease: "power2.out",
-          },
-          0
-        );
-      }
-
-      // 2. Text subtle blur -> sharp reveal
-      if (textContent) {
-        tl.to(
-          textContent,
-          {
-            opacity: 1,
-            filter: "blur(0px)",
-            y: 0,
-            duration: 1.15,
-            ease: "power2.out",
-          },
-          0.1
-        );
-      }
-
-      // 3. Primary Red stroke drawn progressively along its predefined organic path
-      // Delayed start: stroke begins drawing subtly later (0.55s) after content initiates reveal
-      // On completion, clears strokeDasharray to ensure 100% full, unbroken line to edge
-      tl.to(
-        path,
-        {
+        // Animate stroke asynchronously and independently from right-to-left
+        gsap.to(activePaths, {
           strokeDashoffset: 0,
-          duration: 2.3,
-          ease: "power1.inOut",
+          duration: 2.2,
+          ease: "power2.inOut",
+          delay: 0.1, // Starts immediately after heading reveal begins
           onComplete: () => {
-            gsap.set(path, { strokeDasharray: "none", strokeDashoffset: 0 });
+            gsap.set(activePaths, { strokeDasharray: "none", strokeDashoffset: 0 });
           },
-        },
-        0.55
-      );
+        });
+      };
+
+      // ── INDIVIDUAL ELEMENT-LEVEL VIEWPORT TRIGGERS ─────────────────────────
+      const elemDuration = 1.0; // 0.8–1.1s individual element duration
+
+      // 1. Restaurant image: reveals when image enters viewport
+      if (imageWrapper) {
+        gsap.to(imageWrapper, {
+          scrollTrigger: {
+            trigger: imageWrapper,
+            start: "top 85%",
+            once: true,
+            invalidateOnRefresh: true,
+          },
+          opacity: 1,
+          y: 0,
+          duration: elemDuration,
+          ease: "power3.out",
+          clearProps: "transform",
+        });
+      }
+
+      // 2. Heading: reveals when heading enters viewport
+      // Triggers the asynchronous red stroke animation immediately when heading reveal begins
+      if (heading) {
+        gsap.to(heading, {
+          scrollTrigger: {
+            trigger: heading,
+            start: "top 85%",
+            once: true,
+            invalidateOnRefresh: true,
+          },
+          opacity: 1,
+          y: 0,
+          duration: elemDuration,
+          ease: "power3.out",
+          clearProps: "transform",
+          onStart: () => {
+            startStrokeAnimation();
+          },
+        });
+      } else if (imageWrapper) {
+        // Fallback: if heading ref is not present, trigger via imageWrapper
+        startStrokeAnimation();
+      }
+
+      // 3. Main paragraph: reveals independently only when paragraph enters viewport
+      if (paragraph) {
+        gsap.to(paragraph, {
+          scrollTrigger: {
+            trigger: paragraph,
+            start: "top 85%",
+            once: true,
+            invalidateOnRefresh: true,
+          },
+          opacity: 1,
+          y: 0,
+          duration: elemDuration,
+          ease: "power3.out",
+          clearProps: "transform",
+        });
+      }
+
+      // 4. Supporting description: reveals independently only when description enters viewport
+      if (supporting) {
+        gsap.to(supporting, {
+          scrollTrigger: {
+            trigger: supporting,
+            start: "top 85%",
+            once: true,
+            invalidateOnRefresh: true,
+          },
+          opacity: 1,
+          y: 0,
+          duration: elemDuration,
+          ease: "power3.out",
+          clearProps: "transform",
+        });
+      }
+
+      // 5. CTA button: reveals independently only when button enters viewport
+      if (buttonWrapper) {
+        gsap.to(buttonWrapper, {
+          scrollTrigger: {
+            trigger: buttonWrapper,
+            start: "top 85%",
+            once: true,
+            invalidateOnRefresh: true,
+          },
+          opacity: 1,
+          y: 0,
+          duration: elemDuration,
+          ease: "power3.out",
+          clearProps: "transform",
+        });
+      }
     }, section);
 
-    return () => ctx.revert();
+    // Refresh ScrollTrigger after a tick so pinned ancestors (hero) and layout are finalized
+    refreshTimer = setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 100);
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      ctx.revert();
+    };
   }, []);
 
   return (
     <section
       ref={sectionRef}
-      className="relative w-full min-h-screen py-24 md:py-32 lg:py-40 px-6 sm:px-10 md:px-14 lg:px-20 overflow-hidden flex items-center bg-[#FAF8F5] text-foreground font-sans"
+      className="relative w-full min-h-screen py-12 sm:py-20 md:py-28 lg:py-40 px-5 sm:px-10 md:px-14 lg:px-20 overflow-hidden flex items-center bg-[#FAF8F5] text-foreground font-sans"
     >
-      {/* 
-        LAYER 1 (z-[1]): The Continuous BookMyTable Primary Red Decorative SVG Stroke
-        Layered BEHIND the image (z-[2]) so the stroke naturally passes underneath
-        the photograph and re-emerges to the far left edge of the section.
+      {/*
+        ── MOBILE STROKE (z-[1]) ─────────────────────────────────────────────
+        Dedicated path for screens below sm (< 640px).
+        Enters from left edge at ~55% of image height, curves upward behind the
+        image, reappears near the upper-right of the image, and exits toward the
+        upper-right corner — matching the reference mockup.
+        Hidden on sm+ where the desktop stroke takes over.
       */}
-      <div className="absolute inset-0 pointer-events-none z-[1]">
+      <div className="absolute inset-0 pointer-events-none z-[1] sm:hidden">
+        <svg
+          viewBox="0 0 390 650"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-full h-full"
+          preserveAspectRatio="none"
+        >
+          <path
+            ref={mobilePathRef}
+            d="M 420,36 C 392,42 374,46 356,50 C 292,64 240,94 186,136 C 132,178 70,214 -12,212"
+            stroke="hsl(var(--primary))"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              vectorEffect: "non-scaling-stroke",
+              strokeDasharray: "1500 1500",
+              strokeDashoffset: 1500,
+            }}
+          />
+        </svg>
+      </div>
+
+      {/*
+        ── DESKTOP STROKE (z-[1]) ────────────────────────────────────────────
+        Original organic path — unchanged. Visible on sm and above.
+        Sits behind the photograph (z-[2]) so the curve passes underneath.
+      */}
+      <div className="absolute inset-0 pointer-events-none z-[1] hidden sm:block">
         <svg
           viewBox="0 0 1440 720"
           fill="none"
@@ -350,7 +467,7 @@ export default function BookMyTableStorySection() {
           preserveAspectRatio="none"
         >
           <path
-            ref={pathRef}
+            ref={desktopPathRef}
             d="M 1440,45 C 1320,135 1245,185 1145,185 C 1010,185 930,35 820,35 C 695,35 615,190 575,340 C 550,440 575,505 540,555 C 500,605 380,580 260,535 C 140,490 20,470 -100,470"
             stroke="hsl(var(--primary))"
             strokeWidth="11"
@@ -365,44 +482,68 @@ export default function BookMyTableStorySection() {
         </svg>
       </div>
 
-      {/* LAYER 2 (z-[2]): Main Content Grid (Image and Text) */}
-      <div className="relative z-[2] max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 xl:gap-20 items-center">
-        {/* LEFT SIDE: Portrait Dining Photograph (Slightly reduced for enhanced breathing room) */}
+      {/* ── LAYER 2 (z-[2]): Main Content Grid ────────────────────────────── */}
+      <div className="relative z-[2] max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 lg:gap-16 xl:gap-20 items-center">
+
+        {/*
+          IMAGE
+          Mobile: landscape 4:3, full container width, rounded-[20px]
+          Desktop (lg+): portrait 16:20, max-w-[360px], rounded-[28px]
+        */}
         <div className="lg:col-span-5 flex justify-center lg:justify-start">
           <div
             ref={imageWrapperRef}
-            className="relative w-full max-w-[360px] rounded-[28px] overflow-hidden shadow-[0_24px_50px_-12px_rgba(40,25,15,0.12)] border border-border/40 bg-[#F0EBE1]"
-            style={{ aspectRatio: "16 / 20" }}
+            className="relative w-full lg:max-w-[360px] rounded-[20px] sm:rounded-[24px] lg:rounded-[28px] overflow-hidden shadow-[0_24px_50px_-12px_rgba(40,25,15,0.12)] border border-border/40 bg-[#F0EBE1] aspect-[4/3] lg:aspect-[16/20]"
           >
             <img
               src={editorialDiningImage}
               alt="Cinematic fine dining setup with elegant table and botanical flowers"
-              className="w-full h-full object-cover select-none"
+              className="w-full h-full object-cover object-center select-none"
               loading="lazy"
             />
           </div>
         </div>
 
-        {/* RIGHT SIDE: Editorial Text Content (Strict BookMyTable Typography) */}
-        <div
-          ref={textContentRef}
-          className="lg:col-span-7 flex flex-col justify-center max-w-2xl font-sans"
-        >
-          <h2 className="text-3xl sm:text-4xl lg:text-[40px] xl:text-[44px] font-bold tracking-tight text-foreground leading-[1.22] mb-6">
-            From intimate candlelit dinners to grand celebrations, BookMyTable is your
-            curated{" "}
-            <span className="text-primary font-bold italic inline-block">
-              360°
-            </span>{" "}
-            gateway with the ability to discover the city's finest tables, or to focus on
-            curating tailor-made culinary moments.
+        {/*
+          TEXT CONTENT
+          ─ Heading: bold, dark navy, 28px mobile → 44px desktop, lh 1.2
+          ─ Paragraph: regular, dark navy, 16px mobile → 19px desktop, lh 1.6
+            "360°" is red + bold + italic inline
+          ─ Supporting: muted blue-grey, 14px mobile → 15px desktop
+          ─ Button: WavyReserveButton, unchanged
+        */}
+        <div className="lg:col-span-7 flex flex-col justify-center max-w-2xl font-sans">
+          {/* Heading */}
+          <h2
+            ref={headingRef}
+            className="font-bold tracking-tight text-[#0F172A] leading-[1.2] mb-4 sm:mb-5 lg:mb-6"
+            style={{ fontSize: "clamp(28px, 5vw, 44px)" }}
+          >
+            From candlelit dinners to grand celebrations.
           </h2>
 
-          <p className="text-muted-foreground text-base sm:text-lg font-normal mb-8 leading-relaxed">
-            Click below to explore our handpicked collection of premier tables.
+          {/* Main paragraph with inline 360° */}
+          <p
+            ref={paragraphRef}
+            className="font-normal text-[#0F172A] leading-[1.6] mb-3 sm:mb-4"
+            style={{ fontSize: "clamp(16px, 2vw, 19px)" }}
+          >
+            BookMyTable is your curated{" "}
+            <span className="text-primary font-bold italic">360°</span>
+            {" "}gateway to the city's finest tables and tailor-made culinary moments.
           </p>
 
-          <div>
+          {/* Supporting text */}
+          <p
+            ref={supportingRef}
+            className="text-[#64748B] leading-relaxed mb-7 sm:mb-8"
+            style={{ fontSize: "clamp(14px, 1.5vw, 15px)" }}
+          >
+            Explore our handpicked collection of premier tables.
+          </p>
+
+          {/* Button — unchanged */}
+          <div ref={buttonWrapperRef}>
             <WavyReserveButton />
           </div>
         </div>
@@ -410,3 +551,4 @@ export default function BookMyTableStorySection() {
     </section>
   );
 }
+

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <radialGradient id="redGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ff2e2e"/>
+      <stop offset="65%" stop-color="#d41414"/>
+      <stop offset="100%" stop-color="#7a0505"/>
+    </radialGradient>
+  </defs>
+  <!-- Rounded squircle background -->
+  <rect width="64" height="64" rx="16" fill="url(#redGlow)"/>
+  
+  <!-- Dining table & Pin graphic -->
+  <g fill="#ffffff">
+    <!-- Map Location Pin Pinhead -->
+    <path d="M32 10 C27.6 10 24 13.6 24 18 C24 23.5 32 30.5 32 30.5 C32 30.5 40 23.5 40 18 C40 13.6 36.4 10 32 10 Z" fill="#ffffff"/>
+    <circle cx="32" cy="18" r="3.2" fill="#d41414"/>
+    
+    <!-- Table Surface -->
+    <rect x="14" y="32" width="36" height="4" rx="2" fill="#ffffff"/>
+    <!-- Pedestal & Base -->
+    <path d="M30 36 L30 46 L24 49 L24 51 L40 51 L40 49 L34 46 L34 36 Z" fill="#ffffff"/>
+    
+    <!-- Left Chair -->
+    <path d="M18 29 L18 47 M18 37 L22 37" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+    <!-- Right Chair -->
+    <path d="M46 29 L46 47 M46 37 L42 37" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+  </g>
+</svg>

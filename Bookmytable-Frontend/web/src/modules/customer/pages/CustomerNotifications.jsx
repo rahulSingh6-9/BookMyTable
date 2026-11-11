@@ -166,10 +166,7 @@ export default function CustomerNotifications() {
                   return (
                     <motion.div
                       layout
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ delay: index * 0.05 }}
                       key={notif.id}
                       onClick={() => handleToggleRead(notif.id)}
                       className={`flex gap-4 p-4 items-start select-none cursor-pointer transition rounded-2xl ${

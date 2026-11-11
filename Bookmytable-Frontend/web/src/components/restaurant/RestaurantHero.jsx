@@ -52,8 +52,8 @@ export function RestaurantHero({ restaurant }) {
             alt={restaurant.branchName || restaurant.name} 
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.02]" 
           />
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent lg:from-background lg:via-background/40 transition-opacity duration-300 group-hover:opacity-90" />
+          {/* Gradient Overlay (Dark bottom gradient for text contrast without white haze) */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent transition-opacity duration-300 group-hover:opacity-90" />
           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300" />
           
           {/* View Gallery Hint */}
@@ -149,13 +149,20 @@ export function RestaurantHero({ restaurant }) {
         <div className="flex flex-col items-start md:items-end gap-3">
           <div className="flex items-center gap-3 bg-background/30 backdrop-blur-md rounded-lg p-3 border border-white/10 shadow-lg">
             <div className="flex flex-col items-center justify-center bg-green-600 text-white rounded-md h-12 w-12 font-bold text-lg">
-              {restaurant.averageRating?.toFixed(1) || "4.5"}
+              {restaurant.totalReviews > 0 && restaurant.averageRating ? Number(restaurant.averageRating).toFixed(1) : "New"}
             </div>
             <div className="flex flex-col">
               <div className="flex items-center text-yellow-400">
-                {[1,2,3,4,5].map(i => <Star key={i} className="h-3.5 w-3.5 fill-current" />)}
+                {[1,2,3,4,5].map(i => (
+                  <Star 
+                    key={i} 
+                    className={`h-3.5 w-3.5 ${restaurant.totalReviews > 0 && i <= Math.round(restaurant.averageRating) ? "fill-current" : "text-white/40 fill-transparent"}`} 
+                  />
+                ))}
               </div>
-              <span className="text-xs text-white/80 font-medium">{restaurant.totalReviews || 120}+ Ratings</span>
+              <span className="text-xs text-white/80 font-medium">
+                {restaurant.totalReviews > 0 ? `${restaurant.totalReviews} verified ${restaurant.totalReviews === 1 ? "review" : "reviews"}` : "No reviews yet"}
+              </span>
             </div>
           </div>
           <div className="hidden md:flex gap-2">

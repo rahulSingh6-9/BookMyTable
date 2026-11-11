@@ -4,7 +4,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import HeroCinematicCanvas from "@/components/HeroCinematicCanvas";
 import BookMyTableStorySection from "@/components/BookMyTableStorySection";
-import Table3DSection from "@/components/Table3DSection";
+
 import { useLocationStore } from "@/store/useLocationStore";
 import { getHomepageSections } from "@/services/discovery.service";
 
@@ -33,7 +33,6 @@ function Index() {
 
   const heroRef = useRef(null);
   const storyWrapperRef = useRef(null);
-  const table3dWrapperRef = useRef(null);
 
   const sections = response?.data?.data || [];
   const featuredRestaurants = sections
@@ -41,42 +40,7 @@ function Index() {
     .filter(Boolean)
     .slice(0, 3);
 
-  // ─── Scroll-over transition: BookMyTableStorySection → Cinematic3DTable ───
-  //
-  // SEQUENCE:
-  //   1. HeroCinematicCanvas (pinned 0 → 500vh, pin spacer 600vh total)
-  //   2. BookMyTableStorySection (starts at 600vh, natural document flow)
-  //   3. TRANSITION:
-  //      - storyEl pins at "top top" for 100vh with pinSpacing: false.
-  //      - Table3DSection (zIndex: 20) naturally scrolls upward from below to overlap
-  //        and cover storyEl completely.
-  //   4. Cinematic3DTable: When Table3D reaches top of viewport (700vh total scroll),
-  //      storyEl pin releases, and Table3DSection's own ScrollTrigger takes over seamlessly.
-  //
-  useEffect(() => {
-    const storyEl = storyWrapperRef.current;
-    if (!storyEl) return;
 
-    const transitionST = ScrollTrigger.create({
-      trigger: storyEl,
-      start: "top top",
-      end: "+=100%",
-      pin: true,
-      pinSpacing: false,
-      anticipatePin: 1,
-      invalidateOnRefresh: true,
-    });
-
-    const onResize = () => {
-      ScrollTrigger.refresh();
-    };
-    window.addEventListener("resize", onResize, { passive: true });
-
-    return () => {
-      transitionST.kill();
-      window.removeEventListener("resize", onResize);
-    };
-  }, []);
 
   return (
     <div className="min-h-screen">
@@ -95,15 +59,7 @@ function Index() {
         <BookMyTableStorySection />
       </section>
 
-      {/* 3. CINEMATIC 3D TABLE SECTION */}
-      {/*
-      <section
-        ref={table3dWrapperRef}
-        className="relative z-20 shadow-[0_-30px_70px_rgba(0,0,0,0.7)]"
-      >
-        <Table3DSection />
-      </section>
-      */}
+
     </div>
   );
 }

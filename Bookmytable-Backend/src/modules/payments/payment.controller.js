@@ -2,11 +2,12 @@ import crypto from "crypto";
 import axios from "axios";
 import User from "../../models/user.model.js";
 import Booking from "../../models/booking.model.js";
-import Payment from "../../models/payment.model.js";
-import TableLock from "../../models/tableLock.model.js";
 import { env } from "../../config/env.js";
-import { confirmBookingPayment } from "../booking/booking.service.js";
-import { emitTableAvailabilityChanged } from "../../config/socket.js";
+import {
+  verifyWebhookSignature,
+  verifyCheckoutSignature,
+  reconcilePayment,
+} from "./payment.service.js";
 
 /**
  * Helper: check phone verification across all stored fields
@@ -98,6 +99,7 @@ export const createOrder = async (req, res) => {
           Authorization: authHeader,
           "Content-Type": "application/json",
         },
+        timeout: 10000,
       }
     );
 
@@ -145,13 +147,15 @@ export const verifyPayment = async (req, res) => {
       return res.status(500).json({ success: false, message: "Payment gateway secret not configured" });
     }
 
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = crypto
-      .createHmac("sha256", keySecret)
-      .update(body)
-      .digest("hex");
+    // Cryptographic signature check
+    const isSignatureValid = verifyCheckoutSignature(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      keySecret
+    );
 
-    if (expectedSignature !== razorpay_signature) {
+    if (!isSignatureValid) {
       console.warn(`⚠️ Razorpay signature mismatch for order ${razorpay_order_id}`);
       return res.status(400).json({
         success: false,
@@ -160,22 +164,23 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // Authoritative confirmation on the backend
-    const result = await confirmBookingPayment({
+    // Authoritative confirmation via shared reconciliation service
+    const result = await reconcilePayment({
       bookingId,
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,
       razorpaySignature: razorpay_signature,
       paymentMethod: "razorpay",
+      source: "checkout",
     });
 
     return res.status(200).json({
       success: true,
       message: "Payment verified and booking confirmed successfully.",
       data: {
-        bookingId: result.booking._id,
-        status: result.booking.status,
-        paymentStatus: result.booking.paymentStatus,
+        bookingId: result.booking?._id,
+        status: result.booking?.status,
+        paymentStatus: result.booking?.paymentStatus,
         alreadyConfirmed: result.alreadyConfirmed || false,
       },
     });
@@ -191,11 +196,17 @@ export const verifyPayment = async (req, res) => {
 };
 
 /**
+ * POST /api/payments/razorpay/webhook
  * POST /api/payments/webhook
+ * 
  * Razorpay Webhook Endpoint
  * 
- * Verifies webhook signature, ensures idempotency, confirms booking or marks failure.
- * No user JWT required.
+ * Requirements:
+ * - Accept only POST requests.
+ * - Verify the X-Razorpay-Signature header using HMAC-SHA256 with RAZORPAY_WEBHOOK_SECRET.
+ * - Uses raw HTTP request body.
+ * - Idempotent event processing via x-razorpay-event-id.
+ * - Central reconciliation service.
  */
 export const handleRazorpayWebhook = async (req, res) => {
   try {
@@ -203,102 +214,95 @@ export const handleRazorpayWebhook = async (req, res) => {
     const webhookSecret = env.RAZORPAY_WEBHOOK_SECRET || env.RAZORPAY_KEY_SECRET;
 
     if (!webhookSignature) {
+      console.warn("⚠️ [Webhook] Missing X-Razorpay-Signature header");
       return res.status(400).json({ success: false, message: "Missing webhook signature" });
     }
 
-    // Verify webhook signature using raw body
-    const rawPayload = req.rawBody ? req.rawBody : JSON.stringify(req.body);
-    const expectedSignature = crypto
-      .createHmac("sha256", webhookSecret)
-      .update(rawPayload)
-      .digest("hex");
+    if (!webhookSecret) {
+      console.error("❌ [Webhook] Webhook secret not configured on server");
+      return res.status(500).json({ success: false, message: "Webhook secret not configured" });
+    }
 
-    if (expectedSignature !== webhookSignature) {
+    // Capture raw body Buffer
+    const rawPayload = Buffer.isBuffer(req.rawBody)
+      ? req.rawBody
+      : Buffer.isBuffer(req.body)
+      ? req.body
+      : typeof req.body === "string"
+      ? Buffer.from(req.body, "utf8")
+      : Buffer.from(JSON.stringify(req.body), "utf8");
+
+    // Cryptographically verify signature using HMAC-SHA256 with timing-safe comparison
+    const isValid = verifyWebhookSignature(rawPayload, webhookSignature, webhookSecret);
+    if (!isValid) {
       console.error("❌ [Webhook] Invalid signature received from Razorpay");
       return res.status(400).json({ success: false, message: "Invalid webhook signature" });
     }
 
-    const event = req.body;
-    const eventType = event.event;
-    console.log(`🔔 [Webhook] Received Razorpay event: ${eventType} (ID: ${event.id || "none"})`);
+    // Parse event payload
+    let event = req.body;
+    if (Buffer.isBuffer(event)) {
+      try {
+        event = JSON.parse(event.toString("utf8"));
+      } catch (parseErr) {
+        return res.status(400).json({ success: false, message: "Malformed JSON payload" });
+      }
+    }
 
-    const paymentEntity = event.payload?.payment?.entity;
-    const orderEntity = event.payload?.order?.entity;
+    const eventId = req.headers["x-razorpay-event-id"] || event?.id;
+    const eventType = event?.event;
+
+    console.log(`🔔 [Webhook] Verified Razorpay event: ${eventType} (ID: ${eventId || "none"})`);
+
+    const paymentEntity = event?.payload?.payment?.entity;
+    const orderEntity = event?.payload?.order?.entity;
 
     const razorpayOrderId = paymentEntity?.order_id || orderEntity?.id;
     const razorpayPaymentId = paymentEntity?.id;
 
     if (!razorpayOrderId) {
       console.log("ℹ️ [Webhook] Event contains no associated order_id. Ignoring safely.");
-      return res.status(200).json({ status: "ignored" });
+      return res.status(200).json({ status: "ignored", reason: "no_order_id" });
     }
 
-    // Find the payment and booking records
-    const payment = await Payment.findOne({ razorpayOrderId });
-    const booking = await Booking.findOne({ razorpayOrderId });
-
-    if (!booking) {
-      console.warn(`⚠️ [Webhook] No booking found for order ${razorpayOrderId}`);
-      return res.status(200).json({ status: "booking_not_found" });
-    }
-
-    // IDEMPOTENCY CHECK
-    if (payment && event.id) {
-      const alreadyProcessed = payment.webhookEvents?.some(e => e.eventId === event.id);
-      if (alreadyProcessed) {
-        console.log(`ℹ️ [Webhook Idempotency] Duplicate event ${event.id} already processed.`);
-        return res.status(200).json({ status: "already_processed" });
-      }
-      payment.webhookEvents.push({
-        eventId: event.id,
-        eventType,
-        receivedAt: new Date(),
-      });
-      await payment.save();
-    }
-
-    // Process event
-    if (eventType === "payment.captured" || eventType === "order.paid") {
-      await confirmBookingPayment({
-        bookingId: booking._id,
+    // Handle supported events: order.paid, payment.captured, payment.failed
+    if (eventType === "order.paid" || eventType === "payment.captured") {
+      const result = await reconcilePayment({
         razorpayOrderId,
         razorpayPaymentId,
         paymentMethod: paymentEntity?.method || "razorpay",
+        source: "webhook",
+        eventType,
+        eventId,
+        paymentEntity,
+        orderEntity,
       });
-      console.log(`✅ [Webhook] Confirmed booking ${booking._id} via webhook ${eventType}`);
+
+      return res.status(200).json({
+        status: "ok",
+        event: eventType,
+        alreadyConfirmed: result.alreadyConfirmed || false,
+      });
     } else if (eventType === "payment.failed") {
-      const failureReason = paymentEntity?.error_description || "Payment failed via gateway";
+      await reconcilePayment({
+        razorpayOrderId,
+        razorpayPaymentId,
+        paymentMethod: paymentEntity?.method || "razorpay",
+        source: "webhook",
+        eventType: "payment.failed",
+        eventId,
+        paymentEntity,
+        orderEntity,
+      });
 
-      if (payment) {
-        payment.status = "failed";
-        payment.failureReason = failureReason;
-        await payment.save();
-      }
-
-      if (booking.status === "payment_pending") {
-        booking.status = "payment_failed";
-        booking.paymentStatus = "failed";
-        await booking.save();
-
-        await TableLock.updateMany({ booking: booking._id }, { status: "expired" });
-
-        const tableIds = booking.tables?.length > 0 ? booking.tables.map(t => t.tableId) : [booking.tableId];
-        emitTableAvailabilityChanged({
-          restaurantId: booking.restaurantId,
-          date: booking.date,
-          time: booking.time,
-          tableIds,
-          status: "available",
-        });
-
-        console.log(`❌ [Webhook] Booking ${booking._id} marked payment_failed, table released.`);
-      }
+      return res.status(200).json({ status: "ok", event: "payment.failed" });
+    } else {
+      console.log(`ℹ️ [Webhook] Unhandled event type: ${eventType}. Acknowledged safely.`);
+      return res.status(200).json({ status: "ignored", eventType });
     }
-
-    return res.status(200).json({ status: "ok" });
   } catch (error) {
     console.error("❌ Error processing Razorpay webhook:", error.message);
-    // Return 200 to prevent Razorpay retry loops on internal handling errors
+    // Return 200 with error diagnostic to prevent endless retry loops on business logic exceptions
     return res.status(200).json({ status: "error", message: error.message });
   }
 };

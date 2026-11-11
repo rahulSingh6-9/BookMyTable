@@ -12,6 +12,7 @@ const bookingSchema = new mongoose.Schema(
     // 🏪 RESTAURANT
     restaurantId: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: "RestaurantBranch",
       required: true,
       index: true,
     },
@@ -38,7 +39,7 @@ const bookingSchema = new mongoose.Schema(
     // 📌 STATUS
     status: {
       type: String,
-      enum: ["pending", "payment_pending", "confirmed", "cancelled", "completed", "expired", "payment_failed", "no_show"],
+      enum: ["pending", "payment_pending", "confirmed", "checked_in", "cancelled", "completed", "expired", "payment_failed", "no_show"],
       default: "payment_pending",
       index: true,
     },
@@ -103,7 +104,7 @@ const bookingSchema = new mongoose.Schema(
     // 💳 PAYMENT
     paymentStatus: {
       type: String,
-      enum: ["pending", "paid", "refunded", "failed"],
+      enum: ["pending", "paid", "refunded", "failed", "refund_pending"],
       default: "pending",
       index: true,
     },
@@ -156,6 +157,44 @@ const bookingSchema = new mongoose.Schema(
     specialRequests: {
       type: String,
       default: ""
+    },
+
+    // 📲 QR CODE & CHECK-IN METADATA
+    qrCode: {
+      token: {
+        type: String,
+      },
+      tokenHash: {
+        type: String,
+        index: true,
+        sparse: true,
+      },
+      status: {
+        type: String,
+        enum: ["valid", "used", "expired", "revoked"],
+        default: "valid",
+      },
+      generatedAt: {
+        type: Date,
+      },
+      checkedInAt: {
+        type: Date,
+      },
+      checkedInBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    },
+
+    // ⭐ REVIEW LINKAGE
+    review: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Review",
+    },
+    hasReviewed: {
+      type: Boolean,
+      default: false,
+      index: true,
     }
   },
   { timestamps: true }

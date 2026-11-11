@@ -80,3 +80,19 @@ export function getRestaurantBookings(restaurantId, params = {}) {
 export function updateBookingStatus(id, status) {
   return apiClient.patch(`/bookings/${id}/status`, { status });
 }
+
+/**
+ * Retrieve QR check-in details for a customer booking.
+ * @param {string} id
+ */
+export function getBookingQR(id) {
+  return apiClient.get(`/bookings/${id}/qr`);
+}
+
+/**
+ * Verify scanned QR code and record check-in for a booking (Restaurant Staff).
+ * @param {string} token
+ */
+export function verifyBookingCheckIn(token) {
+  return apiClient.post("/bookings/check-in/verify", { token });
+}

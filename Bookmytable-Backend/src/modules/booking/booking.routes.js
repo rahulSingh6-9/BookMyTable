@@ -8,6 +8,8 @@ import {
   getRestaurantBookings,
   updateBookingStatus,
   createBooking,
+  getBookingQR,
+  verifyCheckIn,
 } from "./booking.controller.js";
 import { protect } from "../../middleware/auth.middleware.js";
 
@@ -19,6 +21,14 @@ router.post("/release-hold", protect, releaseHold);
 
 // Customer User Bookings
 router.get("/my", protect, getMyBookings);
+
+// Restaurant Check-in Verification (Staff)
+router.post("/check-in/verify", protect, verifyCheckIn);
+
+// Customer QR Code retrieval
+router.get("/:id/qr", protect, getBookingQR);
+
+// Single Booking details & Cancellation
 router.get("/:id", protect, getBookingById);
 router.patch("/:id/cancel", protect, cancelBooking);
 

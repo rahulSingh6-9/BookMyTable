@@ -68,10 +68,20 @@ export const bookingConfirmedTemplate = (data = {}) => {
           </table>
         </div>
 
-        <div style="text-align: center; margin: 28px 0;">
+        <div style="background-color: #fff1f2; border: 1px dashed #f43f5e; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;">
+          <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #9f1239;">
+            📲 Present your Booking QR Code upon arrival at the restaurant for instant check-in.
+          </p>
+          <a href="${process.env.WEB_URL || "http://localhost:8080"}/profile/bookings?qr=${bookingId}" 
+             style="background-color: #e11d48; color: #ffffff; padding: 11px 24px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 13px; display: inline-block; box-shadow: 0 2px 4px rgba(225,29,72,0.2);">
+            View Booking QR Code
+          </a>
+        </div>
+
+        <div style="text-align: center; margin: 20px 0;">
           <a href="${process.env.WEB_URL || "http://localhost:8080"}/profile/bookings" 
-             style="background-color: #e11d48; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 10px; font-weight: 700; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            View My Bookings
+             style="background-color: #0f172a; color: #ffffff; padding: 11px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 13px; display: inline-block;">
+            View All Bookings
           </a>
         </div>
 

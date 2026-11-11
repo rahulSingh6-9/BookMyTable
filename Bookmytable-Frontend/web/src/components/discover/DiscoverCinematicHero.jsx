@@ -206,7 +206,7 @@ export function DiscoverCinematicHero() {
   return (
     <div
       ref={heroRef}
-      className="relative w-full h-[calc(100vh-4rem)] min-h-[500px] md:min-h-[600px] overflow-hidden bg-black/90 group select-none"
+      className="relative w-full h-[65vw] min-h-[280px] sm:h-[calc(100vh-4rem)] sm:min-h-[500px] md:min-h-[600px] overflow-hidden bg-black/90 group select-none"
     >
       {/* Layer 1: Base Image (Current Slide) */}
       <img
@@ -257,7 +257,7 @@ export function DiscoverCinematicHero() {
 
 
       {/* Bottom Text Content & Captions */}
-      <div className="absolute bottom-10 left-6 sm:bottom-14 sm:left-10 md:left-14 right-6 max-w-2xl z-20 pointer-events-none">
+      <div className="absolute bottom-4 left-4 sm:bottom-14 sm:left-10 md:left-14 right-4 sm:right-6 max-w-2xl z-20 pointer-events-none">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentIndex}
@@ -265,15 +265,15 @@ export function DiscoverCinematicHero() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="space-y-2.5"
+            className="space-y-1.5 sm:space-y-2.5"
           >
             <div className="inline-block px-3 py-1 rounded bg-primary/30 border border-primary/50 backdrop-blur-md text-xs font-extrabold tracking-widest text-white uppercase shadow-sm">
               {currentSlide.tag}
             </div>
-            <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white drop-shadow-lg leading-tight">
+            <h2 className="text-xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white drop-shadow-lg leading-tight">
               {currentSlide.title}
             </h2>
-            <p className="text-sm sm:text-base md:text-lg text-white/90 line-clamp-2 max-w-xl font-medium leading-relaxed drop-shadow-md">
+            <p className="text-xs sm:text-base md:text-lg text-white/90 line-clamp-2 max-w-xl font-medium leading-snug sm:leading-relaxed drop-shadow-md">
               {currentSlide.description}
             </p>
           </motion.div>

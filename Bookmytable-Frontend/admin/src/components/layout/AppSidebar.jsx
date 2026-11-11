@@ -115,9 +115,12 @@ export function AppSidebar() {
     <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader className={cn("h-14 border-b border-sidebar-border flex flex-row items-center px-3", collapsed ? "justify-center" : "justify-between")}>
         {!collapsed && (
-          <div className="flex items-center">
-            <BrandLogo className="h-8 w-auto max-w-[140px] rounded" />
-          </div>
+          <NavLink to="/admin" className="flex items-center gap-2.5 focus:outline-none hover:opacity-95 transition-opacity">
+            <BrandLogo className="h-8 w-8 rounded-xl object-contain shrink-0" />
+            <span className="text-xl font-bold tracking-tight text-white select-none">
+              Book<span className="text-primary">My</span>Table
+            </span>
+          </NavLink>
         )}
         <SidebarTrigger className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors" />
       </SidebarHeader>

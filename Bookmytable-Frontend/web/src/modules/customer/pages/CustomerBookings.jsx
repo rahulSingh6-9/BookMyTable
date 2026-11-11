@@ -1,6 +1,8 @@
-import { useState, useMemo } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { BookingReviewModal } from "@/components/review/BookingReviewModal";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QRCodeSVG } from "qrcode.react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CalendarDays,
@@ -16,6 +18,9 @@ import {
   Loader2,
   Hash,
   Receipt,
+  CheckCircle2,
+  AlertCircle,
+  Store,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,14 +29,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/common/EmptyState";
-import { getUserBookings, cancelBooking } from "@/services/booking.service";
+import { getUserBookings, cancelBooking, getBookingQR } from "@/services/booking.service";
 
 export default function CustomerBookings() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("upcoming");
+  const [searchParams] = useSearchParams();
+  const [qrModalBookingId, setQrModalBookingId] = useState(null);
 
   // Fetch real bookings from backend
   const { data: bookingsRes, isLoading, error } = useQuery({
@@ -40,6 +48,15 @@ export default function CustomerBookings() {
   });
 
   const bookings = bookingsRes?.data?.data || [];
+
+  // Auto-open QR modal if ?qr=<bookingId> param present (from email link)
+  useEffect(() => {
+    const qrParam = searchParams.get("qr");
+    if (qrParam && bookings.length > 0) {
+      const match = bookings.find(b => b._id === qrParam && b.status === "confirmed");
+      if (match) setQrModalBookingId(qrParam);
+    }
+  }, [searchParams, bookings]);
 
   // Cancel booking mutation
   const cancelMutation = useMutation({
@@ -57,27 +74,63 @@ export default function CustomerBookings() {
     cancelMutation.mutate(id);
   };
 
-  // Review state (kept local since review API is out of scope)
-  const [reviewingBooking, setReviewingBooking] = useState(null);
-  const [reviewStars, setReviewStars] = useState(5);
-  const [reviewText, setReviewText] = useState("");
+  // Review modal state
+  const [reviewModalBooking, setReviewModalBooking] = useState(null);
 
   const handleOpenReview = (booking) => {
-    setReviewingBooking(booking);
-    setReviewStars(5);
-    setReviewText("");
+    setReviewModalBooking(booking);
   };
 
-  const handleSubmitReview = () => {
-    toast.success("Thank you for your rating! Review submitted successfully.");
-    setReviewingBooking(null);
+  /**
+   * Safely extract creation timestamp (milliseconds) from booking.
+   * Prioritizes `createdAt`, falls back to MongoDB ObjectId timestamp, or 0.
+   */
+  const getBookingCreationTime = (b) => {
+    if (b?.createdAt) {
+      const time = new Date(b.createdAt).getTime();
+      if (!isNaN(time) && time > 0) return time;
+    }
+    // Safe fallback to MongoDB ObjectId embedded creation timestamp
+    if (b?._id && typeof b._id === "string" && b._id.length >= 8) {
+      try {
+        const hexTimestamp = parseInt(b._id.substring(0, 8), 16);
+        if (!isNaN(hexTimestamp) && hexTimestamp > 0) {
+          return hexTimestamp * 1000;
+        }
+      } catch {}
+    }
+    return 0;
   };
 
-  // Filter lists based on status
-  const upcomingList = useMemo(() => bookings.filter(b => b.status === "confirmed"), [bookings]);
-  const pendingList = useMemo(() => bookings.filter(b => ["pending", "payment_pending"].includes(b.status)), [bookings]);
-  const completedList = useMemo(() => bookings.filter(b => b.status === "completed"), [bookings]);
-  const cancelledList = useMemo(() => bookings.filter(b => ["cancelled", "expired", "payment_failed"].includes(b.status)), [bookings]);
+  /**
+   * Pure function: Sort bookings by creation date descending (newest first).
+   * Creates a shallow copy to never mutate original array.
+   */
+  const sortBookingsNewestFirst = (list) => {
+    if (!Array.isArray(list) || list.length === 0) return [];
+    return [...list].sort((a, b) => getBookingCreationTime(b) - getBookingCreationTime(a));
+  };
+
+  // Filter and sort lists based on status (always newest created first)
+  const upcomingList = useMemo(() => {
+    const filtered = bookings.filter(b => ["confirmed", "checked_in"].includes(b.status));
+    return sortBookingsNewestFirst(filtered);
+  }, [bookings]);
+
+  const pendingList = useMemo(() => {
+    const filtered = bookings.filter(b => ["pending", "payment_pending"].includes(b.status));
+    return sortBookingsNewestFirst(filtered);
+  }, [bookings]);
+
+  const completedList = useMemo(() => {
+    const filtered = bookings.filter(b => b.status === "completed");
+    return sortBookingsNewestFirst(filtered);
+  }, [bookings]);
+
+  const cancelledList = useMemo(() => {
+    const filtered = bookings.filter(b => ["cancelled", "expired", "payment_failed"].includes(b.status));
+    return sortBookingsNewestFirst(filtered);
+  }, [bookings]);
 
   if (isLoading) {
     return (
@@ -129,13 +182,15 @@ export default function CustomerBookings() {
           {/* UPCOMING TABS */}
           <TabsContent value="upcoming" className="mt-0 focus-visible:outline-none">
             {upcomingList.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="flex flex-col gap-3.5 w-full">
                 {upcomingList.map(b => (
                   <BookingItemCard 
                     key={b._id} 
                     booking={b} 
                     onCancel={() => handleCancelBooking(b._id)}
                     isCancelling={cancelMutation.isPending}
+                    onShowQR={(id) => setQrModalBookingId(id)}
+                    onReview={() => handleOpenReview(b)}
                   />
                 ))}
               </div>
@@ -147,7 +202,7 @@ export default function CustomerBookings() {
           {/* PENDING TABS */}
           <TabsContent value="pending" className="mt-0 focus-visible:outline-none">
             {pendingList.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="flex flex-col gap-3.5 w-full">
                 {pendingList.map(b => (
                   <BookingItemCard key={b._id} booking={b} isPending={true} />
                 ))}
@@ -166,7 +221,7 @@ export default function CustomerBookings() {
           {/* COMPLETED TABS */}
           <TabsContent value="completed" className="mt-0 focus-visible:outline-none">
             {completedList.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="flex flex-col gap-3.5 w-full">
                 {completedList.map(b => (
                   <BookingItemCard 
                     key={b._id} 
@@ -190,7 +245,7 @@ export default function CustomerBookings() {
           {/* CANCELLED TABS */}
           <TabsContent value="cancelled" className="mt-0 focus-visible:outline-none">
             {cancelledList.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="flex flex-col gap-3.5 w-full">
                 {cancelledList.map(b => (
                   <BookingItemCard key={b._id} booking={b} isCancelled={true} />
                 ))}
@@ -209,63 +264,16 @@ export default function CustomerBookings() {
 
       </Tabs>
 
-      {/* LEAVE REVIEW MODAL */}
-      <Dialog open={!!reviewingBooking} onOpenChange={(open) => !open && setReviewingBooking(null)}>
-        <DialogContent className="sm:max-w-md bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-slate-950 font-extrabold text-lg flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-500 fill-amber-500" />
-              Rate your experience
-            </DialogTitle>
-            <DialogDescription className="text-slate-500 text-xs">
-              Tell us how was your meal at {reviewingBooking?.restaurantId?.name || "the restaurant"}. Your feedback helps other diners.
-            </DialogDescription>
-          </DialogHeader>
+      {/* BOOKING REVIEW MODAL */}
+      <BookingReviewModal
+        booking={reviewModalBooking}
+        existingReview={reviewModalBooking?.review}
+        isOpen={Boolean(reviewModalBooking)}
+        onClose={() => setReviewModalBooking(null)}
+      />
 
-          <div className="flex flex-col items-center gap-3 py-4">
-            <span className="text-xs font-bold text-slate-400">YOUR RATING SCORE</span>
-            <div className="flex items-center gap-1.5">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  onClick={() => setReviewStars(star)}
-                  className="p-1 hover:scale-110 active:scale-95 transition"
-                >
-                  <Star 
-                    className={`h-7 w-7 transition ${
-                      star <= reviewStars
-                        ? "fill-amber-400 text-amber-400"
-                        : "text-slate-200"
-                    }`} 
-                  />
-                </button>
-              ))}
-            </div>
-            <span className="text-xs font-bold text-amber-600">
-              {reviewStars === 5 ? "Incredible experience!" : reviewStars === 4 ? "Loved it!" : reviewStars === 3 ? "Decent meal" : reviewStars === 2 ? "Could be better" : "Disappointed"}
-            </span>
-          </div>
-
-          <div className="space-y-1.5">
-            <span className="text-xs font-bold text-slate-500">Write comments</span>
-            <Textarea
-              placeholder="What did you love about their food, atmosphere, or table service?"
-              value={reviewText}
-              onChange={(e) => setReviewText(e.target.value)}
-              className="min-h-24 text-xs"
-            />
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="ghost" size="sm" className="rounded-xl" onClick={() => setReviewingBooking(null)}>
-              Cancel
-            </Button>
-            <Button size="sm" className="bg-primary hover:bg-primary/95 text-white rounded-xl" onClick={handleSubmitReview}>
-              Submit Review
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* BOOKING QR MODAL */}
+      <BookingQRModal bookingId={qrModalBookingId} onClose={() => setQrModalBookingId(null)} />
 
     </div>
   );
@@ -288,96 +296,130 @@ function EmptyBookingsState({ onDiscover }) {
   );
 }
 
-/* REAL-DATA RESERVATION CARD */
-function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelled, onReview, isCancelling }) {
+/* REAL-DATA RESERVATION ROW (HORIZONTAL LAYOUT) */
+function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelled, onReview, isCancelling, onShowQR }) {
   const restaurant = booking.restaurantId; // populated
-  const restaurantName = restaurant?.name || "Restaurant";
+  const restaurantName = restaurant?.branchName || restaurant?.name || "Restaurant";
   const restaurantSlug = restaurant?.slug || "";
-  const cuisine = restaurant?.cuisine?.[0] || "";
+  const cuisine = restaurant?.cuisines?.[0] || restaurant?.cuisine?.[0] || "";
   const tableNames = booking.tables?.length > 0
     ? booking.tables.map(t => `${t.tableName} (${t.sectionLabel || "Main"})`).join(", ")
     : booking.tableName || "Reserved";
 
+  const reservationId = booking._id ? String(booking._id).slice(-8).toUpperCase() : "";
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 12 }} 
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4 hover:shadow-md transition-all flex flex-col justify-between"
+    <div 
+      className="group w-full bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all p-4 md:p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4"
     >
-      <div className="space-y-3.5">
-        <div className="flex justify-between items-start">
-          <div className="space-y-1">
-            {cuisine && <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{cuisine} cuisine</span>}
-            <h3 className="font-extrabold text-slate-950 text-base">{restaurantName}</h3>
-          </div>
-          
-          {/* Status Badge */}
-          <StatusBadge status={booking.status} />
+      {/* 1. LEFT BLOCK: Restaurant Details & Status */}
+      <div className="flex items-start gap-3.5 min-w-[220px] xl:max-w-[280px]">
+        <div className="h-10 w-10 md:h-11 md:w-11 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 shadow-2xs group-hover:bg-primary/5 group-hover:border-primary/20 transition-colors">
+          <Store className="h-5 w-5 text-slate-400 group-hover:text-primary transition-colors" />
         </div>
 
-        {/* Reservation properties */}
-        <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-50 text-xs">
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">DATE & TIME</span>
-            <span className="font-bold text-slate-700 flex items-center gap-1">
-              <Clock className="h-3 w-3 text-slate-400" />
-              {booking.date}
-            </span>
-            <span className="text-[10px] text-slate-500 ml-4">{booking.time}</span>
+        <div className="space-y-1 min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-extrabold text-slate-900 text-base leading-tight truncate">
+              {restaurantSlug ? (
+                <Link to={`/restaurant/${restaurantSlug}`} className="hover:text-primary transition-colors">
+                  {restaurantName}
+                </Link>
+              ) : (
+                restaurantName
+              )}
+            </h3>
+            <StatusBadge status={booking.status} />
           </div>
 
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">GUEST SIZE</span>
-            <span className="font-bold text-slate-700 flex items-center gap-1">
-              <Users className="h-3 w-3 text-slate-400" />
-              {booking.guests} Guests
-            </span>
-          </div>
-
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">TABLE INFO</span>
-            <span className="font-bold text-slate-700 flex items-center gap-1">
-              <Hash className="h-3 w-3 text-slate-400" />
-              {tableNames}
-            </span>
-          </div>
-        </div>
-
-        {/* Booking ID and Amount */}
-        <div className="flex justify-between items-center text-xs">
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">RESERVATION ID</span>
-            <span className="font-mono text-slate-600 text-[11px] font-semibold">{booking._id?.slice(-8).toUpperCase()}</span>
-          </div>
-
-          <div className="text-right">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              {booking.paymentStatus === "paid" ? "PRE-PAID SECURE" : "AMOUNT"}
-            </span>
-            <span className="font-bold text-slate-800">
-              {booking.grandTotal > 0 ? `₹${booking.grandTotal}` : "Free"}
+          <div className="flex items-center gap-2 text-xs text-slate-400 font-medium flex-wrap">
+            {cuisine && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                {cuisine}
+              </span>
+            )}
+            <span className="text-slate-300">•</span>
+            <span className="text-[11px] font-mono text-slate-500 font-semibold" title="Reservation ID">
+              #{reservationId}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Booking Actions */}
-      <div className="pt-2 flex flex-wrap gap-2">
-        {!isCancelled && !isPending && !isCompleted && (
+      {/* 2. MIDDLE BLOCK: Booking Parameters in Clean Aligned Columns */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 py-3 xl:py-0 border-y xl:border-y-0 xl:border-x xl:border-slate-100 xl:px-6 flex-1 text-xs">
+        {/* DATE & TIME */}
+        <div className="space-y-0.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">DATE & TIME</span>
+          <div className="font-bold text-slate-800 flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <span className="truncate">{booking.date}</span>
+          </div>
+          <span className="text-[11px] font-semibold text-slate-500 pl-5 block">{booking.time}</span>
+        </div>
+
+        {/* GUEST SIZE */}
+        <div className="space-y-0.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">GUEST SIZE</span>
+          <div className="font-bold text-slate-800 flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <span>{booking.guests} Guests</span>
+          </div>
+          <span className="text-[11px] text-slate-400 pl-5 block">Reserved party</span>
+        </div>
+
+        {/* TABLE INFO */}
+        <div className="space-y-0.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">TABLE INFO</span>
+          <div className="font-bold text-slate-800 flex items-center gap-1.5">
+            <Hash className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <span className="truncate" title={tableNames}>{tableNames}</span>
+          </div>
+          <span className="text-[11px] text-slate-400 pl-5 block truncate">Dining area</span>
+        </div>
+
+        {/* AMOUNT */}
+        <div className="space-y-0.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            {booking.paymentStatus === "paid" ? "PRE-PAID SECURE" : "AMOUNT"}
+          </span>
+          <div className="font-extrabold text-slate-900 text-sm flex items-center gap-1">
+            {booking.grandTotal > 0 ? `₹${booking.grandTotal}` : "Free"}
+          </div>
+          <span className="text-[10px] font-medium text-emerald-600 block">
+            {booking.paymentStatus === "paid" ? "Online Verified" : "Direct at Venue"}
+          </span>
+        </div>
+      </div>
+
+      {/* 3. RIGHT BLOCK: Actions & Review Status */}
+      <div className="flex items-center flex-wrap sm:flex-nowrap gap-2 justify-end shrink-0 xl:min-w-[220px]">
+        {/* QR Code and Cancel buttons for confirmed bookings */}
+        {!isCancelled && !isPending && !isCompleted && booking.status === "confirmed" && (
           <>
-            {/* Cancel booking prompt */}
+            <Button
+              size="sm"
+              onClick={() => onShowQR && onShowQR(booking._id)}
+              className="rounded-xl gap-1.5 bg-primary/5 hover:bg-primary/10 text-primary border border-primary/20 font-bold text-xs shadow-xs"
+            >
+              <QrCode className="h-3.5 w-3.5" />
+              <span>View QR</span>
+            </Button>
+
             <Dialog>
               <DialogTrigger asChild>
-                <Button size="sm" variant="destructive" className="flex-1 rounded-xl gap-1.5 bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20">
-                  <XCircle className="h-4 w-4" />
-                  Cancel Booking
+                <Button size="sm" variant="destructive" className="rounded-xl gap-1.5 bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 font-bold text-xs">
+                  <XCircle className="h-3.5 w-3.5" />
+                  <span>Cancel</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-sm bg-white">
                 <DialogHeader>
                   <DialogTitle className="text-slate-950 font-extrabold">Cancel Reservation?</DialogTitle>
                 </DialogHeader>
-                <p className="text-slate-500 text-xs py-2 leading-relaxed">Are you sure you want to cancel your table at {restaurantName}?</p>
+                <p className="text-slate-500 text-xs py-2 leading-relaxed">
+                  Are you sure you want to cancel your table at <strong className="text-slate-800">{restaurantName}</strong>?
+                </p>
                 <DialogFooter className="gap-2 sm:gap-0">
                   <Button variant="ghost" size="sm" className="rounded-xl">Keep Booking</Button>
                   <Button 
@@ -396,34 +438,57 @@ function BookingItemCard({ booking, onCancel, isPending, isCompleted, isCancelle
           </>
         )}
 
-        {isCompleted && (
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={onReview}
-            className="w-full rounded-xl gap-1.5 border-slate-200 text-slate-600 font-bold hover:border-primary/30 hover:bg-primary/5 hover:text-primary transition"
-          >
-            <MessageSquare className="h-4 w-4" />
-            Rate & Review Restaurant
-          </Button>
+        {/* Checked-In Badge if customer checked in */}
+        {booking.status === "checked_in" && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200/60 text-blue-700 text-xs font-bold shrink-0">
+            <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />
+            <span>Checked In</span>
+          </div>
         )}
 
+        {/* Rate & Review Action */}
+        {(isCompleted || (booking.status === "checked_in" && booking.qrCode?.status === "used")) && (
+          booking.hasReviewed || booking.review ? (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={onReview}
+              className="rounded-xl gap-1.5 border-emerald-200 bg-emerald-50/60 text-emerald-700 font-bold hover:bg-emerald-100 hover:!text-emerald-800 hover:border-emerald-300 text-xs transition-colors shrink-0"
+            >
+              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+              <span>Reviewed ({booking.review?.overallRating ? Number(booking.review.overallRating).toFixed(1) : "★"}) • Edit Review</span>
+            </Button>
+          ) : (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={onReview}
+              className="rounded-xl gap-1.5 border-primary/25 bg-primary/5 text-primary font-bold hover:border-primary/50 hover:bg-primary/15 hover:!text-primary text-xs transition-colors shrink-0"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span>Rate & Review Restaurant</span>
+            </Button>
+          )
+        )}
+
+        {/* Rebook if cancelled */}
         {isCancelled && restaurantSlug && (
-          <Button asChild size="sm" variant="outline" className="w-full rounded-xl gap-1.5 border-slate-200 text-slate-600 font-bold">
+          <Button asChild size="sm" variant="outline" className="rounded-xl gap-1.5 border-slate-200 text-slate-700 hover:text-slate-900 font-bold text-xs shrink-0">
             <Link to={`/restaurant/${restaurantSlug}`}>
-              <TrendingUp className="h-4 w-4" />
-              Rebook Table
+              <TrendingUp className="h-3.5 w-3.5" />
+              <span>Rebook Table</span>
             </Link>
           </Button>
         )}
 
+        {/* Awaiting payment if pending */}
         {isPending && (
-          <Button size="sm" variant="outline" disabled className="w-full rounded-xl border-slate-100 text-slate-400 font-semibold">
+          <span className="inline-flex items-center text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200/60 px-3 py-1.5 rounded-xl">
             Awaiting payment completion...
-          </Button>
+          </span>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -431,6 +496,7 @@ function StatusBadge({ status }) {
   const styles = {
     confirmed: "bg-primary/10 hover:bg-primary/15 text-primary border border-primary/20",
     completed: "bg-emerald-50 hover:bg-emerald-50 text-emerald-600 border border-emerald-100",
+    checked_in: "bg-blue-50 hover:bg-blue-50 text-blue-600 border border-blue-100",
     cancelled: "bg-slate-100 hover:bg-slate-100 text-slate-600",
     expired: "bg-slate-100 hover:bg-slate-100 text-slate-500",
     pending: "bg-amber-50 hover:bg-amber-50 text-amber-600 border border-amber-100",
@@ -442,6 +508,7 @@ function StatusBadge({ status }) {
   const labels = {
     confirmed: "Confirmed",
     completed: "Visited",
+    checked_in: "Checked In",
     cancelled: "Cancelled",
     expired: "Expired",
     pending: "Pending",
@@ -454,5 +521,144 @@ function StatusBadge({ status }) {
     <Badge className={`text-[10px] font-bold rounded-lg px-2.5 py-1 ${styles[status] || styles.pending}`}>
       {labels[status] || status}
     </Badge>
+  );
+}
+
+
+// ─── Booking QR Modal ──────────────────────────────────────────────────────────
+const CHECK_IN_STATE_CONFIG = {
+  AVAILABLE: {
+    label: "Ready for Check-in",
+    color: "text-emerald-600",
+    bg: "bg-emerald-50 border-emerald-200",
+  },
+  NOT_STARTED: {
+    label: "Check-in Not Yet Open",
+    color: "text-amber-600",
+    bg: "bg-amber-50 border-amber-200",
+  },
+  CHECKED_IN: {
+    label: "Already Checked In",
+    color: "text-blue-600",
+    bg: "bg-blue-50 border-blue-200",
+  },
+  EXPIRED: {
+    label: "QR Expired",
+    color: "text-slate-500",
+    bg: "bg-slate-50 border-slate-200",
+  },
+  CANCELLED: {
+    label: "Booking Cancelled",
+    color: "text-red-600",
+    bg: "bg-red-50 border-red-200",
+  },
+};
+
+function BookingQRModal({ bookingId, onClose }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["booking-qr", bookingId],
+    queryFn: () => getBookingQR(bookingId),
+    enabled: !!bookingId,
+    staleTime: 2 * 60 * 1000,
+    retry: 1,
+  });
+
+  const qr = data?.data?.data;
+  const stateConfig = qr ? CHECK_IN_STATE_CONFIG[qr.checkInState] : null;
+
+  return (
+    <Dialog open={!!bookingId} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-sm bg-white">
+        <DialogHeader>
+          <DialogTitle className="text-slate-950 font-extrabold flex items-center gap-2">
+            <QrCode className="h-5 w-5 text-primary" />
+            Your Check-in QR Code
+          </DialogTitle>
+          <DialogDescription className="text-slate-500 text-xs">
+            Present this QR code to the restaurant host upon arrival.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Loading */}
+        {isLoading && (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
+
+        {/* Error */}
+        {error && !isLoading && (
+          <Alert variant="destructive" className="mt-2">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              {error?.response?.data?.message || error?.message || "Could not load QR code. Please try again."}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* QR Data */}
+        {qr && !isLoading && (
+          <div className="flex flex-col items-center gap-4 py-2">
+            {/* Check-in state badge */}
+            {stateConfig && (
+              <div
+                className={`w-full text-center py-2 rounded-lg border text-xs font-semibold ${stateConfig.bg} ${stateConfig.color}`}
+              >
+                {stateConfig.label}
+              </div>
+            )}
+
+            {/* QR Code image — only show when scan-able */}
+            {["AVAILABLE", "NOT_STARTED"].includes(qr.checkInState) && qr.token && (
+              <div className="p-3 bg-white border border-slate-200 rounded-2xl shadow-inner">
+                <QRCodeSVG value={qr.token} size={200} level="H" />
+              </div>
+            )}
+
+            {/* Booking details */}
+            <div className="w-full bg-slate-50 rounded-xl p-3 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-medium">Restaurant</span>
+                <span className="font-bold text-slate-700">{qr.restaurantName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-medium">Date & Time</span>
+                <span className="font-bold text-slate-700">{qr.date} at {qr.time}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-medium">Guests</span>
+                <span className="font-bold text-slate-700">{qr.guests}</span>
+              </div>
+              {qr.tableNames && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-medium">Table</span>
+                  <span className="font-bold text-slate-700">{qr.tableNames}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-medium">Booking ID</span>
+                <span className="font-mono font-bold text-slate-600">
+                  {String(qr.bookingId).slice(-8).toUpperCase()}
+                </span>
+              </div>
+              {qr.checkInState === "AVAILABLE" && (
+                <div className="flex justify-between pt-1 border-t border-slate-200">
+                  <span className="text-slate-400 font-medium">Check-in Window</span>
+                  <span className="font-semibold text-emerald-600">Open</span>
+                </div>
+              )}
+              {qr.checkInState === "CHECKED_IN" && qr.checkedInAt && (
+                <div className="flex justify-between pt-1 border-t border-slate-200">
+                  <span className="text-slate-400 font-medium">Checked in at</span>
+                  <span className="font-bold text-blue-600">
+                    {new Date(qr.checkedInAt).toLocaleTimeString()}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

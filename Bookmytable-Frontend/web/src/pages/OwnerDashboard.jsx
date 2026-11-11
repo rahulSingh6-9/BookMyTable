@@ -106,7 +106,7 @@ function KPICard({ icon: Icon, label, value, delta, loading, prefix }) {
 
   return (
     <Card>
-      <CardContent className="pt-5 pb-5">
+      <CardContent className="pt-4 pb-4 sm:pt-5 sm:pb-5">
         {loading ? (
           <div className="space-y-2">
             <Skeleton className="h-4 w-24" />
@@ -114,34 +114,34 @@ function KPICard({ icon: Icon, label, value, delta, loading, prefix }) {
             <Skeleton className="h-3 w-16" />
           </div>
         ) : (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+          <div className="flex flex-col gap-0.5 sm:gap-1">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wide truncate">
                 {label}
               </span>
-              <span className="p-2 rounded-lg bg-primary/10">
-                <Icon className="w-4 h-4 text-primary" />
+              <span className="p-1.5 sm:p-2 rounded-lg bg-primary/10 shrink-0">
+                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
               </span>
             </div>
-            <span className="text-2xl font-bold text-foreground">
+            <span className="text-lg sm:text-2xl font-bold text-foreground truncate">
               {prefix}
               {value}
             </span>
-            <div className="flex items-center gap-1 text-xs">
+            <div className="flex items-center gap-1 text-[10px] sm:text-xs">
               {isUp ? (
-                <TrendingUp className="w-3 h-3 text-green-500" />
+                <TrendingUp className="w-3 h-3 text-green-500 shrink-0" />
               ) : isDown ? (
-                <TrendingDown className="w-3 h-3 text-destructive" />
+                <TrendingDown className="w-3 h-3 text-destructive shrink-0" />
               ) : (
-                <Minus className="w-3 h-3 text-muted-foreground" />
+                <Minus className="w-3 h-3 text-muted-foreground shrink-0" />
               )}
               <span
                 className={
                   isUp
-                    ? "text-green-500"
+                    ? "text-green-500 truncate"
                     : isDown
-                    ? "text-destructive"
-                    : "text-muted-foreground"
+                    ? "text-destructive truncate"
+                    : "text-muted-foreground truncate"
                 }
               >
                 {delta > 0 ? "+" : ""}
@@ -271,7 +271,9 @@ export default function OwnerDashboard() {
     joinRestaurantRoom(activeBranchId);
 
     const invalidate = () => {
-      queryClient.invalidateQueries(["bookings", activeBranchId]);
+      queryClient.invalidateQueries({ queryKey: ["bookings", activeBranchId] });
+      queryClient.invalidateQueries({ queryKey: ["tables", activeBranchId] });
+      queryClient.invalidateQueries({ queryKey: ["availability"] });
     };
 
     socket.on("table:availability_changed", invalidate);
@@ -386,21 +388,21 @@ export default function OwnerDashboard() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-lg sm:text-2xl font-bold text-foreground">
             {greeting()}, {branchName} 👋
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
           </p>
         </div>
       </div>
 
       {/* Main layout: left (70%) + sidebar (30%) */}
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start">
         {/* ── LEFT COLUMN ── */}
         <div className="flex-1 min-w-0 space-y-5">
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
             <KPICard
               icon={CalendarDays}
               label="Total Bookings"
@@ -637,7 +639,7 @@ export default function OwnerDashboard() {
         </div>
 
         {/* ── RIGHT SIDEBAR ── */}
-        <div className="w-72 flex-shrink-0">
+        <div className="w-full lg:w-72 lg:flex-shrink-0">
           <Card className="h-full">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-foreground">

@@ -33,7 +33,7 @@ export function ReservationSection({ restaurant }) {
 
   const dateStr = format(date, "yyyy-MM-dd");
 
-  const restId = restaurant._id || restaurant.restaurantId || restaurant.id;
+  const canonicalBranchId = restaurant.restaurantId || restaurant._id || restaurant.id;
   const restSlug = restaurant.slug || restaurant.restaurantId;
 
   const { data: availabilityRes, isLoading: availabilityLoading } = useQuery({
@@ -43,25 +43,47 @@ export function ReservationSection({ restaurant }) {
 
   // Real-time table availability updates via Socket.io
   useEffect(() => {
-    if (!restId) return;
+    if (!canonicalBranchId) return;
 
-    joinRestaurantRoom(restId);
+    joinRestaurantRoom(canonicalBranchId);
+    if (restSlug) joinRestaurantRoom(restSlug);
+    if (restaurant._id && String(restaurant._id) !== String(canonicalBranchId)) {
+      joinRestaurantRoom(restaurant._id);
+    }
 
     const handleAvailabilityChange = (evt) => {
-      if (String(evt.restaurantId) === String(restId)) {
+      const isTarget =
+        !evt.restaurantId ||
+        String(evt.restaurantId) === String(canonicalBranchId) ||
+        String(evt.restaurantId) === String(restaurant.restaurantId) ||
+        String(evt.restaurantId) === String(restaurant._id) ||
+        String(evt.restaurantId) === String(restSlug);
+
+      if (isTarget) {
+        console.log("⚡ [RealTime Sync] ReservationSection table availability changed:", evt);
         queryClient.invalidateQueries({
-          queryKey: ["availability", restSlug],
+          queryKey: ["availability"],
         });
       }
     };
 
     socket.on("table:availability_changed", handleAvailabilityChange);
 
+    const handleReconnect = () => {
+      queryClient.invalidateQueries({ queryKey: ["availability"] });
+    };
+    socket.on("connect", handleReconnect);
+
     return () => {
       socket.off("table:availability_changed", handleAvailabilityChange);
-      leaveRestaurantRoom(restId);
+      socket.off("connect", handleReconnect);
+      leaveRestaurantRoom(canonicalBranchId);
+      if (restSlug) leaveRestaurantRoom(restSlug);
+      if (restaurant._id && String(restaurant._id) !== String(canonicalBranchId)) {
+        leaveRestaurantRoom(restaurant._id);
+      }
     };
-  }, [restId, restSlug, queryClient]);
+  }, [canonicalBranchId, restSlug, restaurant._id, restaurant.restaurantId, queryClient]);
 
   // Generate selectable dates dynamically
   const availableDates = useMemo(() => {

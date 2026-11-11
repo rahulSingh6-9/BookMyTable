@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
-import { Search, Menu, X, MapPin, ChevronDown, Check, ArrowLeft, Building2, Loader2, ChevronRight } from "lucide-react";
+import { Search, Menu, X, MapPin, ChevronDown, Check, ArrowLeft, Building2, Loader2, ChevronRight, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
@@ -13,9 +14,26 @@ import { useAuth } from "../context/AuthContext";
 import { useLocationStore } from "@/store/useLocationStore";
 import { useQuery } from "@tanstack/react-query";
 import { getCities, getAreas } from "@/services/discovery.service";
+import { useBrand } from "@/context/BrandContext";
 
 function Navbar({ children }) {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading: authLoading } = useAuth();
+  const hasToken = typeof window !== "undefined" && Boolean(localStorage.getItem("token"));
+  const isAuthenticated = Boolean(user || (authLoading && hasToken));
+  const navigate = useNavigate();
+
+  // Brand context for mobile "For Restaurants" conditional navigation
+  const { brands, isLoading: brandLoading } = useBrand();
+  const hasBrands = !brandLoading && brands && brands.length > 0;
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (err) {
+      console.error("Logout error", err);
+    }
+  };
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openLocation, setOpenLocation] = useState(false);
   
@@ -29,6 +47,28 @@ function Navbar({ children }) {
       setView("city");
     }
   }, [openLocation]);
+
+  // Prevent background page scrolling while the mobile full-screen navigation is open
+  useEffect(() => {
+    if (mobileOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [mobileOpen]);
+
+  // Support Escape key to close the full-screen mobile navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && mobileOpen) {
+        setMobileOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileOpen]);
 
   const { data: citiesRes, isLoading: loadingCities } = useQuery({
     queryKey: ["cities"],
@@ -304,7 +344,8 @@ function Navbar({ children }) {
   }, [mobileOpen]); // re-run if mobile menu state changes
 
   return (
-    <nav ref={navRef} className="fixed top-0 left-0 right-0 z-[100] pointer-events-none">
+    <>
+      <nav ref={navRef} className="fixed top-0 left-0 right-0 z-[100] pointer-events-none">
       <div className="container mx-auto px-4 lg:px-8 pt-3">
         {/* Pill-shaped floating navbar capsule — GSAP animates this */}
         <div
@@ -329,9 +370,9 @@ function Navbar({ children }) {
           }}
         >
         {/* Left Side (Logo & Location) */}
-        <div className="flex flex-1 items-center gap-6">
-          <Link ref={logoRef} to="/" className="flex items-center gap-2">
-            <BrandLogo className="h-9 w-auto max-w-[120px] rounded-md" />
+        <div className="flex flex-1 items-center gap-2 sm:gap-6 min-w-0">
+          <Link ref={logoRef} to="/" className="flex items-center gap-2 shrink-0">
+            <BrandLogo className="h-8 sm:h-9 w-auto max-w-[90px] sm:max-w-[120px] rounded-md" />
             <span
               className={`text-lg font-bold tracking-tight hidden sm:inline-block transition-colors duration-300 ${
                 isTransparent ? "text-white" : "text-foreground"
@@ -344,27 +385,31 @@ function Navbar({ children }) {
             </span>
           </Link>
 
-          {/* Searchable Location Selector */}
-          <div ref={locationRef} className="hidden sm:flex items-center">
+          {/* Searchable Location Selector / City Switcher */}
+          <div ref={locationRef} className="flex items-center min-w-0">
             <Popover open={openLocation} onOpenChange={setOpenLocation}>
               <PopoverTrigger asChild>
                 <Button
                   variant="ghost"
-                  className={`gap-2 h-9 px-3 flex max-w-[200px] lg:max-w-[300px] transition-colors duration-300 ${
+                  className={`group gap-1.5 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3 flex items-center max-w-[130px] xs:max-w-[160px] sm:max-w-[200px] lg:max-w-[300px] transition-colors duration-300 ${
                     isTransparent
                       ? "text-white hover:text-white hover:bg-white/10"
-                      : "text-foreground hover:bg-muted"
+                      : "text-foreground hover:text-foreground hover:bg-muted"
                   }`}
                   style={{
                     textShadow: isTransparent ? "0 1px 8px rgba(0,0,0,0.75)" : undefined,
                   }}
+                  aria-label="Select city or area"
                 >
                   <MapPin className="h-4 w-4 text-primary shrink-0" />
-                  <span className="text-sm font-medium truncate">{displayLocation}</span>
-                  <ChevronDown className={`h-3 w-3 shrink-0 ${isTransparent ? "text-white/80" : "text-muted-foreground"}`} />
+                  <span className={`text-xs sm:text-sm truncate ${isTransparent ? "text-white group-hover:text-white" : "text-foreground group-hover:text-foreground"}`}>
+                    <span className="sm:hidden font-semibold">{storedLocation.city || "Select City"}</span>
+                    <span className="hidden sm:inline font-medium">{displayLocation}</span>
+                  </span>
+                  <ChevronDown className={`h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 transition-transform duration-200 ${openLocation ? "rotate-180" : ""} ${isTransparent ? "text-white/80 group-hover:text-white" : "text-muted-foreground group-hover:text-foreground"}`} />
                 </Button>
               </PopoverTrigger>
-            <PopoverContent className="w-[320px] p-0 shadow-lg border-border" align="start">
+            <PopoverContent className="w-[calc(100vw-32px)] sm:w-[320px] max-w-[340px] p-0 shadow-xl border-border z-[110]" align="start" sideOffset={8}>
               {/* Segmented View Switcher */}
               <div className="flex items-center p-2 border-b bg-muted/30 gap-1">
                 <button
@@ -507,9 +552,9 @@ function Navbar({ children }) {
         </div>
 
         {/* Center Side (Nav Links or Children) */}
-        <div className="flex-1 flex justify-center px-4">
+        <div className="hidden md:flex flex-1 justify-center px-4">
            {children || (
-             <div ref={linksRef} className="hidden items-center gap-8 md:flex">
+             <div ref={linksRef} className="flex items-center gap-8">
                {navLinks.map((link) => {
                  const active = isLinkActive(link);
                  return (
@@ -573,57 +618,270 @@ function Navbar({ children }) {
         {/* Mobile toggle */}
         <button
           ref={mobileToggleRef}
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className={`md:hidden transition-colors duration-300 ${isTransparent ? "text-white" : "text-foreground"}`}
+          onClick={() => setMobileOpen(true)}
+          className={`md:hidden shrink-0 ml-auto p-1.5 transition-colors duration-300 ${isTransparent ? "text-white" : "text-foreground"}`}
+          aria-label="Open navigation menu"
         >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          <Menu className="h-5 w-5" />
         </button>
         </div>{/* end pill */}
-
-        {/* Mobile menu — floats below the pill */}
-        <AnimatePresence>
-          {mobileOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden mt-2 rounded-2xl border border-white/10 md:hidden"
-              style={{
-                background: "rgba(20,20,20,0.80)",
-                backdropFilter: "blur(16px)",
-                WebkitBackdropFilter: "blur(16px)",
-              }}
-            >
-              <div className="flex flex-col gap-4 px-4 py-6">
-                {navLinks.map((link) => {
-                  const active = isLinkActive(link);
-                  return (
-                    <Link
-                      key={link.href}
-                      to={link.href}
-                      className={`text-sm font-medium transition-colors duration-200 ${
-                        active
-                          ? "text-primary"
-                          : "text-white/80 hover:text-primary"
-                      }`}
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      {link.label}
-                    </Link>
-                  );
-                })}
-                <Link to="/login" onClick={() => setMobileOpen(false)}>
-                  <Button variant="default" size="sm" className="w-full shadow-[0_4px_14px_rgba(225,29,72,0.4)]">Log in</Button>
-                </Link>
-                <Link to="/search" onClick={() => setMobileOpen(false)}>
-                  <Button size="sm" className="w-full">Book a Table</Button>
-                </Link>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>{/* end container */}
     </nav>
+
+    {/* Premium Full-Screen Mobile Navigation Overlay (100vw × 100dvh) */}
+    {typeof document !== "undefined" && createPortal(
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            key="mobile-nav-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+            className="fixed inset-0 z-[200] w-screen h-[100dvh] flex flex-col justify-between overflow-hidden md:hidden select-none"
+            style={{
+              background: "linear-gradient(180deg, #18110c 0%, #120d09 50%, #0a0705 100%)",
+            }}
+          >
+            {/* Ambient Warm & Signature Red Lighting */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              <div
+                className="absolute -top-24 -right-24 w-96 h-96 rounded-full blur-3xl opacity-25"
+                style={{ background: "radial-gradient(circle, #e11d48 0%, transparent 70%)" }}
+              />
+              <div
+                className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full blur-3xl opacity-20"
+                style={{ background: "radial-gradient(circle, #d97706 0%, transparent 70%)" }}
+              />
+              <div
+                className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                style={{
+                  backgroundImage: "radial-gradient(#fff 1px, transparent 1px)",
+                  backgroundSize: "24px 24px",
+                }}
+              />
+            </div>
+
+            {/* Top Header */}
+            <header className="relative z-10 flex items-center justify-between px-6 sm:px-8 pt-[max(1.25rem,env(safe-area-inset-top))] pb-4 border-b border-[#f5efe6]/10">
+              <Link
+                to="/"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2.5 group"
+              >
+                <BrandLogo className="h-8 w-auto max-w-[100px] rounded-md transition-transform duration-300 group-hover:scale-105" />
+                <span className="text-xl font-bold tracking-tight text-[#f5efe6]">
+                  Book<span className="text-primary">My</span>Table
+                </span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Close navigation"
+                className="flex items-center justify-center h-10 w-10 rounded-full text-[#f5efe6]/90 hover:text-white hover:bg-white/10 active:scale-95 transition-all duration-200"
+              >
+                <X className="h-6 w-6 stroke-[2.2]" />
+              </button>
+            </header>
+
+            {/* Navigation Options: Dynamically reflects authentication state */}
+            <motion.nav
+              key={isAuthenticated ? "auth-nav-in" : "auth-nav-out"}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.08,
+                    delayChildren: 0.1,
+                  },
+                },
+              }}
+              className="relative z-10 flex-1 flex flex-col justify-center items-center px-6 py-4 overflow-y-auto min-h-0"
+            >
+              <div className="flex flex-col items-center justify-center w-full max-w-sm my-auto">
+                {/* 1. Discover Restaurants */}
+                <motion.div
+                  variants={{
+                    hidden: { opacity: 0, y: 16 },
+                    visible: {
+                      opacity: 1,
+                      y: 0,
+                      transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+                    },
+                  }}
+                  className="w-full text-center"
+                >
+                  <Link
+                    to="/discover"
+                    onClick={() => setMobileOpen(false)}
+                    className="group inline-block py-2 text-3xl sm:text-4xl font-serif text-[#f5efe6] hover:text-primary transition-colors duration-200 tracking-tight"
+                  >
+                    <span>Discover Restaurants</span>
+                  </Link>
+                </motion.div>
+
+                {/* 2. Profile (When User Is Logged In) */}
+                {isAuthenticated && (
+                  <>
+                    <div className="h-5 sm:h-7" />
+                    <motion.div
+                      variants={{
+                        hidden: { opacity: 0, y: 16 },
+                        visible: {
+                          opacity: 1,
+                          y: 0,
+                          transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+                        },
+                      }}
+                      className="w-full text-center"
+                    >
+                      <Link
+                        to="/profile"
+                        onClick={() => setMobileOpen(false)}
+                        className="group inline-block py-2 text-3xl sm:text-4xl font-serif text-[#f5efe6] hover:text-primary transition-colors duration-200 tracking-tight"
+                      >
+                        <span>Profile</span>
+                      </Link>
+                    </motion.div>
+                  </>
+                )}
+
+                <div className="h-5 sm:h-7" />
+
+                {/* For Restaurants — same flow as desktop: /brand → BrandSync handles redirect */}
+                <motion.div
+                  variants={{
+                    hidden: { opacity: 0, y: 16 },
+                    visible: {
+                      opacity: 1,
+                      y: 0,
+                      transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+                    },
+                  }}
+                  className="w-full text-center"
+                >
+                  {isAuthenticated && brandLoading ? (
+                    /* Still loading brand data — show disabled state, do not navigate prematurely */
+                    <span className="group inline-flex items-center justify-center gap-2 py-2 text-3xl sm:text-4xl font-serif text-[#f5efe6]/50 tracking-tight cursor-wait">
+                      <span>For Restaurants</span>
+                      <Loader2 className="h-5 w-5 mt-1 animate-spin" />
+                    </span>
+                  ) : hasBrands ? (
+                    /* User owns a restaurant — navigate to /brand, BrandSync redirects correctly */
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        navigate("/brand");
+                      }}
+                      className="group inline-block py-2 text-3xl sm:text-4xl font-serif text-[#f5efe6] hover:text-primary transition-colors duration-200 tracking-tight"
+                    >
+                      <span>For Restaurants</span>
+                    </button>
+                  ) : (
+                    /* No brands (new partner) or logged out → /partner-with-us */
+                    <Link
+                      to="/partner-with-us"
+                      onClick={() => setMobileOpen(false)}
+                      className="group inline-block py-2 text-3xl sm:text-4xl font-serif text-[#f5efe6] hover:text-primary transition-colors duration-200 tracking-tight"
+                    >
+                      <span>For Restaurants</span>
+                    </Link>
+                  )}
+                </motion.div>
+
+                {/* Subtle Divider */}
+                <motion.div
+                  variants={{
+                    hidden: { opacity: 0, scaleX: 0 },
+                    visible: {
+                      opacity: 1,
+                      scaleX: 1,
+                      transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+                    },
+                  }}
+                  className="flex justify-center w-full my-6 sm:my-8"
+                >
+                  <div className="w-20 h-px bg-gradient-to-r from-transparent via-[#f5efe6]/25 to-transparent" />
+                </motion.div>
+
+                {/* 3. Log in / Sign up (When User Is Logged Out) */}
+                {!isAuthenticated && (
+                  <>
+                    <motion.div
+                      variants={{
+                        hidden: { opacity: 0, y: 16 },
+                        visible: {
+                          opacity: 1,
+                          y: 0,
+                          transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+                        },
+                      }}
+                      className="w-full"
+                    >
+                      <Link
+                        to="/login"
+                        onClick={() => setMobileOpen(false)}
+                        className="w-full block text-center py-3.5 px-6 rounded-full font-medium text-base sm:text-lg text-[#f5efe6] border border-[#f5efe6]/35 hover:bg-[#f5efe6]/10 active:scale-[0.99] transition-all"
+                      >
+                        Log in / Sign up
+                      </Link>
+                    </motion.div>
+                    <div className="h-3.5 sm:h-4" />
+                  </>
+                )}
+
+                {/* Book a Table (Primary CTA in signature red) */}
+                <motion.div
+                  variants={{
+                    hidden: { opacity: 0, y: 16 },
+                    visible: {
+                      opacity: 1,
+                      y: 0,
+                      transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+                    },
+                  }}
+                  className="w-full"
+                >
+                  <Link
+                    to="/search"
+                    onClick={() => setMobileOpen(false)}
+                    className="w-full block text-center py-3.5 px-6 rounded-full font-medium text-base sm:text-lg text-white bg-primary hover:bg-primary/90 shadow-[0_8px_25px_rgba(225,29,72,0.4)] hover:shadow-[0_12px_28px_rgba(225,29,72,0.5)] active:scale-[0.99] transition-all"
+                  >
+                    Book a Table
+                  </Link>
+                </motion.div>
+              </div>
+            </motion.nav>
+
+            {/* Bottom Bar: Anchored at bottom-left */}
+            <div className="relative z-10 px-6 sm:px-8 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 min-h-[3.5rem] flex items-center justify-start">
+              {isAuthenticated && (
+                <motion.button
+                  type="button"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.25 }}
+                  onClick={handleLogout}
+                  className="group flex items-center gap-2 text-sm font-medium text-[#f5efe6]/70 hover:text-white active:scale-95 transition-all py-1.5 focus:outline-none"
+                >
+                  <LogOut className="h-4 w-4 text-[#f5efe6]/60 group-hover:text-primary transition-colors" />
+                  <span>Log out</span>
+                </motion.button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>,
+      document.body
+    )}
+    </>
   );
 }
 

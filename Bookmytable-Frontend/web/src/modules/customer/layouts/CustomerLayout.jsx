@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Link, NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useCustomerScrollReveal } from "../hooks/useCustomerScrollReveal";
 import {
   CalendarCheck,
   Heart,
@@ -32,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { Navbar } from "@/components/Navbar";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 export function CustomerLayout() {
   const navigate = useNavigate();
@@ -40,6 +41,10 @@ export function CustomerLayout() {
   const { logout, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Global GSAP Scroll-Reveal for the entire Customer Panel
+  const mainContentRef = useRef(null);
+  useCustomerScrollReveal(mainContentRef);
   
   const [settingsExpanded, setSettingsExpanded] = useState(
     location.pathname.startsWith("/profile/settings")
@@ -82,24 +87,45 @@ export function CustomerLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 flex flex-col font-sans text-slate-800 pt-16">
-      <Navbar />
-
+    <div className="min-h-screen bg-slate-50/50 flex flex-col font-sans text-slate-800">
       {/* CORE WORKSPACE container WITH SIDEBAR & CONTENT */}
       <div className="flex-1 flex overflow-hidden">
         
         {/* DESKTOP SIDEBAR - COLLAPSIBLE */}
         <aside 
           className={cn(
-            "hidden lg:flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 fixed left-0 top-16 bottom-0 z-30 select-none",
+            "hidden lg:flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 fixed left-0 top-0 bottom-0 z-30 select-none",
             collapsed ? "w-20" : "w-64"
           )}
         >
-          {/* Sidebar Header with Toggle */}
-          <div className={cn("h-14 border-b border-sidebar-border flex items-center px-3 shrink-0", collapsed ? "justify-center" : "justify-end")}>
+          {/* Sidebar Header with BookMyTable Branding & Toggle */}
+          <div
+            className={cn(
+              "h-16 border-b border-sidebar-border flex items-center shrink-0 transition-all duration-300",
+              collapsed ? "justify-between px-2.5" : "justify-between px-4"
+            )}
+          >
+            {/* BookMyTable Branding (positioned to the left of the toggle) */}
+            <Link
+              to="/"
+              className="flex items-center gap-2.5 min-w-0 overflow-hidden group py-1"
+              title="BookMyTable"
+            >
+              <BrandLogo className="h-8 w-8 min-w-[2rem] object-contain rounded-md shrink-0 transition-transform duration-200 group-hover:scale-105" />
+              {!collapsed && (
+                <span className="text-base font-bold tracking-tight text-sidebar-foreground truncate whitespace-nowrap">
+                  Book<span className="text-primary">My</span>Table
+                </span>
+              )}
+            </Link>
+
+            {/* Sidebar Toggle Button */}
             <button
+              type="button"
               onClick={() => setCollapsed(!collapsed)}
               className="h-8 w-8 flex items-center justify-center rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors shrink-0"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               <PanelLeft className="h-5 w-5" />
             </button>
@@ -252,11 +278,31 @@ export function CustomerLayout() {
 
         {/* CONTAINER FOR MAIN VIEWS - SCROLLABLE */}
         <main 
+          ref={mainContentRef}
           className={cn(
-            "flex-1 flex flex-col overflow-y-auto bg-slate-50/50 pb-20 lg:pb-0 transition-all duration-300",
+            "flex-1 flex flex-col overflow-y-auto bg-slate-50/50 pb-6 lg:pb-0 transition-all duration-300",
             collapsed ? "lg:ml-20" : "lg:ml-64"
           )}
         >
+          {/* MOBILE TOP HEADER BAR (Only visible on mobile/tablet < lg) */}
+          <header className="lg:hidden h-14 border-b border-slate-200/80 bg-white/95 backdrop-blur-md flex items-center justify-between px-4 sticky top-0 z-30 shrink-0">
+            <Link to="/" className="flex items-center gap-2 group">
+              <BrandLogo className="h-8 w-auto max-w-[100px] rounded-md" />
+              <span className="text-lg font-bold tracking-tight text-slate-900">
+                Book<span className="text-primary">My</span>Table
+              </span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 active:scale-95 transition-all"
+              aria-label="Open customer menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          </header>
+
           <Outlet />
         </main>
 
@@ -379,32 +425,6 @@ export function CustomerLayout() {
           </div>
         </SheetContent>
       </Sheet>
-
-      {/* MOBILE BOTTOM NAVIGATION BAR */}
-      <div className="fixed bottom-0 left-0 right-0 h-16 border-t border-slate-100 bg-white/95 backdrop-blur-md flex items-center justify-around px-2 z-40 lg:hidden shadow-lg shadow-slate-200">
-        {[
-          { title: "Bookings", url: "/profile/bookings", icon: CalendarCheck },
-          { title: "Favorites", url: "/profile/favorites", icon: Heart },
-          { title: "Wallet", url: "/profile/rewards", icon: Wallet },
-          { title: "Settings", url: "/profile/settings", icon: Settings },
-        ].map((tab) => {
-          const active = location.pathname === tab.url;
-          return (
-            <Link
-              key={tab.title}
-              to={tab.url}
-              className={cn(
-                "flex flex-col items-center justify-center gap-1 w-14 h-full transition-colors text-[10px] font-medium",
-                active ? "text-primary font-bold" : "text-slate-500"
-              )}
-            >
-              <tab.icon className={cn("h-4.5 w-4.5 transition-transform", active && "scale-110 text-primary")} />
-              <span>{tab.title}</span>
-            </Link>
-          );
-        })}
-      </div>
-
     </div>
   );
 }

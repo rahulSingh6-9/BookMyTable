@@ -20,7 +20,7 @@ import { toast } from "sonner";
 
 import { useCart } from "@/context/CartContext";
 import { getRestaurantDetails } from "@/services/discovery.service";
-import { initiateBookingHold, releaseBookingHold } from "@/services/booking.service";
+import { initiateBookingHold, releaseBookingHold, getBookingById } from "@/services/booking.service";
 import { verifyRazorpayPayment } from "@/services/payment.service";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ export default function RestaurantCheckout() {
   const [checkoutStep, setCheckoutStep] = useState("auth_check"); // 'auth_check' | 'phone_verification' | 'review' | 'processing' | 'success'
   const [paymentMethod, setPaymentMethod] = useState("upi");
   const [bookingId, setBookingId] = useState(null);
+  const [confirmedBookingDetails, setConfirmedBookingDetails] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [specialRequests, setSpecialRequests] = useState("");
 
@@ -51,6 +52,15 @@ export default function RestaurantCheckout() {
   });
 
   const restaurant = detailsRes?.data?.data;
+
+  // Authoritative server booking fetch upon confirmation (fallback / enhancement)
+  const { data: serverBookingRes } = useQuery({
+    queryKey: ["confirmed-booking-details", bookingId],
+    queryFn: () => getBookingById(bookingId),
+    enabled: !!bookingId && checkoutStep === "success",
+    staleTime: 60 * 1000,
+  });
+  const serverBooking = serverBookingRes?.data?.data;
 
   // Evaluate authentication and verification flow
   const isPhoneVerified =
@@ -147,11 +157,25 @@ export default function RestaurantCheckout() {
         amount: holdData.amount, // in paise
         currency: holdData.currency,
         name: "BookMyTable",
-        description: `${restaurant.name} — Booking on ${formattedDate} at ${time}`,
+        description: `${restaurant?.branchName || restaurant?.name || "Restaurant"} — Booking on ${formattedDate} at ${time}`,
         order_id: holdData.orderId,
         handler: async function (response) {
           setCheckoutStep("processing");
           try {
+            // Snapshot booking details before clearing context
+            const snapshotData = {
+              bookingId: currentBookingId,
+              restaurantName: restaurant?.branchName || restaurant?.name || "Restaurant",
+              date: formattedDate,
+              time: time,
+              guests: guests || 2,
+              tableNames: selectedTables?.length > 0
+                ? selectedTables.map((t) => t.tableName || t.name).join(", ")
+                : "Reserved",
+              amountPaid: holdData?.amountDisplay != null ? holdData.amountDisplay : grandTotal,
+            };
+            setConfirmedBookingDetails(snapshotData);
+
             // 3. Authoritative Backend Payment Verification
             await verifyRazorpayPayment({
               bookingId: currentBookingId,
@@ -472,60 +496,155 @@ export default function RestaurantCheckout() {
         )}
 
         {/* SUCCESS SCREEN */}
-        {checkoutStep === "success" && (
-          <div className="max-w-md mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <div className="bg-green-600 text-white p-10 text-center rounded-t-3xl shadow-lg relative overflow-hidden">
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur ring-4 ring-white/10 mb-6 relative z-10">
-                <Check className="h-10 w-10 text-white" />
-              </div>
-              <h3 className="text-3xl font-black mb-2 relative z-10">Booking Confirmed!</h3>
-              <p className="text-green-100 text-base relative z-10 font-medium">A confirmation email has been sent to your email address.</p>
-            </div>
+        {checkoutStep === "success" && (() => {
+          const displayBookingId = confirmedBookingDetails?.bookingId || serverBooking?._id || bookingId || "";
+          const displayRestaurant =
+            confirmedBookingDetails?.restaurantName ||
+            serverBooking?.restaurantId?.branchName ||
+            serverBooking?.restaurantId?.name ||
+            restaurant?.branchName ||
+            restaurant?.name ||
+            "Restaurant";
+          const displayDate = confirmedBookingDetails?.date || serverBooking?.date;
+          const displayTime = confirmedBookingDetails?.time || serverBooking?.time;
+          const displayGuests = confirmedBookingDetails?.guests || serverBooking?.guests || guests || 2;
+          const displayTables =
+            confirmedBookingDetails?.tableNames ||
+            (serverBooking?.tables?.length > 0
+              ? serverBooking.tables.map((t) => t.tableName || t.name).join(", ")
+              : serverBooking?.tableName) ||
+            "Reserved";
+          const displayAmount =
+            confirmedBookingDetails?.amountPaid != null
+              ? confirmedBookingDetails.amountPaid
+              : serverBooking?.grandTotal != null
+              ? serverBooking.grandTotal
+              : grandTotal;
 
-            <div className="bg-background rounded-b-3xl border border-t-0 border-border p-8 shadow-md">
-              <div className="bg-muted/30 rounded-2xl border border-border/60 p-6 text-sm space-y-5">
-                <div className="flex justify-between items-center border-b border-border/60 pb-4">
-                  <span className="text-muted-foreground font-medium text-base">Booking ID</span>
-                  <span className="font-mono font-black text-base">{bookingId}</span>
+          const formatDisplayDate = (d) => {
+            if (!d) return "";
+            try {
+              const parsed = new Date(d);
+              if (!isNaN(parsed.getTime())) {
+                return format(parsed, "EEE, MMM d, yyyy");
+              }
+            } catch (e) {}
+            return String(d);
+          };
+
+          const formattedDateTime = displayDate
+            ? `${formatDisplayDate(displayDate)}${displayTime ? ` at ${displayTime}` : ""}`
+            : displayTime
+            ? `At ${displayTime}`
+            : "Confirmed Schedule";
+
+          const formattedAmountPaid =
+            Number(displayAmount) > 0
+              ? `₹${Number(displayAmount).toFixed(2)}`
+              : "Free (Direct at Venue)";
+
+          return (
+            <div className="w-full max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-500">
+              {/* Compact Green Header */}
+              <div className="bg-emerald-600 text-white py-5 px-6 sm:px-8 text-center rounded-t-2xl shadow-sm relative overflow-hidden">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur ring-4 ring-white/10 mb-2.5 relative z-10">
+                  <Check className="h-6 w-6 text-white stroke-[2.5]" />
                 </div>
-                <div className="flex justify-between items-center border-b border-border/60 pb-4">
-                  <span className="text-muted-foreground font-medium text-base">Restaurant</span>
-                  <span className="font-bold text-foreground text-base">{restaurant.name}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-border/60 pb-4">
-                  <span className="text-muted-foreground font-medium text-base">Date & Time</span>
-                  <span className="font-semibold text-foreground text-base">{formattedDate} at {time}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-border/60 pb-4">
-                  <span className="text-muted-foreground font-medium text-base">Amount Paid</span>
-                  <span className="font-black text-green-600 text-lg">₹{grandTotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground font-medium text-base">Status</span>
-                  <span className="font-black text-green-600 flex items-center gap-1 text-base">
-                    <Check className="h-4 w-4" /> Confirmed
-                  </span>
-                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight relative z-10">
+                  Booking Confirmed!
+                </h2>
+                <p className="text-emerald-100 text-xs sm:text-sm mt-1 font-medium relative z-10">
+                  A confirmation email has been sent to your email address.
+                </p>
               </div>
 
-              <div className="mt-8 space-y-4">
-                <Button 
-                  onClick={() => navigate("/profile/bookings")} 
-                  className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-md cursor-pointer"
-                >
-                  View My Bookings
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate(`/restaurant/${slug}`)} 
-                  className="w-full h-14 text-lg font-bold rounded-xl cursor-pointer"
-                >
-                  Back to Restaurant
-                </Button>
+              {/* Main Card Body */}
+              <div className="bg-card rounded-b-2xl border border-t-0 border-border p-5 sm:p-7 shadow-sm">
+                {/* 2-Column Responsive Detail Grid */}
+                <div className="bg-muted/30 rounded-xl border border-border/60 p-4 sm:p-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+                    {/* 1. Booking ID */}
+                    <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 rounded-lg bg-background/80 border border-border/50">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Booking ID
+                      </span>
+                      <span className="font-mono font-bold text-foreground text-sm tracking-tight select-all">
+                        {displayBookingId}
+                      </span>
+                    </div>
+
+                    {/* 2. Status */}
+                    <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 rounded-lg bg-background/80 border border-border/50">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Status
+                      </span>
+                      <span className="inline-flex items-center gap-1 font-bold text-emerald-600 bg-emerald-50 border border-emerald-200/70 px-2.5 py-0.5 rounded-full text-xs">
+                        <Check className="h-3.5 w-3.5 stroke-[2.5]" /> Confirmed
+                      </span>
+                    </div>
+
+                    {/* 3. Restaurant */}
+                    <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 rounded-lg bg-background/80 border border-border/50">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Restaurant
+                      </span>
+                      <span className="font-bold text-foreground text-sm truncate max-w-[220px]" title={displayRestaurant}>
+                        {displayRestaurant}
+                      </span>
+                    </div>
+
+                    {/* 4. Date & Time */}
+                    <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 rounded-lg bg-background/80 border border-border/50">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Date & Time
+                      </span>
+                      <span className="font-semibold text-foreground text-sm">
+                        {formattedDateTime}
+                      </span>
+                    </div>
+
+                    {/* 5. Guests & Seating */}
+                    <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 rounded-lg bg-background/80 border border-border/50">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Guests & Seating
+                      </span>
+                      <span className="font-medium text-foreground text-sm">
+                        {displayGuests} Guests • {displayTables}
+                      </span>
+                    </div>
+
+                    {/* 6. Amount Paid */}
+                    <div className="flex items-center justify-between sm:flex-col sm:items-start p-2.5 rounded-lg bg-background/80 border border-border/50">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Amount Paid
+                      </span>
+                      <span className="font-black text-emerald-600 text-base">
+                        {formattedAmountPaid}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Side-by-side action buttons */}
+                <div className="mt-5 flex flex-col sm:flex-row gap-3">
+                  <Button 
+                    onClick={() => navigate("/profile/bookings")} 
+                    className="flex-1 h-12 text-sm sm:text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-sm cursor-pointer"
+                  >
+                    View My Bookings
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate(`/restaurant/${slug}`)} 
+                    className="flex-1 h-12 text-sm sm:text-base font-semibold rounded-xl cursor-pointer"
+                  >
+                    Back to Restaurant
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
       </div>
     </div>

@@ -28,6 +28,9 @@ import AdminInvitation from "./adminInvitation.model.js";
 import AdminLog from "./adminLog.model.js";
 import SystemLog from "./systemLog.model.js";
 import Notification from "../modules/notification/notification.model.js";
+import Review from "./review.model.js";
+import Payment from "./payment.model.js";
+import WebhookEvent from "./webhookEvent.model.js";
 
 export {
   User,
@@ -60,4 +63,7 @@ export {
   AdminLog,
   SystemLog,
   Notification,
+  Review,
+  Payment,
+  WebhookEvent,
 };

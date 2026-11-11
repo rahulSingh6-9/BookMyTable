@@ -54,7 +54,7 @@ export default function BookingConfirmation() {
           <div className="my-6 rounded-2xl bg-muted/30 border border-border/50 p-5 space-y-3.5 text-left text-sm">
             <div className="flex items-center gap-3">
               <MapPin className="h-4 w-4 text-primary shrink-0" />
-              <span className="font-bold text-foreground">{restaurant?.name || "Restaurant"}</span>
+              <span className="font-bold text-foreground">{restaurant?.branchName || restaurant?.name || "Restaurant"}</span>
             </div>
             <div className="flex items-center gap-3">
               <CalendarDays className="h-4 w-4 text-primary shrink-0" />

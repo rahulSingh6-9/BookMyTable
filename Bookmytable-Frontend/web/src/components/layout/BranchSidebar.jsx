@@ -36,7 +36,9 @@ import {
   CreditCard,
   Activity,
   Mail,
-  MapPin
+  MapPin,
+  QrCode,
+  Star,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -58,6 +60,19 @@ const branchSidebarConfig = [
     title: "Reservations",
     path: "/reservations",
     icon: CalendarCheck,
+    permission: "MANAGE_BOOKINGS"
+  },
+  {
+    title: "Check-in",
+    path: "/check-in",
+    icon: QrCode,
+    permission: "MANAGE_BOOKINGS"
+  },
+
+  {
+    title: "Reviews",
+    path: "/reviews",
+    icon: Star,
     permission: "MANAGE_BOOKINGS"
   },
   {
@@ -160,7 +175,7 @@ export function BranchSidebar() {
   const basePath = `/brand/${activeBrandSlug}/branch/${activeBranchSlug}`;
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="pt-0">
       <SidebarHeader className={cn(
         "border-b border-border py-2 transition-all",
         collapsed ? "flex flex-col items-center justify-center gap-3 px-2" : "px-3 flex flex-col gap-2"

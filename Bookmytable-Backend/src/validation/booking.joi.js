@@ -31,7 +31,7 @@ export const createBookingSchema = Joi.object({
 
 export const updateBookingStatusSchema = Joi.object({
   status: Joi.string()
-    .valid("pending", "confirmed", "cancelled", "no-show", "completed")
+    .valid("pending", "confirmed", "checked_in", "cancelled", "no-show", "no_show", "completed")
     .required()
     .messages({
       "any.only": "Invalid booking status",
