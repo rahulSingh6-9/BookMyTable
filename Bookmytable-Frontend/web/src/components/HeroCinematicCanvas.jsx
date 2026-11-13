@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Link } from "react-router-dom";
 import { Star, MapPin } from "lucide-react";
 import { restaurants as fallbackRestaurants } from "@/lib/data.js";
+import { dummyRestaurants } from "@/lib/dummyRestaurants";
+import { DemoRestaurantModal } from "@/components/common/DemoRestaurantModal";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -27,16 +29,21 @@ const imgCache  = new Array(FRAME_COUNT).fill(null);
 const loadState = new Array(FRAME_COUNT).fill(0); // 0=idle, 1=loading, 2=ready
 
 // ─── Continuous Looping Restaurant Card Stream ────────────────────────────────
-const POOL_SIZE = 7;
 const DESKTOP_CARD_WIDTH = 210;
 const DESKTOP_CARD_GAP = 20;
 const MOBILE_CARD_WIDTH = 160;
 const MOBILE_CARD_GAP = 14;
 const STREAM_SPEED = 60; // px/sec
+const RESUME_DELAY = 2500; // ms idle before auto-scroll resumes after manual interaction
 
 function getStreamDimensions() {
   if (typeof window === "undefined") {
-    return { isMobile: false, cardWidth: DESKTOP_CARD_WIDTH, cardGap: DESKTOP_CARD_GAP, pitch: DESKTOP_CARD_WIDTH + DESKTOP_CARD_GAP };
+    return {
+      isMobile: false,
+      cardWidth: DESKTOP_CARD_WIDTH,
+      cardGap: DESKTOP_CARD_GAP,
+      pitch: DESKTOP_CARD_WIDTH + DESKTOP_CARD_GAP,
+    };
   }
   const isMobile = window.innerWidth < 640;
   const cardWidth = isMobile ? MOBILE_CARD_WIDTH : DESKTOP_CARD_WIDTH;
@@ -44,164 +51,393 @@ function getStreamDimensions() {
   return { isMobile, cardWidth, cardGap, pitch: cardWidth + cardGap };
 }
 
-function HeroRestaurantStream({ restaurants, isActive }) {
+/**
+ * HeroRestaurantStream — High-Performance Seamless Infinite Carousel
+ *
+ * Architecture:
+ * - Contiguous 3-cycle flex track (Cycle 0, Cycle 1, Cycle 2).
+ * - Total cycle width W dynamically ensures 1 cycle exceeds viewport width + 600px.
+ * - Single track transform `translate3d(trackOffset, 0, 0)` updated directly
+ *   via RAF during auto-scrolling and direct pointer move during drag.
+ * - Seamless wrapping: when trackOffset <= -2W, trackOffset += W (0 visual jump).
+ * - When trackOffset >= 0, trackOffset -= W (0 visual jump).
+ * - Drag delta directly updates trackOffset without competing CSS transitions or RAF lag.
+ * - Smooth resume after 2.5s idle delay, hover-pause preserved.
+ * - Draggable/selectable defaults disabled to prevent ghosting.
+ * - Click vs drag detection preserves click navigation while preventing accidental link triggers on drag.
+ */
+function HeroRestaurantStream({ restaurants, isActive, onDemoClick }) {
   const containerRef = useRef(null);
-  const cardsRef = useRef([]);
+  const trackRef = useRef(null);
   const isHoveredRef = useRef(false);
-  const dataPtrRef = useRef(POOL_SIZE);
+  const manualPauseRef = useRef(false);
+  const idleTimerRef = useRef(null);
+  const clickBlockTimerRef = useRef(null);
 
   const [dims, setDims] = useState(getStreamDimensions);
   const dimsRef = useRef(dims);
   dimsRef.current = dims;
 
-  const poolRef = useRef(
-    Array.from({ length: POOL_SIZE }, (_, i) => ({
-      x: i * dims.pitch,
-      rIndex: i % Math.max(1, restaurants.length),
-    }))
-  );
+  const baseList = restaurants && restaurants.length > 0 ? restaurants : fallbackRestaurants;
 
+  // Build 3 seamless cycles of cards
+  const { allCards, cycleWidth } = useMemo(() => {
+    const pitch = dims.pitch;
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1440;
+    const minW = Math.max(vw + 600, 2400);
+    const singlePassWidth = Math.max(1, baseList.length * pitch);
+    const repeats = Math.max(1, Math.ceil(minW / singlePassWidth));
+
+    const oneCycle = [];
+    for (let r = 0; r < repeats; r++) {
+      for (let i = 0; i < baseList.length; i++) {
+        oneCycle.push(baseList[i]);
+      }
+    }
+
+    return {
+      allCards: [...oneCycle, ...oneCycle, ...oneCycle],
+      cycleWidth: oneCycle.length * pitch,
+    };
+  }, [baseList, dims.pitch]);
+
+  const cycleWidthRef = useRef(cycleWidth);
+  const offsetRef = useRef(-cycleWidth);
+
+  const dragStateRef = useRef({
+    isDown: false,
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    didDrag: false,
+  });
+
+  // Handle window resizing
   useEffect(() => {
     const handleResize = () => {
       const next = getStreamDimensions();
-      if (next.isMobile !== dimsRef.current.isMobile) {
+      if (next.isMobile !== dimsRef.current.isMobile || next.pitch !== dimsRef.current.pitch) {
         setDims(next);
-        poolRef.current.forEach((item, i) => {
-          item.x = i * next.pitch;
-        });
       }
     };
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Sync track offset when cycle width changes
+  useEffect(() => {
+    const oldW = cycleWidthRef.current;
+    const newW = cycleWidth;
+    cycleWidthRef.current = newW;
+
+    if (oldW && oldW > 0 && offsetRef.current !== 0) {
+      const phase = (((-offsetRef.current) % oldW) + oldW) % oldW / oldW;
+      offsetRef.current = -(newW + phase * newW);
+    } else {
+      offsetRef.current = -newW;
+    }
+
+    if (trackRef.current) {
+      trackRef.current.style.transform = `translate3d(${offsetRef.current}px, 0px, 0px)`;
+    }
+  }, [cycleWidth]);
+
+  // Pointer drag gestures (mouse + touch)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onPointerDown = (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+
+      dragStateRef.current = {
+        isDown: true,
+        isDragging: false,
+        startX: e.clientX,
+        startY: e.clientY,
+        lastX: e.clientX,
+        didDrag: false,
+      };
+
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+
+    const onPointerMove = (e) => {
+      const ds = dragStateRef.current;
+      if (!ds.isDown) return;
+
+      const dx = e.clientX - ds.lastX;
+      ds.lastX = e.clientX;
+
+      const totalX = Math.abs(e.clientX - ds.startX);
+      const totalY = Math.abs(e.clientY - ds.startY);
+
+      if (!ds.isDragging) {
+        if (totalX > 4 && totalX > totalY) {
+          ds.isDragging = true;
+          ds.didDrag = true;
+          manualPauseRef.current = true;
+          if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+          if (containerRef.current) {
+            containerRef.current.style.cursor = "grabbing";
+          }
+        } else {
+          return;
+        }
+      }
+
+      if (ds.isDragging) {
+        offsetRef.current += dx;
+        const W = cycleWidthRef.current;
+        while (offsetRef.current <= -2 * W) {
+          offsetRef.current += W;
+        }
+        while (offsetRef.current >= 0) {
+          offsetRef.current -= W;
+        }
+
+        if (trackRef.current) {
+          trackRef.current.style.transform = `translate3d(${offsetRef.current}px, 0px, 0px)`;
+        }
+      }
+    };
+
+    const onPointerUp = () => {
+      const ds = dragStateRef.current;
+      if (!ds.isDown) return;
+
+      ds.isDown = false;
+      ds.isDragging = false;
+      if (containerRef.current) {
+        containerRef.current.style.cursor = "";
+      }
+
+      if (ds.didDrag) {
+        if (clickBlockTimerRef.current) clearTimeout(clickBlockTimerRef.current);
+        clickBlockTimerRef.current = setTimeout(() => {
+          ds.didDrag = false;
+        }, 150);
+      }
+
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => {
+        manualPauseRef.current = false;
+      }, RESUME_DELAY);
+    };
+
+    // ── Two-Finger Trackpad / Wheel Horizontal Scrolling ─────────────────────
+    const onWheel = (e) => {
+      // If user is actively dragging with pointer, ignore wheel
+      if (dragStateRef.current.isDown) return;
+
+      const absX = Math.abs(e.deltaX);
+      const absY = Math.abs(e.deltaY);
+
+      // If no horizontal delta, or if the gesture is predominantly vertical,
+      // allow normal vertical page scrolling to proceed undisturbed
+      if (absX <= 0 || absX <= absY) {
+        return;
+      }
+
+      // Predominantly horizontal gesture: handle carousel scroll & prevent browser history back/forward navigation
+      e.preventDefault();
+
+      let delta = e.deltaX;
+      if (e.deltaMode === 1) {
+        delta *= 20; // line scroll
+      } else if (e.deltaMode === 2) {
+        delta *= window.innerWidth; // page scroll
+      }
+
+      manualPauseRef.current = true;
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+
+      // Two-finger swipe left (deltaX > 0) advances track (decreases offset).
+      // Two-finger swipe right (deltaX < 0) reverses track (increases offset).
+      offsetRef.current -= delta;
+      const W = cycleWidthRef.current;
+      while (offsetRef.current <= -2 * W) {
+        offsetRef.current += W;
+      }
+      while (offsetRef.current >= 0) {
+        offsetRef.current -= W;
+      }
+
+      if (trackRef.current) {
+        trackRef.current.style.transform = `translate3d(${offsetRef.current}px, 0px, 0px)`;
+      }
+
+      // Resume auto-scroll after idle delay
+      idleTimerRef.current = setTimeout(() => {
+        manualPauseRef.current = false;
+      }, RESUME_DELAY);
+    };
+
+    container.addEventListener("pointerdown", onPointerDown);
+    container.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+
+    return () => {
+      container.removeEventListener("pointerdown", onPointerDown);
+      container.removeEventListener("wheel", onWheel);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (clickBlockTimerRef.current) clearTimeout(clickBlockTimerRef.current);
+    };
+  }, []);
+
+  // Continuous auto-scrolling animation loop
   useEffect(() => {
     let animId = null;
     let lastTime = performance.now();
 
     function loop(time) {
-      if (!isActive) return;
+      if (!isActive) {
+        lastTime = time;
+        animId = requestAnimationFrame(loop);
+        return;
+      }
 
       const dt = Math.min((time - lastTime) / 1000, 0.1);
       lastTime = time;
 
-      if (!isHoveredRef.current) {
-        const pool = poolRef.current;
-        const cards = cardsRef.current;
-        const currentPitch = dimsRef.current.pitch;
+      // Auto-scroll when not hovered and not manually paused
+      if (!isHoveredRef.current && !manualPauseRef.current) {
+        offsetRef.current -= STREAM_SPEED * dt;
+        const W = cycleWidthRef.current;
+        while (offsetRef.current <= -2 * W) {
+          offsetRef.current += W;
+        }
+        while (offsetRef.current >= 0) {
+          offsetRef.current -= W;
+        }
 
-        for (let i = 0; i < POOL_SIZE; i++) {
-          const item = pool[i];
-          const elem = cards[i];
-          if (!elem) continue;
-
-          item.x -= STREAM_SPEED * dt;
-
-          // When a card moves beyond left boundary, recycle to right
-          if (item.x < -currentPitch - 40) {
-            let maxX = -Infinity;
-            for (let j = 0; j < POOL_SIZE; j++) {
-              if (j !== i && pool[j].x > maxX) {
-                maxX = pool[j].x;
-              }
-            }
-            item.x = maxX + currentPitch;
-            item.rIndex = dataPtrRef.current % Math.max(1, restaurants.length);
-            dataPtrRef.current++;
-
-            // Update card DOM in place
-            const r = restaurants[item.rIndex];
-            if (r) {
-              const img = elem.querySelector(".stream-card-img");
-              if (img && (r.coverImage || r.image)) img.src = r.coverImage || r.image;
-              const title = elem.querySelector(".stream-card-title");
-              if (title) title.textContent = r.name || "Curated Dining";
-              const meta = elem.querySelector(".stream-card-meta");
-              if (meta) meta.textContent = `${r.city || "Mumbai"} · ${r.cuisine || "Fine Dining"}`;
-              const rating = elem.querySelector(".stream-card-rating");
-              if (rating) rating.textContent = r.totalReviews > 0 && r.averageRating ? Number(r.averageRating).toFixed(1) : (r.rating || "New");
-              const price = elem.querySelector(".stream-card-price");
-              if (price) price.textContent = r.priceRange || "$$$";
-              const link = elem.querySelector(".stream-card-link");
-              if (link) link.href = `/restaurant/${r.slug || r.restaurantId || r.id}`;
-            }
-          }
-
-          elem.style.transform = `translate3d(${item.x}px, 0px, 0)`;
-          elem.style.opacity = "1";
+        if (trackRef.current) {
+          trackRef.current.style.transform = `translate3d(${offsetRef.current}px, 0px, 0px)`;
         }
       }
 
       animId = requestAnimationFrame(loop);
     }
 
-    if (isActive) {
-      lastTime = performance.now();
-      animId = requestAnimationFrame(loop);
-    }
+    lastTime = performance.now();
+    animId = requestAnimationFrame(loop);
 
     return () => {
       if (animId) cancelAnimationFrame(animId);
     };
-  }, [isActive, restaurants]);
+  }, [isActive]);
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-[132px] sm:h-[155px] overflow-hidden select-none pointer-events-auto"
-      onMouseEnter={() => { isHoveredRef.current = true; }}
-      onMouseLeave={() => { isHoveredRef.current = false; }}
+      className="relative w-full h-[132px] sm:h-[155px] overflow-hidden select-none pointer-events-auto cursor-grab active:cursor-grabbing"
+      onMouseEnter={() => {
+        isHoveredRef.current = true;
+      }}
+      onMouseLeave={() => {
+        isHoveredRef.current = false;
+      }}
+      style={{ userSelect: "none", touchAction: "pan-y" }}
     >
-      {poolRef.current.map((item, i) => {
-        const r = restaurants[item.rIndex] || restaurants[0] || {};
-        return (
-          <div
-            key={i}
-            ref={(el) => (cardsRef.current[i] = el)}
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              width: `${dims.cardWidth}px`,
-              willChange: "transform, opacity",
-            }}
-          >
-            <a
-              href={`/restaurant/${r.slug || r.restaurantId || r.id}`}
-              className="stream-card-link block group rounded-xl overflow-hidden bg-white backdrop-blur-md border border-[#c8a46e]/30 hover:border-[#c8a46e] shadow-lg hover:shadow-[0_8px_25px_rgba(200,164,110,0.3)] transition-all duration-300"
-            >
+      <div
+        ref={trackRef}
+        className="flex items-center h-full will-change-transform"
+        style={{
+          gap: `${dims.cardGap}px`,
+          width: "max-content",
+          transform: `translate3d(${offsetRef.current}px, 0px, 0px)`,
+        }}
+      >
+        {allCards.map((r, index) => {
+          const cardContent = (
+            <>
               <div className="relative h-16 sm:h-24 w-full overflow-hidden bg-neutral-200">
                 <img
                   src={r.coverImage || r.image}
                   alt={r.name}
-                  className="stream-card-img w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="stream-card-img w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none select-none"
                   loading="lazy"
+                  draggable={false}
                 />
-                <div className="stream-card-price absolute top-1 sm:top-1.5 left-1 sm:left-1.5 px-1 sm:px-1.5 py-0.5 rounded bg-white/80 backdrop-blur-sm text-[9px] sm:text-[10px] font-medium text-[#c8a46e]">
-                  {r.priceRange || "$$$"}
-                </div>
+                {r.isDemo && (
+                  <div className="absolute top-1 sm:top-1.5 left-1 sm:left-1.5 px-1 sm:px-1.5 py-0.5 rounded bg-amber-500 text-white text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">
+                    DEMO
+                  </div>
+                )}
+                {!r.isDemo && (
+                  <div className="stream-card-price absolute top-1 sm:top-1.5 left-1 sm:left-1.5 px-1 sm:px-1.5 py-0.5 rounded bg-white/80 backdrop-blur-sm text-[9px] sm:text-[10px] font-medium text-[#c8a46e]">
+                    {r.priceRange || "$$$"}
+                  </div>
+                )}
                 <div className="absolute top-1 sm:top-1.5 right-1 sm:right-1.5 px-1 sm:px-1.5 py-0.5 rounded bg-white/80 backdrop-blur-sm text-[9px] sm:text-[10px] font-medium text-neutral-800 flex items-center gap-0.5">
                   <Star className="w-2.5 h-2.5 fill-[#c8a46e] text-[#c8a46e]" />
-                  <span className="stream-card-rating">{r.totalReviews > 0 && r.averageRating ? Number(r.averageRating).toFixed(1) : (r.rating || "New")}</span>
+                  <span className="stream-card-rating">
+                    {r.totalReviews > 0 && r.averageRating
+                      ? Number(r.averageRating).toFixed(1)
+                      : (r.rating || "New")}
+                  </span>
                 </div>
               </div>
               <div className="p-2 sm:p-2.5 text-left">
-                <h4 className="stream-card-title text-[11px] sm:text-xs font-semibold text-neutral-900 truncate group-hover:text-[#c8a46e] transition-colors">
+                <h4 className="stream-card-title text-[11px] sm:text-xs font-semibold text-neutral-900 truncate group-hover:text-primary transition-colors">
                   {r.name}
                 </h4>
                 <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-neutral-500 truncate mt-0.5">
                   <MapPin className="w-2.5 h-2.5 shrink-0 text-[#c8a46e]" />
-                  <span className="stream-card-meta truncate">{r.city || "Mumbai"} · {r.cuisine || "Fine Dining"}</span>
+                  <span className="stream-card-meta truncate">
+                    {r.city || "Mumbai"} · {r.cuisine || "Fine Dining"}
+                  </span>
                 </div>
               </div>
-            </a>
-          </div>
-        );
-      })}
+            </>
+          );
+
+          return (
+            <div
+              key={index}
+              style={{ width: `${dims.cardWidth}px`, flexShrink: 0 }}
+            >
+              {r.isDemo ? (
+                <button
+                  type="button"
+                  className="stream-card-link block group rounded-xl overflow-hidden bg-white backdrop-blur-md border border-[#c8a46e]/30 hover:border-primary shadow-lg hover:shadow-[0_8px_25px_hsl(var(--primary)/0.35)] transition-all duration-300 w-full text-left cursor-pointer"
+                  draggable={false}
+                  onClick={() => {
+                    if (dragStateRef.current.didDrag) return;
+                    onDemoClick && onDemoClick(r.name || r.branchName || "Demo Restaurant");
+                  }}
+                >
+                  {cardContent}
+                </button>
+              ) : (
+                <Link
+                  to={`/restaurant/${r.slug || r.restaurantId || r.id}`}
+                  className="stream-card-link block group rounded-xl overflow-hidden bg-white backdrop-blur-md border border-[#c8a46e]/30 hover:border-primary shadow-lg hover:shadow-[0_8px_25px_hsl(var(--primary)/0.35)] transition-all duration-300"
+                  draggable={false}
+                  onClick={(e) => {
+                    if (dragStateRef.current.didDrag) {
+                      e.preventDefault();
+                    }
+                  }}
+                >
+                  {cardContent}
+                </Link>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
+
+
 
 function BrandName() {
   return (
@@ -231,10 +467,33 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
   const s4Ref = useRef(null);
   const cardsContainerRef = useRef(null);
   const [isStreamActive, setIsStreamActive] = useState(false);
+  const [demoModal, setDemoModal] = useState({ isOpen: false, restaurantName: "" });
 
-  const allRestaurants = (propRestaurants && propRestaurants.length > 0)
-    ? [...propRestaurants, ...fallbackRestaurants]
-    : fallbackRestaurants;
+  // ── Mix real + demo restaurants (interleaved) ─────────────────────────────
+  const allRestaurants = useMemo(() => {
+    const realList = (propRestaurants && propRestaurants.length > 0)
+      ? propRestaurants
+      : fallbackRestaurants;
+
+    // Mark demo restaurants clearly
+    const demoList = dummyRestaurants.map(d => ({ ...d, isDemo: true }));
+
+    // Interleave: insert 1 demo every 2 real cards
+    const mixed = [];
+    let di = 0;
+    for (let ri = 0; ri < realList.length; ri++) {
+      mixed.push(realList[ri]);
+      if ((ri + 1) % 2 === 0 && di < demoList.length) {
+        mixed.push(demoList[di++]);
+      }
+    }
+    // Append remaining demo restaurants
+    while (di < demoList.length) {
+      mixed.push(demoList[di++]);
+    }
+
+    return mixed;
+  }, [propRestaurants]);
 
   const prefersReduced =
     typeof window !== "undefined" &&
@@ -677,7 +936,7 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
   const lgHead = "clamp(36px, 5.2vw, 72px)";
   const smHead = "clamp(28px, 4.2vw, 54px)";
 
-  return (
+  return ( <>
     <div className="relative w-full h-full overflow-hidden">
       {/* ── 1. CINEMATIC CANVAS ── */}
       <canvas
@@ -838,10 +1097,18 @@ export default function HeroCinematicCanvas({ triggerRef, restaurants: propResta
             <HeroRestaurantStream
               restaurants={allRestaurants}
               isActive={isStreamActive}
+              onDemoClick={(name) => setDemoModal({ isOpen: true, restaurantName: name })}
             />
           </div>
         </div>
       </div>
     </div>
-  );
+
+    {/* Demo Restaurant Modal */}
+    <DemoRestaurantModal
+      isOpen={demoModal.isOpen}
+      onClose={() => setDemoModal({ isOpen: false, restaurantName: "" })}
+      restaurantName={demoModal.restaurantName}
+    />
+    </> );
 }

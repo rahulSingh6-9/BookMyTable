@@ -360,22 +360,23 @@ export default function Discover() {
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[280px] p-0" align="end">
+              <PopoverContent className="w-[260px] xs:w-[280px] max-w-[calc(100vw-24px)] p-0" align="end">
                 <Command>
-                  <CommandInput placeholder="Search city..." />
-                  <CommandList>
-                    <CommandEmpty>No city found.</CommandEmpty>
+                  <CommandInput className="h-8 sm:h-11 py-1.5 sm:py-3 text-xs sm:text-sm" placeholder="Search city..." />
+                  <CommandList className="max-h-[220px] sm:max-h-[300px]">
+                    <CommandEmpty className="py-4 text-xs sm:text-sm text-center">No city found.</CommandEmpty>
                     <CommandItem 
                       value="All"
                       onSelect={() => {
                         setSelectedCity("All");
                         setOpenLocation(false);
                       }}
+                      className="py-1.5 px-2.5 sm:py-2 sm:px-3 text-xs sm:text-sm cursor-pointer"
                     >
-                      <Check className={`mr-2 h-4 w-4 ${selectedCity === "All" ? "opacity-100" : "opacity-0"}`} />
+                      <Check className={`mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 ${selectedCity === "All" ? "opacity-100" : "opacity-0"}`} />
                       All Cities
                     </CommandItem>
-                    <CommandGroup heading="Available Cities">
+                    <CommandGroup heading="Available Cities" className="[&_[cmdk-group-heading]]:text-[10px] sm:[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:py-1">
                       {cities.map((city) => (
                         <CommandItem
                           key={city}
@@ -384,8 +385,9 @@ export default function Discover() {
                             setSelectedCity(city);
                             setOpenLocation(false);
                           }}
+                          className="py-1.5 px-2.5 sm:py-2 sm:px-3 text-xs sm:text-sm cursor-pointer"
                         >
-                          <Check className={`mr-2 h-4 w-4 ${selectedCity === city ? "opacity-100" : "opacity-0"}`} />
+                          <Check className={`mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 ${selectedCity === city ? "opacity-100" : "opacity-0"}`} />
                           {city}
                         </CommandItem>
                       ))}

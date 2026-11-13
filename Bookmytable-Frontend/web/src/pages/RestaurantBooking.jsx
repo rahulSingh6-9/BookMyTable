@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, AlertCircle, ChevronLeft, MapPin, Users, Layers, ShieldAlert, Clock, Calendar as CalendarIcon, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { usePageReveal } from "@/hooks/usePageReveal";
 
 // Context & Services
 import { useCart } from "@/context/CartContext";
@@ -22,6 +23,7 @@ export default function RestaurantBooking() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
+  const pageRef = useRef(null);
 
   const dateParam = searchParams.get("date");
   const timeParam = searchParams.get("time");
@@ -230,6 +232,9 @@ export default function RestaurantBooking() {
     }
   }, [selectedTableIds, dateParam, timeParam, guestsParam, selectedTableObjs, updateReservation, location.pathname]);
 
+  // GSAP viewport-aware reveal animations (fail-safe, compatible with BarbaPageTransition)
+  usePageReveal(pageRef, [restaurant]);
+
 
   // Loading State
   if (detailsLoading || !dateParam || !timeParam) {
@@ -253,7 +258,7 @@ export default function RestaurantBooking() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div ref={pageRef} className="min-h-screen bg-background pb-32">
       
       {/* Hero Section */}
       <RestaurantHero restaurant={restaurant} />
@@ -261,7 +266,7 @@ export default function RestaurantBooking() {
       <div className="container mx-auto px-4 lg:px-8 mt-8">
         
         {/* STICKY TOP RESERVATION BAR */}
-        <div className="sticky top-0 z-30 max-w-7xl mx-auto bg-background/95 backdrop-blur-md border-b border-border/40 py-4 mb-8 shadow-sm px-2">
+        <div data-reveal data-reveal-delay="0" className="sticky top-0 z-30 max-w-7xl mx-auto bg-background/95 backdrop-blur-md border-b border-border/40 py-4 mb-8 shadow-sm px-2">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-bold text-foreground">
               <span className="flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-primary" /> {dateParam}</span>
@@ -286,7 +291,7 @@ export default function RestaurantBooking() {
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start relative">
           
           {/* Step 1: Menu (Left Column) */}
-          <div className="lg:col-span-7 lg:order-1 order-2">
+          <div data-reveal data-reveal-delay="0.1" className="lg:col-span-7 lg:order-1 order-2">
             <section id="booking-menu">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-black text-foreground tracking-tight">Add to your order <span className="text-muted-foreground/60 text-lg font-bold ml-2">(Optional)</span></h2>
@@ -296,7 +301,7 @@ export default function RestaurantBooking() {
           </div>
 
           {/* Step 2: Table Selection (Right Column) */}
-          <div className="lg:col-span-5 lg:order-2 order-1 lg:sticky lg:top-[120px]">
+          <div data-reveal data-reveal-delay="0.15" className="lg:col-span-5 lg:order-2 order-1 lg:sticky lg:top-[120px]">
             <section className="bg-card border border-border/50 rounded-3xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div>

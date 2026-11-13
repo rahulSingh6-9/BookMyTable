@@ -148,7 +148,11 @@ export const cancelBooking = async (req, res) => {
 export const getRestaurantBookings = async (req, res) => {
   try {
     const { restaurantId } = req.params;
-    const bookings = await getRestaurantBookingsService(restaurantId, req.query);
+    const bookings = await getRestaurantBookingsService(restaurantId, req.query, {
+      userId: req.user?.id || req.user?._id,
+      globalRoles: req.user?.roles || [],
+      headerBranchId: req.headers["x-branch-id"],
+    });
 
     return res.status(200).json({
       success: true,
@@ -156,7 +160,12 @@ export const getRestaurantBookings = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error fetching restaurant bookings:", error.message);
-    return res.status(500).json({ success: false, message: error.message });
+    const status = error.statusCode || 500;
+    return res.status(status).json({
+      success: false,
+      code: error.code || "BOOKINGS_FETCH_FAILED",
+      message: error.message,
+    });
   }
 };
 
@@ -169,7 +178,11 @@ export const updateBookingStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const booking = await updateBookingStatusService(id, status);
+    const booking = await updateBookingStatusService(id, status, {
+      userId: req.user?.id || req.user?._id,
+      globalRoles: req.user?.roles || [],
+      headerBranchId: req.headers["x-branch-id"],
+    });
 
     return res.status(200).json({
       success: true,
@@ -178,7 +191,11 @@ export const updateBookingStatus = async (req, res) => {
   } catch (error) {
     console.error("❌ Error updating booking status:", error.message);
     const statusCode = error.statusCode || 400;
-    return res.status(statusCode).json({ success: false, message: error.message });
+    return res.status(statusCode).json({
+      success: false,
+      code: error.code || "BOOKING_STATUS_UPDATE_FAILED",
+      message: error.message,
+    });
   }
 };
 

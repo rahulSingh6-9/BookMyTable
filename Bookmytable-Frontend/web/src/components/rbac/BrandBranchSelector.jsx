@@ -80,9 +80,11 @@ export const BrandBranchSelector = ({ className, collapsed = false }) => {
     handleBrandNavigate(brandSlug);
   };
 
-  // Reset mobile tab when popover opens
+  // Reset ephemeral preview/search when the popover opens or closes so
+  // selected brand/branch styling is never leftover from a previous hover.
   const handleOpenChange = (newOpen) => {
     setOpen(newOpen);
+    setHoveredBrandSlug(null);
     if (newOpen) {
       setMobileTab("portfolios");
       setSearchQuery("");
@@ -207,7 +209,7 @@ export const BrandBranchSelector = ({ className, collapsed = false }) => {
               <div className="flex flex-col h-full">
                 <div className="flex-1 overflow-y-auto px-1.5 py-1.5 space-y-0.5 [&::-webkit-scrollbar]:hidden">
                   {filteredBrands.map((b) => {
-                    const isSelected = displayBrandSlug === b.slug;
+                    const isSelected = activeBrandSlug === b.slug;
                     return (
                       <div
                         key={b.slug}
@@ -345,7 +347,7 @@ export const BrandBranchSelector = ({ className, collapsed = false }) => {
 
   // ──── DESKTOP LAYOUT (unchanged) ────
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -449,7 +451,7 @@ export const BrandBranchSelector = ({ className, collapsed = false }) => {
             
             <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1 [&::-webkit-scrollbar]:hidden">
               {filteredBrands.map((b) => {
-                const isSelected = displayBrandSlug === b.slug;
+                const isSelected = activeBrandSlug === b.slug;
                 return (
                   <div
                     key={b.slug}

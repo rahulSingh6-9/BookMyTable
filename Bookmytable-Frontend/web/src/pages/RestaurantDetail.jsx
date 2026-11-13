@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, AlertCircle, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { usePageReveal } from "@/hooks/usePageReveal";
 
 // Modular Components
 import { RestaurantHero } from "@/components/restaurant/RestaurantHero";
@@ -21,6 +22,7 @@ export default function RestaurantDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Book a Table");
+  const pageRef = useRef(null);
 
   // 1. Fetch Restaurant Details (Hero, Settings, Address)
   const { data: detailsRes, isLoading: detailsLoading, error: detailsErr } = useQuery({
@@ -55,6 +57,9 @@ export default function RestaurantDetail() {
     }
   }, [slug, navigate]);
 
+  // GSAP viewport-aware reveal animations (fail-safe, compatible with BarbaPageTransition)
+  usePageReveal(pageRef, [restaurant]);
+
 
   // Loading State
   if (detailsLoading) {
@@ -85,12 +90,12 @@ export default function RestaurantDetail() {
   const TABS = ["Book a Table", "Overview", "Review", "Menu"];
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div ref={pageRef} className="min-h-screen bg-background pb-20">
       {/* 1. Hero Section */}
       <RestaurantHero restaurant={restaurant} />
 
       {/* 2. Sticky Tab Navigation */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
+      <div data-reveal className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="max-w-5xl mx-auto">
             <div className="flex items-center gap-8 md:gap-16 overflow-x-auto scrollbar-hide">
@@ -118,13 +123,13 @@ export default function RestaurantDetail() {
         <div className="max-w-5xl mx-auto min-h-[400px]">
           
           {activeTab === "Book a Table" && (
-            <motion.div key="book" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <motion.div key="book" data-reveal initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               <ReservationSection restaurant={restaurant} />
             </motion.div>
           )}
 
           {activeTab === "Overview" && (
-            <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="space-y-12">
+            <motion.div key="overview" data-reveal initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="space-y-12">
               <section>
                 <RestaurantDetails restaurant={restaurant} />
               </section>
@@ -136,13 +141,13 @@ export default function RestaurantDetail() {
           )}
 
           {activeTab === "Review" && (
-            <motion.div key="review" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <motion.div key="review" data-reveal initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               <RestaurantReviews restaurant={restaurant} />
             </motion.div>
           )}
 
           {activeTab === "Menu" && (
-            <motion.div key="menu" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <motion.div key="menu" data-reveal initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
               <RestaurantMenuTabs menuRes={menuRes} menuLoading={menuLoading} isViewOnly={true} />
             </motion.div>
           )}

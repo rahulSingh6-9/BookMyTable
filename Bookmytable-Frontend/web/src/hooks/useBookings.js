@@ -1,29 +1,36 @@
-import { useState, useCallback } from "react";
-import { mockBookings } from "@/lib/mockData";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getRestaurantBookings, updateBookingStatus } from "@/services/booking.service";
 
-export function useBookings(restaurantId) {
-  const [bookings, setBookings] = useState(
-    restaurantId ? mockBookings.filter((b) => b.restaurant === restaurantId) : mockBookings
-  );
+export const restaurantBookingsQueryKey = (branchId) => ["bookings", branchId, "reservations"];
 
-  const addBooking = useCallback((booking) => {
-    const newBooking = {
-      ...booking,
-      _id: `b${Date.now()}`,
-      status: "pending",
-      paymentStatus: "pending",
-      bookingSource: "app",
-      createdAt: new Date().toISOString(),
-    };
-    setBookings((prev) => [...prev, newBooking]);
-    return newBooking;
-  }, []);
+const normalizeBookings = (raw) => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw.data)) return raw.data;
+  if (Array.isArray(raw.data?.data)) return raw.data.data;
+  if (Array.isArray(raw.bookings)) return raw.bookings;
+  return [];
+};
 
-  const updateBookingStatus = useCallback((bookingId, status) => {
-    setBookings((prev) =>
-      prev.map((b) => (b._id === bookingId ? { ...b, status } : b))
-    );
-  }, []);
+export function useRestaurantBookings(branchId) {
+  return useQuery({
+    queryKey: restaurantBookingsQueryKey(branchId),
+    queryFn: async () => {
+      const res = await getRestaurantBookings(branchId);
+      return normalizeBookings(res?.data);
+    },
+    enabled: !!branchId,
+    staleTime: 15_000,
+  });
+}
 
-  return { bookings, addBooking, updateBookingStatus };
+export function useUpdateBookingStatus(branchId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, status }) => updateBookingStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings", branchId] });
+    },
+  });
 }

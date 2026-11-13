@@ -10,6 +10,7 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { navLinks } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { cn } from "@/lib/utils";
 import { useAuth } from "../context/AuthContext";
 import { useLocationStore } from "@/store/useLocationStore";
 import { useQuery } from "@tanstack/react-query";
@@ -89,6 +90,19 @@ function Navbar({ children }) {
   const displayLocation = storedLocation.area 
     ? `${storedLocation.area}, ${storedLocation.city}`
     : storedLocation.city || "Select Location";
+
+  // cmdk stores pointer highlight as data-selected and keeps it after mouse leave.
+  // Neutralize that persistent highlight; use CSS :hover for the green effect.
+  const locationItemClass = (...classes) =>
+    cn(
+      "cursor-pointer rounded-md",
+      "data-[selected=true]:!bg-transparent data-[selected='true']:!bg-transparent",
+      "data-[selected=true]:!text-foreground data-[selected='true']:!text-foreground",
+      "hover:!bg-accent hover:!text-accent-foreground",
+      "data-[selected=true]:hover:!bg-accent data-[selected='true']:hover:!bg-accent",
+      "data-[selected=true]:hover:!text-accent-foreground data-[selected='true']:hover:!text-accent-foreground",
+      ...classes
+    );
 
   const location = useLocation();
   const isHome = location.pathname === "/";
@@ -391,7 +405,7 @@ function Navbar({ children }) {
               <PopoverTrigger asChild>
                 <Button
                   variant="ghost"
-                  className={`group gap-1.5 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3 flex items-center max-w-[130px] xs:max-w-[160px] sm:max-w-[200px] lg:max-w-[300px] transition-colors duration-300 ${
+                  className={`group gap-1 sm:gap-2 h-7 sm:h-9 px-1.5 sm:px-3 flex items-center max-w-[105px] xs:max-w-[130px] sm:max-w-[200px] lg:max-w-[300px] transition-colors duration-300 ${
                     isTransparent
                       ? "text-white hover:text-white hover:bg-white/10"
                       : "text-foreground hover:text-foreground hover:bg-muted"
@@ -401,34 +415,34 @@ function Navbar({ children }) {
                   }}
                   aria-label="Select city or area"
                 >
-                  <MapPin className="h-4 w-4 text-primary shrink-0" />
-                  <span className={`text-xs sm:text-sm truncate ${isTransparent ? "text-white group-hover:text-white" : "text-foreground group-hover:text-foreground"}`}>
-                    <span className="sm:hidden font-semibold">{storedLocation.city || "Select City"}</span>
+                  <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
+                  <span className={`text-[11px] sm:text-sm truncate ${isTransparent ? "text-white group-hover:text-white" : "text-foreground group-hover:text-foreground"}`}>
+                    <span className="sm:hidden font-medium">{storedLocation.city || "Select City"}</span>
                     <span className="hidden sm:inline font-medium">{displayLocation}</span>
                   </span>
-                  <ChevronDown className={`h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 transition-transform duration-200 ${openLocation ? "rotate-180" : ""} ${isTransparent ? "text-white/80 group-hover:text-white" : "text-muted-foreground group-hover:text-foreground"}`} />
+                  <ChevronDown className={`h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 shrink-0 transition-transform duration-200 ${openLocation ? "rotate-180" : ""} ${isTransparent ? "text-white/80 group-hover:text-white" : "text-muted-foreground group-hover:text-foreground"}`} />
                 </Button>
               </PopoverTrigger>
-            <PopoverContent className="w-[calc(100vw-32px)] sm:w-[320px] max-w-[340px] p-0 shadow-xl border-border z-[110]" align="start" sideOffset={8}>
+            <PopoverContent className="w-[260px] xs:w-[285px] sm:w-[320px] max-w-[calc(100vw-24px)] p-0 shadow-xl border-border z-[110]" align="start" sideOffset={6}>
               {/* Segmented View Switcher */}
-              <div className="flex items-center p-2 border-b bg-muted/30 gap-1">
+              <div className="flex items-center p-1.5 sm:p-2 border-b bg-muted/30 gap-1">
                 <button
                   type="button"
                   onClick={() => setView("city")}
-                  className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-1.5 px-3 rounded-md font-medium transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs py-1 sm:py-1.5 px-2 sm:px-3 rounded-md font-medium transition-all ${
                     view === "city"
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                   }`}
                 >
-                  <Building2 className="h-3.5 w-3.5" />
-                  Cities ({cities.length})
+                  <Building2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                  <span className="truncate">Cities ({cities.length})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => storedLocation.city && setView("area")}
                   disabled={!storedLocation.city}
-                  className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-1.5 px-3 rounded-md font-medium transition-all truncate ${
+                  className={`flex-1 flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs py-1 sm:py-1.5 px-2 sm:px-3 rounded-md font-medium transition-all truncate ${
                     view === "area"
                       ? "bg-background text-foreground shadow-sm"
                       : storedLocation.city
@@ -436,7 +450,7 @@ function Navbar({ children }) {
                       : "opacity-40 cursor-not-allowed text-muted-foreground"
                   }`}
                 >
-                  <MapPin className="h-3.5 w-3.5" />
+                  <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                   <span className="truncate">
                     {storedLocation.city ? `Areas (${storedLocation.city})` : "Areas"}
                   </span>
@@ -445,19 +459,20 @@ function Navbar({ children }) {
 
               <Command>
                 <CommandInput 
-                  placeholder={view === "city" ? "Search cities on BookMyTable..." : `Search areas in ${storedLocation.city}...`} 
+                  className="h-8 sm:h-11 py-1.5 sm:py-3 text-xs sm:text-sm"
+                  placeholder={view === "city" ? "Search cities..." : `Search areas in ${storedLocation.city}...`} 
                 />
                 
-                <CommandList>
-                  <CommandEmpty>
-                    {view === "city" ? "No cities found with available restaurants." : `No areas found in ${storedLocation.city}.`}
+                <CommandList className="max-h-[210px] sm:max-h-[300px]">
+                  <CommandEmpty className="py-4 text-xs sm:text-sm text-center">
+                    {view === "city" ? "No cities found." : `No areas found in ${storedLocation.city}.`}
                   </CommandEmpty>
                   
                   {view === "city" && (
-                    <CommandGroup heading="Available Cities with Restaurants">
+                    <CommandGroup heading="Available Cities" className="[&_[cmdk-group-heading]]:text-[10px] sm:[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:py-1">
                       {loadingCities ? (
-                        <div className="p-4 text-sm text-center text-muted-foreground flex items-center justify-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        <div className="p-3 text-xs sm:text-sm text-center text-muted-foreground flex items-center justify-center gap-2">
+                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-primary" />
                           Loading cities...
                         </div>
                       ) : cities.length > 0 ? (
@@ -472,11 +487,13 @@ function Navbar({ children }) {
                                 setArea("");
                                 setOpenLocation(false);
                               }}
-                              className="cursor-pointer flex items-center justify-between py-2 px-3"
+                              className={locationItemClass(
+                                "group flex items-center justify-between py-1.5 px-2.5 sm:py-2 sm:px-3"
+                              )}
                             >
-                              <div className="flex items-center gap-2">
-                                <Check className={`h-4 w-4 ${isSelected ? "opacity-100 text-primary" : "opacity-0"}`} />
-                                <span className={`text-sm ${isSelected ? "font-semibold text-primary" : "font-medium text-foreground"}`}>
+                              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                                <Check className={`h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 ${isSelected ? "opacity-100 text-primary group-hover:text-accent-foreground" : "opacity-0"}`} />
+                                <span className={`text-xs sm:text-sm truncate group-hover:text-accent-foreground ${isSelected ? "font-semibold text-primary" : "font-medium text-foreground"}`}>
                                   {city}
                                 </span>
                               </div>
@@ -487,16 +504,16 @@ function Navbar({ children }) {
                                   setCity(city);
                                   setView("area");
                                 }}
-                                className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-0.5 px-2 py-0.5 rounded hover:bg-muted"
+                                className="text-[10px] sm:text-[11px] text-muted-foreground group-hover:text-accent-foreground/90 hover:text-primary flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded hover:bg-black/10 shrink-0"
                                 title={`Explore areas in ${city}`}
                               >
-                                Areas <ChevronRight className="h-3 w-3" />
+                                Areas <ChevronRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                               </button>
                             </CommandItem>
                           );
                         })
                       ) : (
-                        <div className="p-4 text-sm text-center text-muted-foreground">
+                        <div className="p-3 text-xs sm:text-sm text-center text-muted-foreground">
                           No cities available currently.
                         </div>
                       )}
@@ -504,26 +521,32 @@ function Navbar({ children }) {
                   )}
 
                   {view === "area" && (
-                    <CommandGroup heading={`Areas in ${storedLocation.city}`}>
+                    <CommandGroup heading={`Areas in ${storedLocation.city}`} className="[&_[cmdk-group-heading]]:text-[10px] sm:[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:py-1">
                       <CommandItem
                         value={`all-${storedLocation.city}`}
                         onSelect={() => {
                           setArea("");
                           setOpenLocation(false);
                         }}
-                        className="cursor-pointer py-2 px-3 flex items-center"
+                        className={locationItemClass(
+                          "group py-1.5 px-2.5 sm:py-2 sm:px-3 flex items-center"
+                        )}
                       >
-                        <Check className={`mr-2 h-4 w-4 ${!storedLocation.area ? "opacity-100 text-primary" : "opacity-0"}`} />
-                        <span className="font-semibold text-foreground">All of {storedLocation.city}</span>
+                        <Check className={`mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 ${!storedLocation.area ? "opacity-100 text-primary group-hover:text-accent-foreground" : "opacity-0"}`} />
+                        <span className={`font-semibold text-xs sm:text-sm group-hover:text-accent-foreground ${!storedLocation.area ? "text-primary" : "text-foreground"}`}>
+                          All of {storedLocation.city}
+                        </span>
                       </CommandItem>
 
                       {loadingAreas ? (
-                        <div className="p-4 text-sm text-center text-muted-foreground flex items-center justify-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        <div className="p-3 text-xs sm:text-sm text-center text-muted-foreground flex items-center justify-center gap-2">
+                          <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-primary" />
                           Loading areas...
                         </div>
                       ) : areas.length > 0 ? (
-                        areas.map((area) => (
+                        areas.map((area) => {
+                          const isSelected = storedLocation.area?.toLowerCase() === area.toLowerCase();
+                          return (
                           <CommandItem
                             key={area}
                             value={area}
@@ -531,14 +554,19 @@ function Navbar({ children }) {
                               setArea(area);
                               setOpenLocation(false);
                             }}
-                            className="cursor-pointer py-2 px-3 flex items-center"
+                            className={locationItemClass(
+                              "group py-1.5 px-2.5 sm:py-2 sm:px-3 flex items-center"
+                            )}
                           >
-                            <Check className={`mr-2 h-4 w-4 ${storedLocation.area?.toLowerCase() === area.toLowerCase() ? "opacity-100 text-primary" : "opacity-0"}`} />
-                            <span className="text-sm">{area}</span>
+                            <Check className={`mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0 ${isSelected ? "opacity-100 text-primary group-hover:text-accent-foreground" : "opacity-0"}`} />
+                            <span className={`text-xs sm:text-sm truncate group-hover:text-accent-foreground ${isSelected ? "font-semibold text-primary" : ""}`}>
+                              {area}
+                            </span>
                           </CommandItem>
-                        ))
+                          );
+                        })
                       ) : (
-                        <div className="p-3 text-xs text-center text-muted-foreground">
+                        <div className="p-2.5 text-[11px] sm:text-xs text-center text-muted-foreground">
                           No specific sub-areas listed. Showing all restaurants in {storedLocation.city}.
                         </div>
                       )}

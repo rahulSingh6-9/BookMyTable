@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { usePageReveal } from "@/hooks/usePageReveal";
 import { format } from "date-fns";
 import {
   Loader2,
@@ -29,6 +30,7 @@ import { cn } from "@/lib/utils";
 export default function RestaurantCheckout() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const pageRef = useRef(null);
   const { 
     cartItems, cartTotal, reservationDetails, clearCart, clearReservation 
   } = useCart();
@@ -79,6 +81,9 @@ export default function RestaurantCheckout() {
       setCheckoutStep("review");
     }
   }, [isLoggedIn, isPhoneVerified, checkoutStep]);
+
+  // GSAP viewport-aware reveal animations (fail-safe, compatible with BarbaPageTransition)
+  usePageReveal(pageRef, [checkoutStep, restaurant]);
 
   if (detailsLoading) {
     return (

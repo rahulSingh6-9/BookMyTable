@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { format, addDays, isSameDay, startOfDay } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Users, Clock, Loader2, Calendar as CalendarIcon, ArrowRight } from "lucide-react";
@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { getRestaurantAvailability } from "@/services/booking.service";
 import { socket, joinRestaurantRoom, leaveRestaurantRoom } from "@/services/socket";
 import { useNavigate } from "react-router-dom";
+import { usePageReveal } from "@/hooks/usePageReveal";
 import {
   Select,
   SelectContent,
@@ -18,6 +19,7 @@ import {
 export function ReservationSection({ restaurant }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const sectionRef = useRef(null);
   const settings = restaurant.settings || {};
 
   const advanceBookingDays = settings.advanceBookingDays || 7;
@@ -131,6 +133,9 @@ export function ReservationSection({ restaurant }) {
     }
   }, [generatedSlots, time]);
 
+  // GSAP viewport-aware reveal animations (fail-safe, compatible with BarbaPageTransition)
+  usePageReveal(sectionRef, [], "data-reveal-step");
+
   const backendAvailableTables = availabilityRes?.data?.data?.tables || [];
   const backendAvailableSlots = availabilityRes?.data?.data?.slots || [];
   
@@ -163,14 +168,14 @@ export function ReservationSection({ restaurant }) {
   };
 
   return (
-    <div className="w-full relative z-20">
+    <div ref={sectionRef} className="w-full relative z-20">
         {/* RESERVATION BAR */}
-        <div className="bg-card border border-border shadow-md rounded-2xl p-4 lg:p-6 mb-8">
+        <div data-reveal-step="0" className="bg-card border border-border shadow-md rounded-2xl p-4 lg:p-6 mb-8">
           
           <div className="flex flex-col gap-8 mb-6">
             
             {/* DATE SELECTOR (Horizontal Scroll) */}
-            <div className="w-full overflow-hidden">
+            <div data-reveal-step="0.1" className="w-full overflow-hidden">
               <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4" /> Date
               </label>
@@ -197,7 +202,7 @@ export function ReservationSection({ restaurant }) {
             </div>
 
             {/* TIME SELECTOR (Vertical Sections) */}
-            <div className="w-full">
+            <div data-reveal-step="0.2" className="w-full">
               <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
                 <Clock className="w-4 h-4" /> Time
               </label>
@@ -251,7 +256,7 @@ export function ReservationSection({ restaurant }) {
             </div>
 
             {/* GUEST SELECTOR */}
-            <div className="w-full sm:w-1/2 md:w-1/3 xl:w-1/4 shrink-0">
+            <div data-reveal-step="0.3" className="w-full sm:w-1/2 md:w-1/3 xl:w-1/4 shrink-0">
               <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Users className="w-4 h-4" /> Guests
               </label>

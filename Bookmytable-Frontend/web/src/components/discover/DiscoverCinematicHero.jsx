@@ -49,13 +49,23 @@ const preloadImage = (src) => {
     }
     const img = new Image();
     img.src = src;
-    if (img.complete) {
+    const onDone = () => {
       preloadedCache.add(src);
       resolve();
+    };
+    if (img.complete) {
+      if (img.decode) {
+        img.decode().then(onDone).catch(onDone);
+      } else {
+        onDone();
+      }
     } else {
       img.onload = () => {
-        preloadedCache.add(src);
-        resolve();
+        if (img.decode) {
+          img.decode().then(onDone).catch(onDone);
+        } else {
+          onDone();
+        }
       };
       img.onerror = () => resolve();
     }
@@ -70,6 +80,8 @@ export function DiscoverCinematicHero() {
   const heroRef = useRef(null);
   const revealContainerRef = useRef(null);
   const lineRef = useRef(null);
+  const baseImgRef = useRef(null);
+  const revealImgRef = useRef(null);
   
   // Refs for tracking animation state inside GSAP context without re-renders
   const currentIndexRef = useRef(0);
@@ -90,10 +102,10 @@ export function DiscoverCinematicHero() {
     return () => mediaQuery.removeEventListener?.("change", handleChange);
   }, []);
 
-  // Preload initial image immediately, and queue the next slide
+  // Preload and decode all slides on mount to prevent any runtime decoding hiccups
   useEffect(() => {
-    preloadImage(DISCOVER_SLIDES[0].src).then(() => {
-      preloadImage(DISCOVER_SLIDES[1].src);
+    DISCOVER_SLIDES.forEach((slide) => {
+      preloadImage(slide.src);
     });
   }, []);
 
@@ -101,22 +113,29 @@ export function DiscoverCinematicHero() {
   useEffect(() => {
     if (isReducedMotion) return;
 
+    let isMounted = true;
+
     const ctx = gsap.context(() => {
       let timerId;
 
       const triggerNextWipe = () => {
-        if (isAnimatingRef.current) return;
+        if (isAnimatingRef.current || !isMounted) return;
         isAnimatingRef.current = true;
 
         const currentIdx = currentIndexRef.current;
         const upcomingIdx = (currentIdx + 1) % DISCOVER_SLIDES.length;
         const nextSlideSrc = DISCOVER_SLIDES[upcomingIdx].src;
 
-        // Ensure next image is preloaded before initiating wipe transition
+        // Ensure next image is preloaded and decoded before initiating wipe transition
         preloadImage(nextSlideSrc).then(() => {
-          if (!revealContainerRef.current || !lineRef.current) {
+          if (!isMounted || !revealContainerRef.current || !lineRef.current) {
             isAnimatingRef.current = false;
             return;
+          }
+
+          // Ensure reveal image has the expected upcoming slide
+          if (revealImgRef.current && revealImgRef.current.src !== nextSlideSrc) {
+            revealImgRef.current.src = nextSlideSrc;
           }
 
           // Make line visible at right edge (100%)
@@ -129,6 +148,7 @@ export function DiscoverCinematicHero() {
             duration: 0.25,
             ease: "power2.out",
             onComplete: () => {
+              if (!isMounted) return;
               const progressObj = { value: 100 };
 
               // Custom non-linear easing curve: smooth acceleration, fast middle, controlled finish
@@ -147,39 +167,60 @@ export function DiscoverCinematicHero() {
                   }
                 },
                 onComplete: () => {
+                  if (!isMounted) return;
                   // Fade line out at left boundary (0%)
                   gsap.to(lineRef.current, {
                     opacity: 0,
                     duration: 0.2,
                     ease: "power2.in",
-                    onComplete: () => {
-                      // Seamless state sync: move next image to base layer
+                    onComplete: async () => {
+                      if (!isMounted) return;
+
+                      // 1. Synchronously swap the base image underneath to the now-visible upcoming slide
+                      if (baseImgRef.current) {
+                        baseImgRef.current.src = DISCOVER_SLIDES[upcomingIdx].src;
+                        if (baseImgRef.current.decode) {
+                          try {
+                            await baseImgRef.current.decode();
+                          } catch (_) {}
+                        }
+                      }
+
+                      // 2. Await animation frame to guarantee base image has completed rendering underneath
+                      await new Promise((r) => requestAnimationFrame(r));
+                      if (!isMounted) return;
+
+                      // 3. Reset revealContainer clipPath to 100% and line to 100%.
+                      // Because the base layer is now rendering the exact same upcomingIdx image,
+                      // resetting the reveal layer produces 0 visual change (pixel-identical).
+                      if (revealContainerRef.current) {
+                        revealContainerRef.current.style.clipPath = "inset(0 0 0 100%)";
+                      }
+                      if (lineRef.current) {
+                        lineRef.current.style.left = "100%";
+                      }
+
+                      // 4. Now that revealContainer is hidden at 100%, update revealImg to the next upcoming slide
                       const newCurrent = upcomingIdx;
                       const newNext = (newCurrent + 1) % DISCOVER_SLIDES.length;
+                      currentIndexRef.current = newCurrent;
 
-                      // Use setTimeout to allow React to render the new state BEFORE we reset the clipPath.
-                      // This prevents the 1-frame flicker where the old base image flashes.
+                      if (revealImgRef.current) {
+                        revealImgRef.current.src = DISCOVER_SLIDES[newNext].src;
+                      }
+
+                      // 5. Update React state for captions and slide indices
                       setCurrentIndex(newCurrent);
                       setNextIndex(newNext);
 
-                      timerId = setTimeout(() => {
-                        // Reset clipPath and line position for the next cycle
-                        if (revealContainerRef.current) {
-                          revealContainerRef.current.style.clipPath = "inset(0 0 0 100%)";
-                        }
-                        if (lineRef.current) {
-                          lineRef.current.style.left = "100%";
-                        }
+                      isAnimatingRef.current = false;
 
-                        isAnimatingRef.current = false;
+                      // 6. Preload upcoming slide
+                      preloadImage(DISCOVER_SLIDES[newNext].src);
 
-                        // Preload the upcoming next image
-                        preloadImage(DISCOVER_SLIDES[newNext].src);
-
-                        // Vary hold duration slightly for organic cinematic pacing (3.0s - 3.4s)
-                        const holdDuration = 3200 + (newCurrent % 2 === 0 ? 200 : -200);
-                        timerId = setTimeout(triggerNextWipe, holdDuration);
-                      }, 50);
+                      // 7. Schedule next wipe after organic hold duration
+                      const holdDuration = 3200 + (newCurrent % 2 === 0 ? 200 : -200);
+                      timerId = setTimeout(triggerNextWipe, holdDuration);
                     }
                   });
                 }
@@ -193,11 +234,15 @@ export function DiscoverCinematicHero() {
       timerId = setTimeout(triggerNextWipe, 3400);
 
       return () => {
+        isMounted = false;
         if (timerId) clearTimeout(timerId);
       };
     }, heroRef);
 
-    return () => ctx.revert();
+    return () => {
+      isMounted = false;
+      ctx.revert();
+    };
   }, [isReducedMotion]);
 
   const currentSlide = DISCOVER_SLIDES[currentIndex];
@@ -210,8 +255,10 @@ export function DiscoverCinematicHero() {
     >
       {/* Layer 1: Base Image (Current Slide) */}
       <img
+        ref={baseImgRef}
         src={currentSlide.src}
         alt={currentSlide.title}
+        draggable={false}
         className="absolute inset-0 w-full h-full object-cover object-center select-none pointer-events-none"
       />
 
@@ -223,9 +270,11 @@ export function DiscoverCinematicHero() {
           style={{ clipPath: "inset(0 0 0 100%)" }}
         >
           <img
+            ref={revealImgRef}
             src={nextSlide.src}
             alt={nextSlide.title}
-            className="absolute inset-0 w-full h-full object-cover object-center select-none"
+            draggable={false}
+            className="absolute inset-0 w-full h-full object-cover object-center select-none pointer-events-none"
           />
         </div>
       )}

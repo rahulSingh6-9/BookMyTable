@@ -20,6 +20,110 @@ import {
 } from "../../config/socket.js";
 import { notificationService } from "../notification/notification.service.js";
 import { checkReservationLimits, incrementReservationUsage } from "../subscriptions/subscription.service.js";
+import { hasPermission } from "../../utils/rbac/hasPermission.js";
+
+const PLATFORM_ADMIN_ROLES = ["admin", "super_admin", "SUPER_ADMIN", "PLATFORM_ADMIN"];
+
+const assertBranchBookingAccess = async ({
+  userId,
+  globalRoles = [],
+  restaurantId,
+  headerBranchId,
+  mode = "view",
+}) => {
+  if (!userId) {
+    const err = new Error("Authentication required");
+    err.statusCode = 401;
+    err.code = "AUTHENTICATION_REQUIRED";
+    throw err;
+  }
+
+  if (!restaurantId || !mongoose.Types.ObjectId.isValid(String(restaurantId))) {
+    const err = new Error("Invalid restaurant or branch identifier.");
+    err.statusCode = 400;
+    err.code = "INVALID_BRANCH_ID";
+    throw err;
+  }
+
+  const requestedId = String(restaurantId);
+  if (headerBranchId && String(headerBranchId) !== requestedId) {
+    const err = new Error(
+      "Branch mismatch: you can only access reservations for the currently selected branch."
+    );
+    err.statusCode = 403;
+    err.code = "BRANCH_MISMATCH";
+    throw err;
+  }
+
+  const isGlobalAdmin = globalRoles.some((r) => PLATFORM_ADMIN_ROLES.includes(r));
+  if (isGlobalAdmin) return { isGlobalAdmin: true, membership: null };
+
+  const membership = await BranchMembership.findOne({
+    user: userId,
+    branch: restaurantId,
+    status: "active",
+  });
+
+  if (!membership) {
+    const err = new Error("Access Denied: No active membership for this branch.");
+    err.statusCode = 403;
+    err.code = "NO_BRANCH_MEMBERSHIP";
+    throw err;
+  }
+
+  const canView =
+    hasPermission(membership, "MANAGE_BOOKINGS") ||
+    hasPermission(membership, "VIEW_BOOKINGS") ||
+    hasPermission(membership, "MANAGE_RESERVATIONS");
+
+  const canManage =
+    hasPermission(membership, "MANAGE_BOOKINGS") ||
+    hasPermission(membership, "MANAGE_RESERVATIONS");
+
+  if (mode === "manage" ? !canManage : !canView) {
+    const err = new Error("Access Denied: Insufficient permissions to access reservations.");
+    err.statusCode = 403;
+    err.code = "INSUFFICIENT_PERMISSIONS";
+    throw err;
+  }
+
+  return { isGlobalAdmin: false, membership };
+};
+
+const serializeStaffBooking = (booking) => {
+  const rawUser = booking.userId && typeof booking.userId === "object" ? booking.userId : null;
+  const user = rawUser
+    ? {
+        _id: rawUser._id,
+        name: rawUser.name || null,
+        email: rawUser.email || null,
+        phone: rawUser.phone?.e164 || (typeof rawUser.phone === "string" ? rawUser.phone : null),
+      }
+    : null;
+
+  return {
+    _id: booking._id,
+    restaurantId: booking.restaurantId?._id || booking.restaurantId,
+    date: booking.date,
+    time: booking.time,
+    guests: booking.guests,
+    status: booking.status,
+    paymentStatus: booking.paymentStatus,
+    paymentMethod: booking.paymentMethod,
+    specialRequests: booking.specialRequests || "",
+    tableId: booking.tableId,
+    tableName: booking.tableName,
+    tables: booking.tables || [],
+    sectionLabel: booking.sectionLabel,
+    floorLabel: booking.floorLabel,
+    grandTotal: booking.grandTotal,
+    currency: booking.currency,
+    cancellationReason: booking.cancellationReason || "",
+    createdAt: booking.createdAt,
+    userId: user,
+    user,
+  };
+};
 
 /**
  * Check phone verification across all schema locations
@@ -614,25 +718,42 @@ export const cancelBookingService = async (bookingId, userId, reason = "") => {
 
 /**
  * 7. GET RESTAURANT BOOKINGS FOR STAFF / OWNER DASHBOARD
+ * restaurantId is the RestaurantBranch _id stored on Booking.restaurantId.
  */
-export const getRestaurantBookingsService = async (restaurantId, query = {}) => {
+export const getRestaurantBookingsService = async (restaurantId, query = {}, actor = {}) => {
+  await assertBranchBookingAccess({
+    userId: actor.userId,
+    globalRoles: actor.globalRoles || [],
+    restaurantId,
+    headerBranchId: actor.headerBranchId,
+    mode: "view",
+  });
+
   const filter = { restaurantId };
-  if (query.date) filter.date = query.date;
+  if (query.from && query.to) {
+    filter.date = { $gte: query.from, $lte: query.to };
+  } else if (query.date) {
+    filter.date = query.date;
+  }
   if (query.status) filter.status = query.status;
 
-  return Booking.find(filter)
+  const bookings = await Booking.find(filter)
+    .select("-razorpaySignature -razorpayPaymentId -qrCode.token -qrCode.tokenHash")
     .populate({
       path: "userId",
+      model: "User",
       select: "name email phone",
     })
     .sort({ date: 1, time: 1 })
     .lean();
+
+  return bookings.map(serializeStaffBooking);
 };
 
 /**
  * 8. UPDATE BOOKING STATUS (Staff/Admin)
  */
-export const updateBookingStatusService = async (bookingId, status) => {
+export const updateBookingStatusService = async (bookingId, status, actor = {}) => {
   const validStatuses = ["confirmed", "checked_in", "completed", "cancelled", "no_show"];
   if (!validStatuses.includes(status)) {
     const err = new Error(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
@@ -647,14 +768,67 @@ export const updateBookingStatusService = async (bookingId, status) => {
     throw err;
   }
 
+  await assertBranchBookingAccess({
+    userId: actor.userId,
+    globalRoles: actor.globalRoles || [],
+    restaurantId: booking.restaurantId,
+    headerBranchId: actor.headerBranchId,
+    mode: "manage",
+  });
+
+  const previousStatus = booking.status;
   booking.status = status;
+  if (status === "cancelled") {
+    booking.cancelledAt = new Date();
+    if (!booking.cancellationReason) {
+      booking.cancellationReason = "Cancelled by restaurant";
+    }
+  }
   await booking.save();
 
-  if (status === "cancelled" || status === "completed") {
+  const tableIds =
+    booking.tables?.length > 0
+      ? booking.tables.map((t) => t.tableId)
+      : [booking.tableId].filter(Boolean);
+
+  if (status === "cancelled" || status === "completed" || status === "no_show") {
     await TableLock.updateMany({ booking: booking._id }, { status: "expired" });
+    emitTableAvailabilityChanged({
+      restaurantId: booking.restaurantId,
+      date: booking.date,
+      time: booking.time,
+      tableIds,
+      status: "available",
+    });
   }
 
-  return booking;
+  if (status === "cancelled") {
+    emitBookingCancelled({
+      restaurantId: booking.restaurantId,
+      userId: booking.userId,
+      bookingId: booking._id,
+      tableIds,
+      date: booking.date,
+      time: booking.time,
+    });
+  } else if (status !== previousStatus) {
+    emitBookingConfirmed({
+      restaurantId: booking.restaurantId,
+      userId: booking.userId,
+      booking,
+    });
+  }
+
+  const populated = await Booking.findById(booking._id)
+    .select("-razorpaySignature -razorpayPaymentId -qrCode.token -qrCode.tokenHash")
+    .populate({
+      path: "userId",
+      model: "User",
+      select: "name email phone",
+    })
+    .lean();
+
+  return serializeStaffBooking(populated);
 };
 
 /**
